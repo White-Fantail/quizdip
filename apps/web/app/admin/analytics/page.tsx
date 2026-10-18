@@ -24,8 +24,8 @@ function pp(current: number | null, previous: number | null) {
   const n = (current - previous) * 100;
   return (n > 0 ? "+" : "") + n.toFixed(1) + "pp";
 }
-function RankTable({ kind, items, tr, locale }: {
-  kind: "packs" | "questions"; items: RankRow[];
+function RankTable({ kind, items, hasPrevious, tr, locale }: {
+  kind: "packs" | "questions"; items: RankRow[]; hasPrevious: boolean;
   tr: (en: string, ko: string) => string; locale: "ko" | "en";
 }) {
   return <section className="section review-console" style={{ marginTop: 24 }}>
@@ -57,7 +57,7 @@ function RankTable({ kind, items, tr, locale }: {
             <td style={{ padding: 12, textAlign: "right" }}>{count(item.completed)}</td>
             <td style={{ padding: 12, textAlign: "right" }}>{percent(item.completionRate)}</td>
             <td style={{ padding: 12, textAlign: "right" }}>{percent(item.accuracy)}</td>
-            <td style={{ padding: 12, textAlign: "right" }}>{item.previous === 0 && item.plays > 0
+            <td style={{ padding: 12, textAlign: "right" }}>{hasPrevious && item.previous === 0 && item.plays > 0
               ? tr("New", "신규") : diff(item.growth)}</td>
           </tr>,
         )}</tbody>
@@ -179,8 +179,8 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
           </div>)}
       </div> : <p className="muted">{tr("No play starts in this period.", "이 기간에 시작된 플레이가 없습니다.")}</p>}
     </section>
-    <RankTable kind="packs" items={data.packs} tr={tr} locale={locale}/>
-    <RankTable kind="questions" items={data.questions} tr={tr} locale={locale}/>
+    <RankTable kind="packs" items={data.packs} hasPrevious={!!filters.previousStart} tr={tr} locale={locale}/>
+    <RankTable kind="questions" items={data.questions} hasPrevious={!!filters.previousStart} tr={tr} locale={locale}/>
     <p className="muted" style={{ marginTop: 24, fontSize: 12 }}>
       {tr("Each new run counts once; resuming does not add a start. Question exposures count sessions opened, and accuracy excludes unfinished answers. Completion is measured for runs started in the period, including those completed later. Unique players include only identifiable accounts/child profiles (anonymous plays cannot be deduplicated). Ranking rates require at least five plays/answers; growth is unavailable when there is no prior baseline.",
         "플레이는 새로 생성된 실행 기록마다 1회이며 이어하기는 중복 집계되지 않습니다. 문제 노출은 실제 시작된 문제 세션 기준이고 정답률은 미완료 풀이를 제외합니다. 완료율은 선택 기간에 시작된 플레이가 현재까지 완료됐는지 기준입니다. 고유 플레이어는 식별 가능한 계정·아동 프로필만 포함하며 비회원은 중복 식별할 수 없습니다. 비율 정렬은 최소 5회 이상의 기록을 대상으로 하며 직전 기록이 0이면 증가율을 계산하지 않습니다.")}
