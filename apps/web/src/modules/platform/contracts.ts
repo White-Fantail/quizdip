@@ -97,7 +97,7 @@ const optionalLocale = localeCode.default("en");
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
-  catalog: { public: true, description: "Supported game modes, clue rules, answer-first multiple-choice, optional explanations, pack chapters, images, endings and score reviews", schema: z.object({}) },
+  catalog: { public: true, description: "Supported game modes, question authoring, pack chapters, endings, score reviews, and complete language-pack translation capabilities", schema: z.object({}) },
   topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), locale: optionalLocale, kids: z.boolean().default(false) }) },
   quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), locale: optionalLocale, mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
   quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid, locale: optionalLocale }) },
@@ -161,7 +161,7 @@ export const operations = {
   }).refine(p=>!["RESTRICTED","KIDS_REJECTED"].includes(p.verdict)||p.reason.length>=5,{
     path:["reason"],message:"Restrictions and Kids rejections require at least 5 characters"
   }) },
-  pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
+  pack_languages: { public:false, description:"List owned pack localization including chapter, ending and score-band translations and question-language coverage", schema:z.object({id:uuid}) },
   pack_translation_upsert: { public:false, description:"Save/publish full pack translation: title, description, chapter text, ending, and score bands; preserves source media and thresholds", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),sections:translatedPackSectionsSchema.optional(),closingMessage:z.string().trim().max(4000).optional(),scoreReviews:scoreReviewsSchema.optional(),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
   pack_language_set: { public: false, description: "Confirm original language of an unclassified legacy pack", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   pack_get: { public:true, description:"Get a published localized quiz pack without revealing answers", schema:z.object({id:uuid,locale:optionalLocale}) },
