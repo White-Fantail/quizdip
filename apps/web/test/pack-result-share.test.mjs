@@ -28,7 +28,9 @@ test("result image contains the pack title and scored outcome, not answer keys o
 
 test("a single result link share works through native Web Share or clipboard fallback", () => {
   const component = read("src/components/pack-result-share.tsx");
-  assert.match(component, /navigator\.share\(\{ url \}\)/);
+  assert.match(component, /navigator\.share\(isIOS \? \{ text: url \} : \{ url \}\)/);
+  assert.match(component, /iPhone\|iPad\|iPod/);
+  assert.doesNotMatch(component, /navigator\.share\(\{ url \}\)/);
   assert.match(component, /navigator\.clipboard\.writeText\(url\)/);
   assert.match(component, /anchor\.download = asset\.file\.name/);
   assert.match(component, /error\.name === "AbortError"/);
@@ -60,7 +62,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(history.includes("<PackResultShare"));
   assert.ok(history.includes("PAGE_SIZE"));
   assert.ok(social.includes("shareResult()"));
-  assert.ok(social.includes("navigator.share({ url })"));
+  assert.ok(social.includes("navigator.share(isIOS ? { text: url } : { url })"));
   assert.ok(!social.includes("publicResultSharePayload"));
   assert.ok(!social.includes("shareSocial("));
   assert.ok(og.includes("summary_large_image"));
