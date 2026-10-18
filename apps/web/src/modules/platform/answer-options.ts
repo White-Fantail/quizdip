@@ -23,3 +23,15 @@ export function publicAnswerFormat(value: unknown, sessionId: string): { respons
   return { responseMode, ...(responseMode === "multiple-choice"
     ? { options: disclosedAnswerChoices(value, sessionId) } : {}) };
 }
+
+/** Preserve only an authored, validated option (never arbitrary free-text guesses).
+ * Use the immutable pinned revision so later edits cannot relabel older votes.
+ * Null means the question used text input or the submitted option was invalid.
+ */
+export function firstAuthoredChoice(value: unknown, guess: unknown): string | null {
+  if (answerResponseMode(value) !== "multiple-choice" ||
+      typeof guess !== "string" || !Array.isArray((value as Answer).options)) return null;
+  const key = (text: string) => text.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  const result = (value as Answer).options!.find(option => key(option) === key(guess));
+  return result ?? null;
+}
