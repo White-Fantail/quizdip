@@ -188,9 +188,6 @@ export default function PackResultShare({ packId, title, score, completed, solve
     }
   }
 
-  const shareText = korean
-    ? `퀴즈딥에서 「${title}」 도전 완료! ${score}점 · ${solved}/${completed} 정답. 당신도 도전해 보세요!`
-    : `I finished "${title}" on QuizDip! ${score} points · ${solved}/${completed} correct. Try it yourself!`;
   function downloadImage() {
     if (!asset) return;
     const anchor = document.createElement("a");
