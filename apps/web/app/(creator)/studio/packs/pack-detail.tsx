@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useEffect,useState} from "react";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
+import PackTranslationEditor from "./pack-translation-editor";
 
 type Member={id:string;title:string;publication?:string;safetyStatus?:string;ownedByCreator?:boolean};
 type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;
@@ -134,6 +135,8 @@ export default function PackDetail({packId,backHref,editHref}:{packId:string;bac
           (pack.excludedCount+" question(s) are temporarily excluded from General play; they remain in the pack.")}
       </p>}
     </section>
+
+    {["en","ko"].includes(pack.sourceLocale)&&<PackTranslationEditor packId={pack.id} sourceLocale={pack.sourceLocale}/>}
 
     <section className="placeholder-panel">
       <div className="studio-section-head">
