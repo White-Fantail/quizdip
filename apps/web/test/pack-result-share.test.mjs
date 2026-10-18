@@ -26,13 +26,15 @@ test("result image contains the pack title and scored outcome, not answer keys o
   assert.match(component, /publicResultUrl/);
 });
 
-test("Web Share includes quiz pack URL with portable image, plus explicit save and copy fallbacks", () => {
+test("a single result link share works through native Web Share or clipboard fallback", () => {
   const component = read("src/components/pack-result-share.tsx");
-  assert.match(component, /navigator\.canShare\?\.\(\{ files: \[asset\.file\] \}\)/);
-  assert.match(component, /navigator\.share\(\{ title: title \+ " · QuizDip", text: shareText, url, files: \[asset\.file\] \}\)/);
+  assert.match(component, /navigator\.share\(\{ url \}\)/);
   assert.match(component, /navigator\.clipboard\.writeText\(url\)/);
   assert.match(component, /anchor\.download = asset\.file\.name/);
   assert.match(component, /error\.name === "AbortError"/);
+  assert.doesNotMatch(component, /navigator\.canShare|navigator\.share\(\{[^}]*files:/);
+  assert.doesNotMatch(component, /shareSocial|shareInstagram|Facebook ↗|Instagram ↗|socialReadyFor/);
+  assert.equal((component.match(/onClick=\{\(\) => void shareResult\(\)\}/g) || []).length, 1);
   assert.match(component, /"ko"/);
   assert.match(component, /"en-US"/);
 });
@@ -57,10 +59,10 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(history.includes("createShareId={async"));
   assert.ok(history.includes("<PackResultShare"));
   assert.ok(history.includes("PAGE_SIZE"));
-  assert.ok(social.includes('shareSocial("facebook")'));
-  assert.ok(social.includes('shareSocial("x")'));
-  assert.ok(social.includes("shareInstagram"));
-  assert.ok(social.includes("window.open"));
+  assert.ok(social.includes("shareResult()"));
+  assert.ok(social.includes("navigator.share({ url })"));
+  assert.ok(!social.includes("publicResultSharePayload"));
+  assert.ok(!social.includes("shareSocial("));
   assert.ok(og.includes("summary_large_image"));
   assert.ok(og.includes("openGraph"));
   assert.ok(img.includes("ImageResponse"));
@@ -68,12 +70,11 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(route.includes("resultOgImage"));
   assert.match(proxy,/results.*og/);
   assert.ok(og.includes("/og?v=4"));
-  assert.match(social, /facebookUrl\.searchParams\.set\("preview",\s*"4"\)/);
   assert.ok(og.includes('url:url+"?preview=4"'));
   assert.ok(img.includes("sharp("));
   assert.ok(img.includes("image.arrayBuffer()"));
   assert.equal((social.match(/Copy pack link/g)||[]).length,0);
-  assert.ok(social.includes("copyResultLink()"));
+  assert.ok(social.includes("publicResultUrl()"));
 });
 
 test("result publication is reversible and gated by completed pack and owner", () => {
