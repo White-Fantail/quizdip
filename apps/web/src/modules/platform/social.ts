@@ -176,16 +176,25 @@ export async function packFunReview(p:Record<string,any>,actor:Actor|null) {
         select:{currentVersion:true,publishedVersion:true,status:true}}}
   }):[];
   const byId=new Map(questions.map(q=>[q.id,q]));
-  const revisions=ids.length?await db().quizRevision.findMany({
-    where:{quizId:{in:ids},localization:{locale:pack.sourceLocale}},
+  // Select only revisions this pack owner is authorized to inspect. In particular,
+  // other creators' current *drafts* must not be queried or exposed.
+  const readableVersions=new Map<string,number>();
+  for(const id of ids){
+    const q=byId.get(id),loc=q?.localizations[0];
+    if(!q||!loc)continue;
+    if(q.authorId===owner.id)readableVersions.set(id,loc.currentVersion);
+    else if(q.publication==="PUBLISHED"&&loc.status==="PUBLISHED"&&loc.publishedVersion!=null)
+      readableVersions.set(id,loc.publishedVersion);
+  }
+  const revisions=readableVersions.size?await db().quizRevision.findMany({
+    where:{OR:Array.from(readableVersions,([quizId,version])=>({
+      quizId,version,localization:{locale:pack.sourceLocale}
+    }))},
     select:{quizId:true,version:true,title:true,prompt:true,explanation:true,answer:true,clues:true}
   }):[];
   const revisionByKey=new Map(revisions.map(r=>[r.quizId+":"+r.version,r]));
   const loaded=ids.map(id=>{
-    const q=byId.get(id),loc=q?.localizations[0];
-    const allowed=q && (q.authorId===owner.id ||
-      (q.publication==="PUBLISHED" && loc?.status==="PUBLISHED"));
-    const version=allowed?(q!.authorId===owner.id?loc?.currentVersion:loc?.publishedVersion):null;
+    const version=readableVersions.get(id);
     const revision=version==null?undefined:revisionByKey.get(id+":"+version);
     return revision?{id,title:revision.title,prompt:revision.prompt,explanation:revision.explanation,
       answer:revision.answer,clues:revision.clues,loaded:true}:{id,loaded:false};
