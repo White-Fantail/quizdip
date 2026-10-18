@@ -209,13 +209,16 @@ model EditorialFeature {
 }
 
 model QuizPackLocalization {
-  id          String   @id @default(uuid())
-  packId      String
-  pack        QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
-  locale      String
-  title       String
-  description String   @default("")
-  status      String   @default("DRAFT")
+  id             String   @id @default(uuid())
+  packId         String
+  pack           QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  locale         String
+  title          String
+  description    String   @default("")
+  sections       Json     @default("[]")
+  closingMessage String   @default("")
+  scoreReviews   Json     @default("[]")
+  status         String   @default("DRAFT")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@unique([packId, locale])

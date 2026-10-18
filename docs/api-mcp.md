@@ -126,7 +126,10 @@ Public UI routes are /en/... and /ko/... through Next.js proxy rewrites. REST, M
 All actions require creator authentication; media identifiers and clue structure must match the source.
 
 | GET /packs/:id/languages | quizdip_pack_languages | List pack languages and completion status |
-| PUT /packs/:id/languages/:locale | quizdip_pack_translation_upsert | Save translated pack title/description, optionally publish with `confirm:true` when all questions are available |
+| PUT /packs/:id/languages/:locale | quizdip_pack_translation_upsert | Save translated pack `title`, `description`, optional `sections` (`start`, `title`, `description`), `closingMessage`, `scoreReviews` (`minimumScore`, `title`, `description`); publish with `confirm:true` when every question and story text is complete |
+
+Pack language versions store their own chapter copy, ending and score reviews. Chapter `start` boundaries, source media references and score `minimumScore` thresholds must match the original; translation inputs cannot replace media or restructure score bands. Existing older language records without these fields use language-specific generic part labels and omit untranslated ending/score text rather than exposing English content in a Korean session. `quizdip_pack_languages` returns the editable localized fields for the owner. The matching REST operation uses the same service and validation; the creator pack detail screen provides the same editor. Migration `20261018194000_pack_full_localizations` adds the fields and completes the Korean Elon Musk pack copy.
+
 
 ## Phase 4 — reactions & analytics
 | REST | MCP | New behavior |
