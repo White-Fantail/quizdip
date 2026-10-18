@@ -23,6 +23,12 @@ export default async function AdminPage() {
     <section className="container inner-page management-page">
       <ManagementHeader eyebrow="QUIZDIP ADMIN" title={msg("Admin dashboard","관리자 대시보드")} description={msg("Manage content safety and platform operations.","콘텐츠 안전성과 플랫폼 운영 기능을 관리할 수 있어요.")}/>
       <div className="cards management-link-grid">
+        <Link href={localizeHref("/admin/analytics",locale)} className="feature-card">
+          <span className="symbol mint" aria-hidden="true">▥</span>
+          <h2>{msg("Content analytics","콘텐츠 분석")}</h2>
+          <p>{msg("Compare play starts, popular quiz packs and questions, completion and answer accuracy across periods, languages and Kids.","기간·언어·Kids별 인기 퀴즈팩과 문제, 플레이·완료율·정답률을 분석해요.")}</p>
+          <span className="card-link">{msg("Explore analytics →","콘텐츠 통계 보기 →")}</span>
+        </Link>
         <Link href={localizeHref("/admin/directory",locale)} className="feature-card">
           <span className="symbol mint" aria-hidden="true">▤</span>
           <h2>{msg("Platform directory","운영 데이터 조회")}</h2>
