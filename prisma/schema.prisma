@@ -294,6 +294,7 @@ model PlaySession {
   @@index([userId, status, score])
   @@index([userId, status, finishedAt])
   @@index([status, finishedAt])
+  @@index([startedAt])
 }
 
 model Review {
@@ -460,6 +461,7 @@ model PlayRun {
   kidOwnership KidPlayRun?
   @@index([userId, startedAt])
   @@index([packId, status, startedAt])
+  @@index([startedAt])
 }
 
 model PlayRunQuestion {
