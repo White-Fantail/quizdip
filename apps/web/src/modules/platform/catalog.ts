@@ -2,7 +2,7 @@
  * Public authoring capabilities advertised to REST and MCP consumers.
  * Keep limits and optional fields aligned with operations in contracts.ts.
  */
-import { funRubric } from "./fun-review";
+import { funRubric } from "./fun-review.ts";
 
 export const platformCatalog = {
   modes: ["progressive-clues"],
