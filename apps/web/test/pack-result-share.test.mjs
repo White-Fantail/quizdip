@@ -67,7 +67,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(!social.includes("publicResultSharePayload"));
   assert.ok(!social.includes("shareSocial("));
   assert.ok(og.includes("publicResultMetadata({"));
-  assert.ok(og.includes("publicResultOrigin(process.env)"));
+  assert.ok(og.includes("publicResultOrigin({"));
   assert.ok(metadata.includes("summary_large_image"));
   assert.ok(metadata.includes("openGraph"));
   assert.ok(img.includes("ImageResponse"));
