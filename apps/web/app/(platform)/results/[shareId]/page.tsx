@@ -23,7 +23,12 @@ export async function generateMetadata({params}:{params:Promise<{shareId:string}
     score:result.score,
     completed:result.completed,
     solved:result.solved,
-    origin:publicResultOrigin(process.env),
+    origin:publicResultOrigin({
+      VERCEL_ENV:process.env.VERCEL_ENV,
+      VERCEL_URL:process.env.VERCEL_URL,
+      PUBLIC_ORIGIN:process.env.PUBLIC_ORIGIN,
+      VERCEL_PROJECT_PRODUCTION_URL:process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    }),
   });
 }
 
