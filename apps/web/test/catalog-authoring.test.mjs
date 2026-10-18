@@ -52,3 +52,34 @@ test("MCP server exposes the exact shared contracts and catalog implementation",
   assert.equal(platformCatalog.quizAuthoring.explanation.maxLength,4000);
   assert.equal(parseOperation("quiz_update",{id:uuid,expectedVersion:1,explanation:"Context"}).explanation,"Context");
 });
+
+test("catalog and MCP contracts advertise all independently translated pack fields",()=>{
+  const info=platformCatalog.packLocalization;
+  assert.equal(platformCatalog.version,"v3");
+  assert.equal(platformCatalog.catalogRevision,"2026-10-18-pack-full-localizations");
+  assert.deepEqual(info.supportedLocales,["en","ko"]);
+  assert.deepEqual(info.supportedOperations,["pack_languages","pack_translation_upsert"]);
+  assert.deepEqual(info.fields.sections.fields,["start","title","description"]);
+  assert.equal(info.fields.sections.acceptsMediaId,false);
+  assert.equal(info.fields.sections.matchesOriginalStartPositions,true);
+  assert.equal(info.fields.closingMessage.requiredForPublishingWhenPresentInSource,true);
+  assert.deepEqual(info.fields.scoreReviews.fields,["minimumScore","title","description"]);
+  assert.equal(info.fields.scoreReviews.originalMinimumScoresPreserved,true);
+  assert.equal(info.publication.requiresCompleteQuestionLanguageCoverage,true);
+  assert.equal(info.publication.missingLanguageNeverFallsBackToSourceText,true);
+  assert.ok(operations.pack_translation_upsert.description.includes("ending"));
+  const translated=parseOperation("pack_translation_upsert",{
+    id:uuid,locale:"ko",title:"제목",description:"소개",
+    sections:[{start:1,title:"첫 번째 파트",description:"내용"}],
+    closingMessage:"마무리 인사",
+    scoreReviews:[{minimumScore:0,title:"첫걸음",description:"잘했어요"}],
+    status:"PUBLISHED",confirm:true
+  });
+  assert.equal(translated.sections[0].title,"첫 번째 파트");
+  assert.equal(translated.closingMessage,"마무리 인사");
+  assert.equal(translated.scoreReviews[0].description,"잘했어요");
+  assert.throws(()=>parseOperation("pack_translation_upsert",{
+    id:uuid,locale:"ko",title:"제목",
+    sections:[{start:1,title:"첫 번째 파트",mediaId:uuid}]
+  }));
+});
