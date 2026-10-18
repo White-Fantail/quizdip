@@ -7,7 +7,7 @@ export const LOCAL_RUN_PREFIX = "quizdip-local-play-v1:";
 
 export type CachedProgress = {
   clueIndex:number;wrongGuesses:number;status:"ACTIVE"|"SOLVED"|"FAILED";
-  score:number;mustReveal:boolean;
+  score:number;mustReveal:boolean;firstChoice?:string;
 };
 export type CachedRun = {
   bundle:{runId:string;questions:{position:number}[]};
@@ -15,7 +15,7 @@ export type CachedRun = {
   runToken:string;synced?:boolean;verified?:boolean;
 };
 export type CompletedResult = {
-  position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number
+  position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number;firstChoice?:string
 };
 export type SyncReceipt = {
   runId:string;completed:number;solved:number;failed:number;score:number;
@@ -61,7 +61,8 @@ export function cachedCompletedResults(saved:CachedRun):CompletedResult[] {
     if(!Number.isInteger(progress.clueIndex)||progress.clueIndex<0||progress.clueIndex>15||
        !Number.isFinite(progress.score))continue;
     results.push({position,cluesUsed:progress.clueIndex,status:progress.status,
-      score:progress.status==="SOLVED"?Math.min(100,Math.max(0,Math.round(progress.score))):0});
+      score:progress.status==="SOLVED"?Math.min(100,Math.max(0,Math.round(progress.score))):0,
+      ...(typeof progress.firstChoice==="string" ? {firstChoice:progress.firstChoice} : {})});
   }
   return results.sort((a,b)=>a.position-b.position).slice(0,100);
 }
