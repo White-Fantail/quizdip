@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { evaluatePackFun } from "./fun-review";
+import { evaluatePackFun } from "./fun-review.ts";
 import { previewUrl } from "./storage";
 import { requirePublishingPermission, assertPublishingAllowedInTx, submitReport } from "./moderation";
 import { validateMediaReferences } from "./media";
