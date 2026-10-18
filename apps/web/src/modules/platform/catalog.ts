@@ -2,6 +2,8 @@
  * Public authoring capabilities advertised to REST and MCP consumers.
  * Keep limits and optional fields aligned with operations in contracts.ts.
  */
+import { funRubric } from "./fun-review";
+
 export const platformCatalog = {
   modes: ["progressive-clues"],
   answerTypes: ["person", "animal", "place", "thing", "event", "concept", "other"],
@@ -32,6 +34,7 @@ export const platformCatalog = {
       textAnswerStillRequiresClue: true,
     },
   },
+  funQuality: funRubric,
   packAuthoring: {
     maxQuestions: 100,
     description: { optional: true, maxLength: 2000, preservesNewlines: true },
@@ -101,6 +104,6 @@ export const platformCatalog = {
   editorialPicks: "ACTIVE",
   packOrderModes: ["CREATOR", "RANDOM"],
   version: "v3",
-  catalogRevision: "2026-10-18-pack-full-localizations",
+  catalogRevision: "2026-10-19-editorial-fun-rubric",
   format: "progressive-clues",
 };

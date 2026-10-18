@@ -89,6 +89,7 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "packs" && b && c === "reports" && !d && method==="POST")
     return {op:"pack_report_create",args:{id:b}};
   if (a === "packs" && b && c === "preflight" && !d && method === "GET") return { op:"pack_preflight", args:{id:b} };
+  if (a === "packs" && b && c === "fun-review" && !d && method === "GET") return { op:"pack_fun_review", args:{id:b} };
   if (a === "packs" && b && c === "publish-preview" && method === "GET") return {op:"pack_publish_preview",args:{id:b}};
   if (a === "packs" && b && c === "publish" && method === "POST") return {op:"pack_publish",args:{id:b}};
   if (a === "packs" && b && c === "kids-request" && !d && method === "POST") return {op:"pack_kids_request",args:{id:b}};

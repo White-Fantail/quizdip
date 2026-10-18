@@ -25,3 +25,7 @@ Start from a creator's short natural-language intent. Generate the answer and it
 After publishing, use play and creator signals to improve: correctness after each clue, number of clues revealed, completion and abandonment, time to answer, ambiguity/error reports, likes and dislikes. Unexpectedly high early accuracy can suggest giveaway clues; a sudden large jump between clue steps suggests sequencing trouble. These are review signals, **not automatic grounds for deletion**. When answer or clue substance changes, version the quiz and keep historic scores tied to the old version.
 
 See [product principles](product-principles.md), [content policy](content-policy.md), [quiz metadata](quiz-metadata.md) and [play modes](play-modes.md).
+
+## Editorial fun quality (all creator interfaces)
+
+Before authoring, consult `quizdip_catalog.funQuality` via REST/MCP. Its 100 editorial points cover opening curiosity (20), accurate surprise/discovery (25), plausible and uniquely defensible choices or fair clues (15), variety/pacing (20), and a memorable ending (20). These are questions for an agent or editor, not objective measurements. A score may be assigned after substantive reading, but the server intentionally returns no artificial score. Pack draft/preflight/preview operations return non-blocking diagnostics and a standalone `pack_fun_review` allows a safe read-only follow-up. Never force joke content, four options, a long introduction or story chapters when it harms the content's intended audience or learning goal.

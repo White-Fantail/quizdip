@@ -10,7 +10,7 @@ import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest
 import { playStart, playClue, playGuess, playReview } from "./play";
 import { localRunBundle,localRunSync,localRunMedia,localSingleBundle,localSingleStart,localSingleSync,localSingleMedia } from "./local-play";
 import { runStart,runCurrent,runFinish,runHistory,runReconcile,runFeedback,runShare,runUnshare,runShareGet } from "./runs";
-import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
+import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packFunReview, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
 import { discoverSections } from "./discovery";
@@ -60,6 +60,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "my_pack_get": return myPackGet(p,actor);
     case "pack_list": return packList(p, actor);
     case "pack_preflight": return packPreflight(p,actor);
+    case "pack_fun_review": return packFunReview(p,actor);
     case "pack_create": return packCreate(p, actor);
     case "pack_language_set": return packLanguageSet(p, actor);
     case "pack_languages": return packLanguages(p,actor);
