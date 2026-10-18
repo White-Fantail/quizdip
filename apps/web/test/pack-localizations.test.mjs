@@ -37,7 +37,7 @@ test("localized pack fields are saved independently and projected onto the origi
     assert.match(social,new RegExp("localized\\."+field));
   }
   assert.match(social,/validateTranslatedPackStructure/);
-  assert.match(social,/part\.start===section\.start/);
+  assert.match(social,/candidate\.start===part\.start/);
   assert.match(social,/translated_section_mismatch/);
   assert.match(social,/translated_score_mismatch/);
   assert.match(social,/incomplete_pack_translation/);
