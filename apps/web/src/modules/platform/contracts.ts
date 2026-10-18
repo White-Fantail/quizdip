@@ -291,7 +291,7 @@ export const operations = {
   local_run_sync: {public:true,description:"Store locally completed run rounds idempotently",schema:z.object({
     runId:uuid,runToken:z.string().min(32).max(200),results:z.array(z.object({
       position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(0).max(15),
-      status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+      status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100),firstChoice:z.string().trim().min(1).max(200).optional()
     })).max(100)
   })},
   local_run_media: {public:true,description:"Get a short-lived URL for media in my downloaded run",schema:z.object({
@@ -304,7 +304,7 @@ export const operations = {
   local_single_bundle: {public:true,description:"Resume a downloaded single question",schema:z.object({...session})},
   local_single_sync: {public:true,description:"Store a locally completed single question",schema:z.object({
     ...session,cluesUsed:z.number().int().min(0).max(15),
-    status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+    status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100),firstChoice:z.string().trim().min(1).max(200).optional()
   })},
   local_single_media: {public:true,description:"Get media for any clue of my local single question",schema:z.object({
     ...session,mediaId
