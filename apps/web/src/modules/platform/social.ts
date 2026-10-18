@@ -11,7 +11,29 @@ import { fail, requireActor, type Actor } from "./auth";
 import { playableQuizWhere } from "./content-locale";
 
 type PackSection={start:number;title:string;description?:string;mediaId?:string|null};
+type LocalizedPackSection=Pick<PackSection,"start"|"title"|"description">;
 type ScoreReview={minimumScore:number;title:string;description?:string};
+function translatedSections(input:unknown):LocalizedPackSection[]{
+  return (Array.isArray(input)?input:[]) as LocalizedPackSection[];
+}
+function translatedReviews(input:unknown):ScoreReview[]{
+  return (Array.isArray(input)?input:[]) as ScoreReview[];
+}
+/** A translation can change wording, never chapter boundaries or score thresholds. */
+function validateTranslatedPackStructure(
+  sourceSections:PackSection[],sourceReviews:ScoreReview[],
+  localSections:LocalizedPackSection[],localReviews:ScoreReview[],requireComplete=false
+){
+  if(localSections.length && (localSections.length!==sourceSections.length||
+    localSections.some((part,i)=>part.start!==sourceSections[i].start)))
+    fail(422,"translated_section_mismatch","Translated chapters must match original chapter boundaries");
+  if(localReviews.length && (localReviews.length!==sourceReviews.length||
+    localReviews.some((band,i)=>band.minimumScore!==sourceReviews[i].minimumScore)))
+    fail(422,"translated_score_mismatch","Translated score bands must keep original score thresholds");
+  if(requireComplete && (localSections.length!==sourceSections.length||
+    localReviews.length!==sourceReviews.length))
+    fail(409,"incomplete_pack_translation","Translate every chapter and score band before publishing");
+}
 /** Sections are one-based boundaries within creator order; no new gameplay mode. */
 function checkPackSections(input:unknown, count:number,orderMode:string):PackSection[]{
   const sections=(Array.isArray(input)?input:[]) as PackSection[];
@@ -180,7 +202,9 @@ export async function packCreate(p: Record<string, any>, actor: Actor | null) {
       coverMediaId:p.coverMediaId ?? null,sections:p.sections ?? [],
       closingMessage:p.closingMessage ?? "",scoreReviews:p.scoreReviews ?? [],
       sourceLocale: p.locale,orderMode:p.orderMode,
-      localizations: { create: { locale: p.locale, title: p.title, description: p.description, status: "DRAFT" } },
+      localizations: { create: { locale: p.locale, title: p.title, description: p.description,
+        sections:(p.sections??[]).map(({start,title,description}:PackSection)=>({start,title,description:description??""})),
+        closingMessage:p.closingMessage??"",scoreReviews:p.scoreReviews??[],status: "DRAFT" } },
       items: { create: p.quizIds.map((quizId: string, index: number) => ({ quizId, position: index + 1 })) } },
     include: { items: { orderBy: { position: "asc" } } }
   });
@@ -304,16 +328,30 @@ export async function packLanguages(p:Record<string,any>,actor:Actor|null) {
     })===ids.length
   })));
   return {id:pack.id,sourceLocale:pack.sourceLocale,publication:pack.publication,
-    languages:pack.localizations.map(l=>({locale:l.locale,status:l.status,title:l.title,description:l.description})),
+    languages:pack.localizations.map(l=>({locale:l.locale,status:l.status,title:l.title,description:l.description,
+      sections:l.locale===pack.sourceLocale?pack.sections:l.sections,
+      closingMessage:l.locale===pack.sourceLocale?pack.closingMessage:l.closingMessage,
+      scoreReviews:l.locale===pack.sourceLocale?pack.scoreReviews:l.scoreReviews})),
     coverage};
 }
 export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
-    include:{items:true}});
+    include:{items:true,localizations:{where:{locale:p.locale}}}});
   if(!pack)fail(404,"not_found","Owned pack not found");
   if(pack.sourceLocale==="und" || pack.sourceLocale===p.locale)
     fail(409,"invalid_translation_language","Classify the original pack and select another language");
+
+  const sourceSections=checkPackSections(pack.sections,pack.items.length,pack.orderMode);
+  const sourceReviews=checkScoreReviews(pack.scoreReviews);
+  const previous=pack.localizations[0];
+  const sections=translatedSections(p.sections??previous?.sections);
+  const scoreReviews=translatedReviews(p.scoreReviews??previous?.scoreReviews);
+  const closingMessage=p.closingMessage??previous?.closingMessage??"";
+  validateTranslatedPackStructure(sourceSections,sourceReviews,sections,scoreReviews,p.status==="PUBLISHED");
+  if(p.status==="PUBLISHED" && pack.closingMessage && !closingMessage.trim())
+    fail(409,"incomplete_pack_translation","Translate the closing message before publishing");
+
   if(p.status==="PUBLISHED") await requirePublishingPermission(actor);
   if(p.status==="PUBLISHED"){
     if(!p.confirm)fail(400,"confirmation_required","Confirm translated pack publication");
@@ -326,14 +364,17 @@ export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|nul
     if(p.status==="PUBLISHED") await assertPublishingAllowedInTx(tx,user);
     const saved=await tx.quizPackLocalization.upsert({
       where:{packId_locale:{packId:pack.id,locale:p.locale}},
-      create:{packId:pack.id,locale:p.locale,title:p.title,description:p.description,status:p.status},
-      update:{title:p.title,description:p.description,status:p.status}
+      create:{packId:pack.id,locale:p.locale,title:p.title,description:p.description,
+        sections,closingMessage,scoreReviews,status:p.status},
+      update:{title:p.title,description:p.description,sections,closingMessage,scoreReviews,status:p.status}
     });
     await tx.auditLog.create({data:{actorId:user.id,action:"pack.translation.save",objectId:pack.id,
-      detail:{locale:p.locale,status:p.status}}});
+      detail:{locale:p.locale,status:p.status,chapters:sections.length,scoreBands:scoreReviews.length}}});
     return saved;
   });
-  return {id:pack.id,locale:result.locale,status:result.status,title:result.title,description:result.description};
+  return {id:pack.id,locale:result.locale,status:result.status,title:result.title,
+    description:result.description,sections:result.sections,
+    closingMessage:result.closingMessage,scoreReviews:result.scoreReviews};
 }
 export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
@@ -381,6 +422,10 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
+        ...(p.sections !== undefined ? {sections:(p.sections as PackSection[]).map(
+          part=>({start:part.start,title:part.title,description:part.description??""}))}:{}),
+        ...(p.closingMessage !== undefined ? {closingMessage:p.closingMessage}:{}),
+        ...(p.scoreReviews !== undefined ? {scoreReviews:p.scoreReviews}:{}),
         ...(p.publication?{status:p.publication}:{})}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "pack.update", objectId: pack.id } });
     return pack;
@@ -526,14 +571,29 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
     where:{id:p.id,publication:"PUBLISHED",safetyStatus:"ACTIVE",
       localizations:{some:{locale,status:"PUBLISHED"}}},
     include:{author:{select:{id:true,displayName:true}},
-      localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
+      localizations:{where:{locale,status:"PUBLISHED"},
+        select:{title:true,description:true,sections:true,closingMessage:true,scoreReviews:true}},
       items:{orderBy:{position:"asc"},select:{quizId:true}}}
   });
   if(!pack||!pack.items.length||!pack.localizations[0])
     fail(404,"not_found","Published quiz pack is unavailable");
   const safe=await safePack(pack.id,locale,"GENERAL");
   const allIds=pack.items.map(item=>item.quizId);
-  const sections=visibleSections(pack.sections,allIds,safe.items.map(item=>item.quizId));
+  const localized=pack.localizations[0];
+  const sourceSections=(Array.isArray(pack.sections)?pack.sections:[]) as PackSection[];
+  const localizedCopy=translatedSections(localized.sections);
+  // Never display untranslated English text in a different-language play session.
+  const contentSections=pack.sourceLocale===locale?sourceSections:sourceSections.map((part,index)=>{
+    const version=localizedCopy.find(candidate=>candidate.start===part.start);
+    return {...part,title:version?.title??(locale==="ko"?`파트 ${index+1}`:`Chapter ${index+1}`),
+      description:version?.description??""};
+  });
+  const sections=visibleSections(contentSections,allIds,safe.items.map(item=>item.quizId));
+  const sourceReviews=translatedReviews(pack.scoreReviews);
+  const reviews=pack.sourceLocale===locale?sourceReviews:
+    translatedReviews(localized.scoreReviews).filter((band,index)=>
+      sourceReviews[index]?.minimumScore===band.minimumScore);
+  const ending=pack.sourceLocale===locale?pack.closingMessage:localized.closingMessage;
   const coverMediaUrl=await publicPackCover(pack.coverMediaId);
   const localizedSections=await Promise.all(sections.map(async section=>({
     start:section.start,title:section.title,description:section.description??"",
@@ -541,8 +601,8 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
   })));
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
-    coverMediaUrl,sections:localizedSections,closingMessage:pack.closingMessage,
-    scoreReviews:pack.scoreReviews,
+    coverMediaUrl,sections:localizedSections,closingMessage:ending,
+    scoreReviews:reviews,
     questionCount:safe.questionCount,originalQuestionCount:safe.originalQuestionCount,
     excludedCount:safe.excludedCount,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),
     locale,publication:pack.publication,currentVersion:pack.currentVersion,
