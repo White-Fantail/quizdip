@@ -34,7 +34,8 @@ function addDays(day: string, count: number): string {
 function midnight(day: string): Date {
   // NZ changes between UTC+12 and UTC+13; never assume a fixed offset.
   const [year, month, date] = day.split("-").map(Number);
-  // UTC noon on the prior date is NZ midnight/1am, before DST switches at 2am.\n  const noon = new Date(Date.UTC(year, month - 1, date - 1, 12));
+  // UTC noon on the prior date is NZ midnight/1am, before DST switches at 2am.
+  const noon = new Date(Date.UTC(year, month - 1, date - 1, 12));
   const label = new Intl.DateTimeFormat("en-US", {
     timeZone: tz, timeZoneName: "shortOffset",
   }).formatToParts(noon).find(item => item.type === "timeZoneName")?.value ?? "GMT+13";
