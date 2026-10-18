@@ -211,13 +211,9 @@ export default function PackResultShare({ packId, title, score, completed, solve
       const url = await publicResultUrl();
       if (navigator.share) {
         try {
-          // On iOS, Facebook's share extension can silently discard a URL-only
-          // Web Share attachment after briefly showing it in the composer.
-          // Send the absolute public result link as ordinary text instead,
-          // mirroring the manual paste flow that Facebook handles correctly.
-          // Other platforms retain the native URL attachment.
-          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-          await navigator.share(isIOS ? { text: url } : { url });
+          // Share only the public result URL. Destination apps can fetch
+          // title, description, and image from the result page's OG metadata.
+          await navigator.share({ url });
           setNotice(korean
             ? "공유할 앱에서 링크와 미리보기를 확인해 주세요."
             : "Check the link and preview in the destination app.");
