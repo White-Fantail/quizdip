@@ -93,7 +93,7 @@ export default function PackTranslationEditor({packId,sourceLocale}:{packId:stri
       <h3>{ko?"파트 제목 및 설명":"Chapter titles and descriptions"}</h3>
       {draft.sections.map((part,i)=><div className="studio-form-grid" key={part.start}>
         <p className="muted">{ko?"원문":"Source"} {i+1}: {source?.sections?.[i]?.title}
-          {source?.sections?.[i]?.description&&<> — {source.sections[i].description}</>}</p>
+          {source?.sections?.[i]?.description&&<> — {source?.sections?.[i]?.description}</>}</p>
         <label>{ko?"번역 파트 제목":"Translated chapter title"}
           <input maxLength={120} value={part.title} onChange={e=>change({...draft,
             sections:draft.sections.map((v,j)=>j===i?{...v,title:e.target.value}:v)})}/></label>
