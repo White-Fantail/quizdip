@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { evaluatePackFun } from "./fun-review.ts";
 import { previewUrl } from "./storage";
 import { requirePublishingPermission, assertPublishingAllowedInTx, submitReport } from "./moderation";
 import { validateMediaReferences } from "./media";
@@ -157,6 +158,54 @@ async function validatePackQuestions(ids: string[], authorId: string, publish = 
   if(publish && locale!=="und" && qs.some(q=>!q.localizations.some(l=>l.locale===locale && l.status==="PUBLISHED")))
     fail(409,"incomplete_pack_locale","Every question must be published in the pack language");
 }
+/** Owner-scoped, read-only quality diagnostics. Never reads other authors' unpublished revisions.
+ * Subjective rubrics are supplied for an authoring agent/human to assess, not faked as numbers.
+ */
+export async function packFunReview(p:Record<string,any>,actor:Actor|null) {
+  const owner=requireActor(actor);
+  const pack=await db().quizPack.findFirst({
+    where:{id:p.id,authorId:owner.id},
+    include:{items:{orderBy:{position:"asc"}}}
+  });
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  const ids=pack.items.map(item=>item.quizId);
+  const questions=ids.length?await db().quiz.findMany({
+    where:{id:{in:ids}},
+    select:{id:true,authorId:true,publication:true,
+      localizations:{where:{locale:pack.sourceLocale},
+        select:{currentVersion:true,publishedVersion:true,status:true}}}
+  }):[];
+  const byId=new Map(questions.map(q=>[q.id,q]));
+  // Select only revisions this pack owner is authorized to inspect. In particular,
+  // other creators' current *drafts* must not be queried or exposed.
+  const readableVersions=new Map<string,number>();
+  for(const id of ids){
+    const q=byId.get(id),loc=q?.localizations[0];
+    if(!q||!loc)continue;
+    if(q.authorId===owner.id)readableVersions.set(id,loc.currentVersion);
+    else if(q.publication==="PUBLISHED"&&loc.status==="PUBLISHED"&&loc.publishedVersion!=null)
+      readableVersions.set(id,loc.publishedVersion);
+  }
+  const revisions=readableVersions.size?await db().quizRevision.findMany({
+    where:{OR:Array.from(readableVersions,([quizId,version])=>({
+      quizId,version,localization:{locale:pack.sourceLocale}
+    }))},
+    select:{quizId:true,version:true,title:true,prompt:true,explanation:true,answer:true,clues:true}
+  }):[];
+  const revisionByKey=new Map(revisions.map(r=>[r.quizId+":"+r.version,r]));
+  const loaded=ids.map(id=>{
+    const version=readableVersions.get(id);
+    const revision=version==null?undefined:revisionByKey.get(id+":"+version);
+    return revision?{id,title:revision.title,prompt:revision.prompt,explanation:revision.explanation,
+      answer:revision.answer,clues:revision.clues,loaded:true}:{id,loaded:false};
+  });
+  return evaluatePackFun({
+    id:pack.id,title:pack.title,description:pack.description,locale:pack.sourceLocale,
+    orderMode:pack.orderMode,sections:pack.sections,closingMessage:pack.closingMessage,
+    scoreReviews:pack.scoreReviews,questions:loaded
+  });
+}
+
 /** Creator-only dry-run. Never mutates content or exposes other creators' drafts. */
 export async function packPreflight(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
@@ -188,7 +237,7 @@ export async function packPreflight(p:Record<string,any>,actor:Actor|null) {
     issues.push({quizId:pack.id,code:"publication_quota_exceeded"});
   return {id:pack.id,locale:pack.sourceLocale,total:ids.length,unpublished,
     quotaRemaining:user.role==="ADMIN"?null:Math.max(0,100-publishedToday),
-    ready:issues.length===0,issues};
+    ready:issues.length===0,issues,funReview:await packFunReview(p,actor)};
 }
 export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
@@ -208,7 +257,7 @@ export async function packCreate(p: Record<string, any>, actor: Actor | null) {
       items: { create: p.quizIds.map((quizId: string, index: number) => ({ quizId, position: index + 1 })) } },
     include: { items: { orderBy: { position: "asc" } } }
   });
-  return pack;
+  return {...pack,funReview:await packFunReview({id:pack.id},actor)};
 }
 /** Editable owner-only pack details, including drafts and every ordered question. */
 export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
@@ -430,7 +479,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
     await tx.auditLog.create({ data: { actorId: user.id, action: "pack.update", objectId: pack.id } });
     return pack;
   });
-  return { id: updated.id, title: updated.title, publication: updated.publication, orderMode:updated.orderMode, quizIds: ids };
+  return { id: updated.id, title: updated.title, publication: updated.publication, orderMode:updated.orderMode, quizIds: ids,funReview:await packFunReview({id:updated.id},actor) };
 }
 
 /** Dry-run pack publication with creator-only draft ownership and no side effects. */
@@ -479,7 +528,8 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
     if(recent+drafts.length>100)issues.push("daily_publication_limit");
   }
   return {id:pack.id,locale:pack.sourceLocale,questionCount:ids.length,
-    draftCount:drafts.length,draftIds:drafts,issues,ready:issues.length===0};
+    draftCount:drafts.length,draftIds:drafts,issues,ready:issues.length===0,
+    funReview:await packFunReview(p,actor)};
 }
 
 /** Confirmed all-or-nothing pack + owned-draft release. Pack Kids approval remains separate. */

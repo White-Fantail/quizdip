@@ -6,7 +6,8 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 
 | Action | HTTP REST | MCP tool |
 | --- | --- | --- |
-| Capabilities and schemas | GET /api/v1/catalog | quizdip_catalog |
+| Capabilities and schemas, editorial fun rubric | GET /api/v1/catalog | quizdip_catalog |
+| Non-blocking pack fun review (owner only) | GET /api/v1/packs/:id/fun-review | quizdip_pack_fun_review |
 | Topic discovery | GET /api/v1/topics?q=... | quizdip_topic_list |
 | Featured weekly edition and host | GET /api/v1/weekly/current | quizdip_weekly_current |
 | Creator's five-question weekly submission | POST /api/v1/weekly/submit | quizdip_weekly_submit |
@@ -243,3 +244,7 @@ Threshold defaults and reviewer safeguards are defined in [report moderation des
 | POST /api/v1/admin/moderation/appeals/:id/review | quizdip_admin_moderation_appeal_review | ADMIN accept/reject and explain decision |
 
 These endpoints use owner/admin authorization in shared platform operations. They depend on migration `20261014100000_moderation_appeals_and_notifications`; the prior migration `20261014080000_report_moderation` is also required. Alert messages intentionally omit the reporter identity. Staff decisions are audited. Changing thresholds re-evaluates existing OPEN reports; disabling auto holds does not auto-restore previously withheld material.
+
+## Shared non-blocking fun rubric
+
+All quiz/pack authoring tools advertise `quizdip_catalog.funQuality` (five weighted editorial criteria totaling 100). Pack create/update, preflight and publish preview return a `funReview` payload; GET `/api/v1/packs/:id/fun-review` / `quizdip_pack_fun_review` returns that review without saving anything. The service enforces pack ownership and uses only the current owner's localized draft revisions or other authors' publicly published versions. The review reports objective signals (missing opening/ending, explanation coverage, duplicate prompts and thin multiple-choice distractors) and suggested revisions. It intentionally returns `score: null` because metadata rules cannot judge humor, surprise, fairness or narrative quality; editorial/AI interpretation is necessary. Suggestions **never** block ordinary publication, alter safety status, or substitute for factual/source validation.

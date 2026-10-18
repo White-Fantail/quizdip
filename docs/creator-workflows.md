@@ -2,6 +2,12 @@
 
 The platform supports **two** authoring paths, built on one schema, ownership model, audit policy and service layer.
 
+## Default editorial fun review (Studio, REST and MCP)
+
+Every creator receives the same optional **five-criterion, 100-point editorial rubric** in `quizdip_catalog.funQuality`. MCP `quizdip_quiz_create`, `quizdip_quiz_update`, `quizdip_pack_create` and `quizdip_pack_update` explicitly point authoring agents to this rubric. The five review weights are: opening hook (20), factual surprise/discovery (25), fair/appealing answers (15), pacing/variety (20), and satisfying ending (20). The agent or human should review drafts and revise weak sections before publication. Factual accuracy, accessibility and Kids safety take priority over entertainment.
+
+Creating/updating packs, running `quizdip_pack_preflight` or `quizdip_pack_publish_preview` automatically returns an owner-only **`funReview`** with observable metrics and non-blocking improvement suggestions. `quizdip_pack_fun_review` (GET `/api/v1/packs/:id/fun-review`) makes the same read-only review available on demand. An agent can use the five criteria to judge creative quality; the server never invents a numeric fun score from metadata, calls unscheduled AI, changes questions, blocks publication or treats advice as moderation. MCP clients may ignore tool descriptions, so compliance with qualitative self-review cannot be guaranteed by the protocol alone.
+
 ## ChatGPT + Remote MCP
 
 Example: “초등학생을 위한 공룡 맞히기 퀴즈 10개 만들어줘. 사진과 소리 단서를 쓰고 뒤로 갈수록 쉬워지게 해줘.”

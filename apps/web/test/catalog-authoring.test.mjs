@@ -56,7 +56,7 @@ test("MCP server exposes the exact shared contracts and catalog implementation",
 test("catalog and MCP contracts advertise all independently translated pack fields",()=>{
   const info=platformCatalog.packLocalization;
   assert.equal(platformCatalog.version,"v3");
-  assert.equal(platformCatalog.catalogRevision,"2026-10-18-pack-full-localizations");
+  assert.equal(platformCatalog.catalogRevision,"2026-10-19-editorial-fun-rubric");
   assert.deepEqual(info.supportedLocales,["en","ko"]);
   assert.deepEqual(info.supportedOperations,["pack_languages","pack_translation_upsert"]);
   assert.deepEqual(info.fields.sections.fields,["start","title","description"]);
