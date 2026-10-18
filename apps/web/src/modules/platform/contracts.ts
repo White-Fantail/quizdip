@@ -81,6 +81,12 @@ export const packSectionsSchema = z.array(z.object({
   description:z.string().trim().max(500).default(""),
   mediaId:uuid.nullable().optional()
 })).max(30);
+/** Localized part text follows the original part boundaries; media and ordering remain source-owned. */
+export const translatedPackSectionsSchema=z.array(z.object({
+  start:z.number().int().min(1).max(100),
+  title:z.string().trim().min(1).max(120),
+  description:z.string().trim().max(500).default("")
+}).strict()).max(30);
 export const scoreReviewsSchema=z.array(z.object({
   minimumScore:z.number().int().min(0).max(10000),
   title:z.string().trim().min(1).max(120),
@@ -156,7 +162,7 @@ export const operations = {
     path:["reason"],message:"Restrictions and Kids rejections require at least 5 characters"
   }) },
   pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
-  pack_translation_upsert: { public:false, description:"Save or publish localized pack metadata after checking full question coverage", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
+  pack_translation_upsert: { public:false, description:"Save/publish full pack translation: title, description, chapter text, ending, and score bands; preserves source media and thresholds", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),sections:translatedPackSectionsSchema.optional(),closingMessage:z.string().trim().max(4000).optional(),scoreReviews:scoreReviewsSchema.optional(),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
   pack_language_set: { public: false, description: "Confirm original language of an unclassified legacy pack", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   pack_get: { public:true, description:"Get a published localized quiz pack without revealing answers", schema:z.object({id:uuid,locale:optionalLocale}) },
   my_pack_get: { public:false, description:"Get the complete editable metadata and ordered questions of my pack", schema:z.object({id:uuid}) },
