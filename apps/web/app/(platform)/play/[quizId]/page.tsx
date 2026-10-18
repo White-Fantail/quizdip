@@ -117,7 +117,8 @@ export default function SingleQuizPage() {
       if(result.status!=="ACTIVE")void request("/local-play/single/sync",{
         sessionId:session.sessionId,sessionToken:session.sessionToken,
         cluesUsed:attempt.progress.clueIndex,status:attempt.progress.status,
-        score:attempt.progress.score
+        score:attempt.progress.score,
+        ...(attempt.progress.firstChoice ? {firstChoice:attempt.progress.firstChoice} : {})
       }).catch(()=>{});
       if (result.status === "ACTIVE") {
         setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));

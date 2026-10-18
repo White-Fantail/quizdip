@@ -5,7 +5,7 @@ import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
 import { currentPlayableRevision } from "./content-locale";
 import { completesRun } from "./run-length";
-import { publicAnswerFormat, answerResponseMode } from "./answer-options";
+import { publicAnswerFormat, answerResponseMode, firstAuthoredChoice } from "./answer-options";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -111,6 +111,7 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const answer = session.revision.answer as { canonical: string; aliases: string[]; responseMode?: "text" | "multiple-choice"; options?: string[] };
   if (answerResponseMode(answer) === "multiple-choice" && !answer.options?.some(option => normalizeAnswer(option) === normalizeAnswer(p.guess)))
     fail(400, "invalid_choice", "Select one of the supplied choices");
+  const firstChoice = session.firstChoice === null ? firstAuthoredChoice(answer, p.guess) : null;
   const correct = isCorrectAnswer(answer, p.guess);
   const last = session.usedClues === clues.length;
   const failed = !correct && last;
@@ -120,6 +121,7 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
     const updated = await tx.playSession.updateMany({
       where: { id: session.id, status: "ACTIVE", wrongGuesses: session.wrongGuesses, usedClues: session.usedClues },
       data: { wrongGuesses: correct ? session.wrongGuesses : session.usedClues,
+        ...(firstChoice !== null ? { firstChoice } : {}),
         ...(terminal ? { status: correct ? "SOLVED" : "FAILED", score, finishedAt: new Date() } : {}) }
     });
     if (updated.count !== 1) fail(409, "conflict", "Concurrent session action, retry");

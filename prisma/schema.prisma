@@ -284,6 +284,7 @@ model PlaySession {
   status                String        @default("ACTIVE")
   usedClues             Int           @default(1)
   wrongGuesses          Int           @default(0)
+  firstChoice           String?       // Validated first submitted authored MC option; nullable before collection
   score                 Int           @default(0)
   startedAt             DateTime      @default(now())
   expiresAt             DateTime

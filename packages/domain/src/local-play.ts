@@ -8,7 +8,7 @@ export type LocalQuestion = {
 };
 export type LocalProgress = {
   clueIndex:number; wrongGuesses:number; status:"ACTIVE"|"SOLVED"|"FAILED";
-  score:number; mustReveal:boolean;
+  score:number; mustReveal:boolean; firstChoice?:string;
 };
 export type LocalGuess = { correct:boolean; status:LocalProgress["status"]; score:number;
   cluesUsed:number; answer?:string; next?:string };
@@ -30,7 +30,11 @@ export function guessLocalAnswer(question:LocalQuestion,state:LocalProgress,gues
   const failed=!correct&&state.clueIndex>=question.clues.length;
   const status=correct?"SOLVED":failed?"FAILED":"ACTIVE";
   const score=correct?scoreForAnswer(question.clues.length,state.clueIndex,answer.responseMode):0;
+  const firstChoice=answer.responseMode==="multiple-choice" && !state.firstChoice
+    ? (answer.options??[]).find(option=>normalizeAnswer(option)===normalizeAnswer(guess))
+    : undefined;
   const progress:LocalProgress={...state,status,score,
+    ...(firstChoice ? {firstChoice} : {}),
     wrongGuesses:correct?state.wrongGuesses:state.clueIndex,
     mustReveal:!correct&&!failed};
   return {progress,result:{correct,status,score,cluesUsed:state.clueIndex,

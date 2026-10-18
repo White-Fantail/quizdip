@@ -8,6 +8,7 @@ import {
   loadAdminContentAnalytics, resolveAnalyticsFilters,
   type AnalyticsParams, type RankRow,
 } from "../../../src/modules/platform/admin-content-analytics";
+import { loadAdminContentInsights } from "../../../src/modules/platform/admin-content-insights";
 
 export const dynamic = "force-dynamic";
 const selectStyle = { minWidth: 128, maxWidth: "100%", padding: "9px 10px", borderRadius: 9 };
@@ -24,9 +25,9 @@ function pp(current: number | null, previous: number | null) {
   const n = (current - previous) * 100;
   return (n > 0 ? "+" : "") + n.toFixed(1) + "pp";
 }
-function RankTable({ kind, items, hasPrevious, tr, locale }: {
+function RankTable({ kind, items, hasPrevious, tr, locale, detailSuffix }: {
   kind: "packs" | "questions"; items: RankRow[]; hasPrevious: boolean;
-  tr: (en: string, ko: string) => string; locale: "ko" | "en";
+  tr: (en: string, ko: string) => string; locale: "ko" | "en"; detailSuffix:string;
 }) {
   return <section className="section review-console" style={{ marginTop: 24 }}>
     <div className="review-section-heading">
@@ -48,7 +49,7 @@ function RankTable({ kind, items, hasPrevious, tr, locale }: {
           <tr key={item.id} style={{ borderBottom: "1px solid var(--line, #e7e7e7)" }}>
             <td style={{ padding: 12 }}>{index + 1}</td>
             <td style={{ padding: 12 }}>
-              <Link href={localizeHref(kind === "packs" ? "/packs/" + item.id : "/admin/quiz-review/" + item.id, locale)}>
+              <Link href={localizeHref(kind === "packs" ? "/packs/" + item.id : "/admin/analytics/questions/" + item.id, locale) + (kind === "questions" ? detailSuffix : "")}>
                 <strong>{item.title}</strong>
               </Link>
               {item.isKids && <small style={{ display: "inline-block", marginLeft: 8 }}>Kids</small>}
@@ -77,7 +78,9 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
   if (actor.role !== "ADMIN") notFound();
 
   const filters = resolveAnalyticsFilters(await searchParams);
-  const data = await loadAdminContentAnalytics(filters);
+  const [data, insights] = await Promise.all([loadAdminContentAnalytics(filters), loadAdminContentInsights(filters)]);
+  const detailSuffix = "?" + new URLSearchParams({period:filters.period,start:filters.startDay,
+    end:filters.endDay,locale:filters.locale,audience:filters.audience,mode:filters.mode}).toString();
   const url = localizeHref("/admin/analytics", locale);
   const series = data.trend;
   const max = Math.max(1, ...series.map(v => v.plays));
@@ -179,8 +182,60 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
           </div>)}
       </div> : <p className="muted">{tr("No play starts in this period.", "이 기간에 시작된 플레이가 없습니다.")}</p>}
     </section>
-    <RankTable kind="packs" items={data.packs} hasPrevious={!!filters.previousStart} tr={tr} locale={locale}/>
-    <RankTable kind="questions" items={data.questions} hasPrevious={!!filters.previousStart} tr={tr} locale={locale}/>
+
+    <section className="section review-console" style={{marginTop:24}}>
+      <div className="review-section-heading">
+        <h2>{tr("Rising content · Top 10","급상승 콘텐츠 TOP 10")}</h2>
+        <span className="small-tag">{insights.trendPeriod==="7" && filters.period==="all"
+          ? tr("Last 7 days","최근 7일") : tr("Selected period","선택 기간")}</span>
+      </div>
+      <p className="muted" style={{fontSize:13}}>
+        {tr("Compared with the preceding equal-length period. At least 10 current starts and eight additional starts are required; existing baselines also need at least five starts and 50% growth. Ranked by absolute added plays.",
+          "직전 동일 기간과 비교합니다. 현재 최소 10회, 순증 최소 8회가 필요하며 기존 기록이 있다면 직전 5회 이상·성장률 50% 이상이어야 합니다. 실제 증가한 플레이 수 순으로 정렬합니다.")}
+      </p>
+      <div className="review-result-list">
+        {insights.rising.map((item,index)=><div key={item.kind+item.id} className="review-entry">
+          <span className="review-entry-copy">
+            <strong>{index+1}. <Link href={localizeHref(item.kind==="pack"?"/packs/"+item.id:"/admin/analytics/questions/"+item.id,locale)+
+              (item.kind==="question"?detailSuffix:"")}>{item.title}</Link></strong>
+            <small>{item.kind==="pack"?tr("Pack","퀴즈팩"):tr("Question","문제")} · {tr("Starts","시작")} {count(item.plays)}
+              {" · "}{tr("Previous","직전")} {count(item.previous)}
+              {" · "}+{count(item.difference)} ({item.newActivity?tr("No previous plays","직전 기록 없음"):diff(item.growth)})</small>
+          </span>
+        </div>)}
+        {!insights.rising.length&&<p className="muted">{tr("Nothing currently meets the rising-content thresholds.","현재 급상승 기준을 충족하는 콘텐츠가 없습니다.")}</p>}
+      </div>
+    </section>
+    <section className="section review-console" style={{marginTop:24}}>
+      <div className="review-section-heading">
+        <h2>{tr("Content quality watchlist","개선이 필요한 콘텐츠")}</h2>
+        <span className="small-tag">{insights.quality.length} {tr("signals","건")}</span>
+      </div>
+      <p className="muted" style={{fontSize:13}}>
+        {tr("Read-only signals, not automatic moderation. Packs need 20 starts with under 50% completion; questions need 20 exposures with under 60% completion, or 20 graded answers with accuracy of 20% or less / 95% or more.",
+          "품질 점검을 위한 참고 지표이며 자동 제재하지 않습니다. 팩은 최소 20회 시작·완료율 50% 미만, 문제는 최소 20회 노출·완료율 60% 미만 또는 최소 20회 채점·정답률 20% 이하/95% 이상일 때 표시합니다.")}
+      </p>
+      <div className="review-result-list">
+        {insights.quality.map((item,index)=>{
+          const issue=item.issue==="low_completion"?tr("Low pack completion","낮은 팩 완료율")
+            :item.issue==="dropoff"?tr("Question drop-off","문제 중도 이탈")
+            :item.issue==="too_hard"?tr("Possibly too difficult","지나치게 어려울 수 있음")
+            :tr("Possibly too easy","지나치게 쉬울 수 있음");
+          return <div className="review-entry" key={item.kind+item.id+item.issue}>
+            <span className="review-entry-copy">
+              <strong>{index+1}. <Link href={localizeHref(item.kind==="pack"?"/packs/"+item.id:"/admin/analytics/questions/"+item.id,locale)+
+                (item.kind==="question"?detailSuffix:"")}>{item.title}</Link></strong>
+              <small>{issue} · {tr("Starts","시작")} {count(item.plays)}
+                {" · "}{tr(item.issue==="too_easy"||item.issue==="too_hard"?"Accuracy":"Completion",
+                item.issue==="too_easy"||item.issue==="too_hard"?"정답률":"완료율")} {percent(item.rate)}</small>
+            </span>
+          </div>;
+        })}
+        {!insights.quality.length&&<p className="muted">{tr("No content currently crosses these thresholds.","현재 품질 점검 기준에 해당하는 콘텐츠가 없습니다.")}</p>}
+      </div>
+    </section>
+    <RankTable kind="packs" items={data.packs} hasPrevious={!!filters.previousStart} tr={tr} locale={locale} detailSuffix={detailSuffix}/>
+    <RankTable kind="questions" items={data.questions} hasPrevious={!!filters.previousStart} tr={tr} locale={locale} detailSuffix={detailSuffix}/>
     <p className="muted" style={{ marginTop: 24, fontSize: 12 }}>
       {tr("Each new run counts once; resuming does not add a start. Question exposures count sessions opened, and accuracy excludes unfinished answers. Completion is measured for runs started in the period, including those completed later. Unique players include only identifiable accounts/child profiles (anonymous plays cannot be deduplicated). Ranking rates require at least five plays/answers; growth is unavailable when there is no prior baseline.",
         "플레이는 새로 생성된 실행 기록마다 1회이며 이어하기는 중복 집계되지 않습니다. 문제 노출은 실제 시작된 문제 세션 기준이고 정답률은 미완료 풀이를 제외합니다. 완료율은 선택 기간에 시작된 플레이가 현재까지 완료됐는지 기준입니다. 고유 플레이어는 식별 가능한 계정·아동 프로필만 포함하며 비회원은 중복 식별할 수 없습니다. 비율 정렬은 최소 5회 이상의 기록을 대상으로 하며 직전 기록이 0이면 증가율을 계산하지 않습니다.")}
