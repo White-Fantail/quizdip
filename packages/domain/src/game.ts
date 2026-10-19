@@ -33,3 +33,11 @@ export function scoreForAnswer(clueCount: number, cluesUsed: number, responseMod
   const base = scoreForClues(clueCount, cluesUsed);
   return Math.round(base * (responseMode === "multiple-choice" ? 0.75 : 1));
 }
+
+/** Each consecutive successful answer adds 5%, capped at 25%. */
+export function comboMultiplier(combo: number): number {
+  return 1 + Math.min(5, Math.max(0, Math.floor(combo) - 1)) * 0.05;
+}
+export function comboAward(baseScore: number, combo: number): number {
+  return Math.round(Math.max(0, baseScore) * comboMultiplier(combo));
+}
