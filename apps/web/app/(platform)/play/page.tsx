@@ -612,7 +612,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           {run?.mode==="PACK"
             ?run.packVersion!=null?`v${run.packVersion}`:msg("Legacy result · version unknown","이전 기록 · 버전 정보 없음")
             :`v${pack?.currentVersion}`}
-        </p>
+        </p>}
     </div>:<div className="play-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
       <h1>{msg("Discover and play at your pace.","흥미로운 퀴즈를 발견하고 자유롭게 플레이하세요.")}</h1>
