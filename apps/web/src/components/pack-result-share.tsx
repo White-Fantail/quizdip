@@ -7,6 +7,7 @@ import { localizeHref } from "../i18n/core";
 type PackResultShareProps = {
   packId: string;
   title: string;
+  packVersion?: number | null;
   score: number;
   completed: number;
   solved: number;
@@ -50,7 +51,7 @@ function fitLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   return lines;
 }
 
-function paintResultCard(canvas: HTMLCanvasElement, data: Pick<PackResultShareProps, "packId"|"title"|"score"|"completed"|"solved">, url: string, korean: boolean) {
+function paintResultCard(canvas: HTMLCanvasElement, data: Pick<PackResultShareProps, "packId"|"title"|"packVersion"|"score"|"completed"|"solved">, url: string, korean: boolean) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
   canvas.width = CARD_WIDTH;
@@ -84,6 +85,10 @@ function paintResultCard(canvas: HTMLCanvasElement, data: Pick<PackResultSharePr
   ctx.fillStyle = "#ffffff";
   const titleLines = fitLines(ctx, data.title, 905, 4);
   titleLines.forEach((line, i) => ctx.fillText(line, 84, 318 + i * 85));
+  ctx.font = '600 26px system-ui, "Apple SD Gothic Neo", sans-serif';
+  ctx.fillStyle = "#e7e3ff";
+  ctx.fillText(data.packVersion != null ? `v${data.packVersion}` :
+    (korean ? "이전 기록 · 버전 정보 없음" : "Legacy result · version unknown"), 86, 630);
 
   const panelY = 680;
   roundedRect(ctx, 66, panelY, 948, 385, 44);
@@ -116,7 +121,7 @@ function paintResultCard(canvas: HTMLCanvasElement, data: Pick<PackResultSharePr
 
   ctx.fillStyle = "#ffffff";
   ctx.font = '800 32px system-ui, "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText(korean ? "당신도 이 퀴즈팩에 도전해 보세요!" : "Think you can beat my result?", 86, 1155);
+  ctx.fillText(korean ? "같은 버전의 점수끼리 비교해 주세요" : "Compare scores from the same version only", 86, 1155);
   ctx.font = '600 25px system-ui, "Apple SD Gothic Neo", sans-serif';
   ctx.fillStyle = "#e7e3ff";
   const urlLines = fitLines(ctx, url, 898, 2);
@@ -133,7 +138,7 @@ function renderPng(canvas: HTMLCanvasElement): Promise<Blob> {
  * This is a presentation-only export of the server-returned finished run.
  * The shared link always points to the public pack, never to a private run token.
  */
-export default function PackResultShare({ packId, title, score, completed, solved,
+export default function PackResultShare({ packId, title, packVersion, score, completed, solved,
   createShareId, revokeShare, existingShareId }: PackResultShareProps) {
   const locale = useLocale();
   const korean = locale === "ko";
@@ -160,7 +165,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
         await document.fonts?.ready;
         if (!active) return;
         const canvas = document.createElement("canvas");
-        paintResultCard(canvas, { packId, title, score, completed, solved }, packUrl, korean);
+        paintResultCard(canvas, { packId, title, packVersion, score, completed, solved }, packUrl, korean);
         const blob = await renderPng(canvas);
         if (!active) return;
         previewUrl = URL.createObjectURL(blob);
@@ -170,7 +175,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
       }
     })();
     return () => { active = false; if (previewUrl) URL.revokeObjectURL(previewUrl); };
-  }, [packId, title, score, completed, solved, packUrl, korean]);
+  }, [packId, title, packVersion, score, completed, solved, packUrl, korean]);
 
   const resultUrl = shareId && packUrl
     ? new URL(localizeHref("/results/" + shareId, locale), new URL(packUrl).origin).href : "";
@@ -257,7 +262,8 @@ export default function PackResultShare({ packId, title, score, completed, solve
   return <section className="pack-result-share" aria-label={korean ? "결과 이미지 공유" : "Share result image"}>
     <div className="pack-result-share-heading">
       <h3>{korean ? "내 기록을 공유해 보세요" : "Share your result"}</h3>
-      <p>{korean ? "퀴즈팩 제목과 내 점수를 한 장의 카드로!" : "Your quiz pack and your results, in one image."}</p>
+      <p>{korean ? "퀴즈팩 제목과 내 점수를 한 장의 카드로!" : "Your quiz pack and your results, in one image."}
+        {" · "}{packVersion!=null?`v${packVersion}`:(korean?"버전 미확인":"Version unknown")}</p>
     </div>
     {asset ? <img className="pack-result-share-preview" src={asset.previewUrl}
       alt={korean ? `${title} · ${score}점 · ${completed}문제 중 ${solved}문제 정답` : `${title} · ${score} points · ${solved} out of ${completed} correct`} /> :
