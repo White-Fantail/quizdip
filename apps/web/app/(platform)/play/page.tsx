@@ -11,6 +11,7 @@ import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
 import PackFeedback from "../../../src/components/pack-feedback";
 import PackResultShare from "../../../src/components/pack-result-share";
+import RelatedPacks from "../../../src/components/related-packs";
 import AdSlot from "../../../src/components/ads/AdSlot";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -813,6 +814,8 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
               if(!response.ok)throw new Error("Could not revoke result share");
             }}/>}
           {run.mode==="PACK"&&packId&&<PackFeedback packId={packId}/>}
+          {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&confirmedRunId===run.runId&&
+            <RelatedPacks packId={packId} locale={locale} runId={run.runId} runToken={run.runToken}/>}
           {run.status==="FINISHED"&&<AdSlot placement="PLAY_RESULT" kids={run.lane==="KIDS"||Boolean(pack?.kidsEligible)}/>}
           {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
           <details className="run-rating-review" open={run.mode!=="PACK"}>

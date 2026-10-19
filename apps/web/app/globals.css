@@ -1152,3 +1152,19 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 @keyframes quizdip-choice-mark{0%{opacity:0}30%{opacity:1}70%{opacity:1}100%{opacity:0}}
 @keyframes quizdip-letter-flip{0%{opacity:.25;transform:rotateX(85deg)}100%{opacity:1;transform:rotateX(0deg)}}
 @media(prefers-reduced-motion:reduce){.quizdip-combo.is-hot,.quizdip-letter-hint{animation:none!important}.quizdip-option-eliminated{animation:none!important;visibility:hidden!important}.quizdip-option-eliminated::after{animation:none!important}}
+
+/* Related quiz pack cards after a completed result */
+.related-packs{margin:30px 0;text-align:left}
+.related-packs header{margin-bottom:14px}
+.related-packs h3{margin:6px 0;font-size:1.25rem}
+.related-pack-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.related-pack-card{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid #d5dce5;border-radius:16px;background:#fff;color:#172337;text-decoration:none}
+.related-pack-card:hover,.related-pack-card:focus-visible{border-color:#4079c8;outline-offset:2px}
+.related-pack-art{display:grid;place-items:center;min-height:85px;font-size:2.2rem;color:#4b65a3;background:linear-gradient(135deg,#dcefff,#e9dff7)}
+.related-pack-card:nth-child(2) .related-pack-art{background:linear-gradient(135deg,#e3f5e2,#e2e8ff)}
+.related-pack-card:nth-child(3) .related-pack-art{background:linear-gradient(135deg,#ffe8dd,#fff4c6)}
+.related-pack-details{display:flex;flex:1;flex-direction:column;gap:9px;padding:14px}
+.related-pack-details strong{overflow-wrap:anywhere;line-height:1.4}
+.related-pack-details small{color:#5d687c}
+.related-pack-details b{margin-top:auto;font-size:.88rem}
+@media(max-width:640px){.related-pack-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px}.related-pack-card{flex:0 0 78%;max-width:270px;scroll-snap-align:start}}
