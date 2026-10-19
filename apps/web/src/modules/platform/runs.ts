@@ -188,7 +188,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     const orderedItems=orderPackQuestions(pack.items.filter(item=>ids.includes(item.quizId)),
       pack.orderMode as "CREATOR"|"RANDOM");
     const run=await tx.playRun.create({data:{
-      id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,
+      id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,scoringVersion:2,
       packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
       tokenHash:hash(runToken),expiresAt:expiry,
       questions:{create:orderedItems.map((item,index)=>({
@@ -222,6 +222,7 @@ function runSummary(run:any) {
     completed:run.currentIndex,total:runTargetCount(run),
     packId:run.packId??null,packVersion:run.packVersion??null,
     score:run.score,solved:run.solved,failed:run.failed,
+    scoringVersion:run.scoringVersion,currentCombo:run.currentCombo,bestCombo:run.bestCombo,chancesUsed:run.chancesUsed,
     completedAt:run.completedAt};
 }
 /** Advance a general pack past a quiz withdrawn mid-run, without awarding a failure.

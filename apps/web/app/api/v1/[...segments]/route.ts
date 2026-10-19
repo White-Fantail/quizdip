@@ -110,6 +110,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "share" && !d && method === "DELETE") return {op:"run_unshare",args:{runId:b}};
     if (b && c === "bundle" && method === "POST") return {op:"local_run_bundle",args:{runId:b}};
     if (b && c === "sync" && method === "POST") return {op:"local_run_sync",args:{runId:b}};
+    if (b && c === "chance" && method === "POST") return { op: "run_chance", args: {runId:b} };
     if (b && c === "local-media" && method === "POST") return {op:"local_run_media",args:{runId:b}};
     if (b && c === "current" && method === "POST") return { op: "run_current", args: { runId:b } };
     if (b && c === "finish" && method === "POST") return { op: "run_finish", args: { runId:b } };
@@ -133,6 +134,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "review" && method === "POST") return { op: "media_review", args: { id: b } };
   }
   if (a === "play" && b && c === "media" && method === "POST") return { op: "play_media", args: { sessionId: b } };
+  if (a === "me" && b === "chances" && !c && method === "GET") return { op:"chance_balance",args:{} };
   if (a === "me" && b === "ranking" && method === "PATCH") return { op: "ranking_optin", args: {} };
   if (a === "me" && b === "locale" && !c && method === "GET") return { op: "locale_get", args: {} };
   if (a === "me" && b === "locale" && !c && method === "PATCH") return { op: "locale_update", args: {} };

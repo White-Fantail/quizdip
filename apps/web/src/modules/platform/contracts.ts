@@ -292,7 +292,7 @@ export const operations = {
   local_run_sync: {public:true,description:"Store locally completed run rounds idempotently",schema:z.object({
     runId:uuid,runToken:z.string().min(32).max(200),results:z.array(z.object({
       position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(0).max(15),
-      status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+      status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(125),hadWrongGuess:z.boolean().optional()
     })).max(100)
   })},
   local_run_media: {public:true,description:"Get a short-lived URL for media in my downloaded run",schema:z.object({
@@ -310,6 +310,8 @@ export const operations = {
   local_single_media: {public:true,description:"Get media for any clue of my local single question",schema:z.object({
     ...session,mediaId
   })},
+  chance_balance: {public:true,description:"Read my chance balance and grant one chance on the first daily visit (signed-in users only)",schema:z.object({})},
+  run_chance: {public:false,description:"Spend one account chance before the first guess of an active general quiz pack question",schema:z.object({runId:uuid,runToken:z.string().min(32).max(200),position:z.number().int().min(0).max(10000)})},
   run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
     mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), resumeRunId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
