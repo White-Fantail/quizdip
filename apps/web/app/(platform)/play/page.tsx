@@ -415,7 +415,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     finally{setBusy(false);}
   }
   async function submitGuess(selectedAnswer:string) {
-    if(!round||!selectedAnswer.trim()||busy||mustReveal||round.sessionStatus!=="ACTIVE"||submittingRef.current)return;
+    if(!round||!selectedAnswer.trim()||busy||chanceBusy||mustReveal||round.sessionStatus!=="ACTIVE"||submittingRef.current)return;
     submittingRef.current=true;
     setBusy(true);setError("");
     try{
@@ -520,6 +520,10 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const isDone=!!round&&round.sessionStatus!=="ACTIVE";
   const activeHint:ChanceHint|undefined=round?localProgressRef.current[round.round-1]?.chanceHint:undefined;
   const activeProgress=round?localProgressRef.current[round.round-1]:undefined;
+  const answerForChance=round?localBundleRef.current?.questions[round.round-1]?.answer:undefined;
+  const chanceEligible=round?.responseMode==="multiple-choice"?(round.options?.length??0)>=3:
+    Boolean(answerForChance&&[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(answerForChance.canonical)]
+      .filter(s=>/[\\p{L}\\p{N}]/u.test(s.segment)).length>=3);
   const comboEnabled=!!packId&&run?.mode==="PACK"&&run.scoringVersion===2;
   const hintMask=activeHint?.kind==="reveal-letter"&&localBundleRef.current&&round
     ?[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(
@@ -559,6 +563,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         if(index!==null&&index<round.options.length&&!editing){
           event.preventDefault();
           const option=round.options[index];
+          if(activeHint?.kind==="remove-choice"&&option===activeHint.option)return;
           setGuess(option);
           // Number shortcuts select only. Enter submits as it does for text answers.
           // Move focus from an older choice button to avoid reactivating that button.
@@ -592,7 +597,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     }
     window.addEventListener("keydown",handleKeyboard);
     return ()=>window.removeEventListener("keydown",handleKeyboard);
-  },[round,isDone,busy,mustReveal,guess,chapterIntro,run?.runId]);
+  },[round,isDone,busy,mustReveal,guess,chapterIntro,run?.runId,activeHint]);
 
   return <main className="container inner-page play-experience">
     {packId?<div className="play-pack-intro">
@@ -712,15 +717,15 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
             <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
               {round.options.map((option,index)=><button type="button" key={option}
                 className={"guess-option"+(guess===option?" selected":"")+(activeHint?.kind==="remove-choice"&&activeHint.option===option?" quizdip-option-eliminated":"")} aria-pressed={guess===option} data-quizdip-choice={index}
-                disabled={busy||mustReveal||(activeHint?.kind==="remove-choice"&&activeHint.option===option)} onClick={()=>setGuess(option)}>
+                disabled={busy||chanceBusy||mustReveal||(activeHint?.kind==="remove-choice"&&activeHint.option===option)} onClick={()=>setGuess(option)}>
                 <span className="guess-option-letter">{index+1}</span>{option}
               </button>)}
             </div>:
             <input ref={answerInputRef} className="guess-input" id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
               aria-labelledby="quizdip-answer-label" autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")}
-              maxLength={200} disabled={busy||mustReveal}/>}
+              maxLength={200} disabled={busy||chanceBusy||mustReveal}/>}
           {comboEnabled&&hintMask&&<p className="quizdip-letter-hint" role="status" aria-label={msg("One revealed answer letter","정답 한 글자 공개")}>{hintMask}</p>}
-          {comboEnabled&&!activeHint&&!activeProgress?.hadWrongGuess&&!mustReveal&&<div className="quizdip-chance-actions">
+          {comboEnabled&&chanceEligible&&chances!==null&&!activeHint&&!activeProgress?.hadWrongGuess&&!mustReveal&&<div className="quizdip-chance-actions">
             {chances?.authenticated?<button type="button" className="btn btn-outline" disabled={busy||chanceBusy||chances.balance===0||
               (run.chancesUsed??0)>=2||(round.responseMode==="multiple-choice"?(round.options?.length??0)<3:false)}
               onClick={()=>void useChance()}>{chanceBusy?msg("Using chance…","찬스 사용 중…"):msg("🎟️ Use chance","🎟️ 찬스 사용")}</button>:
@@ -730,7 +735,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           </div>}
           {chanceError&&<p className="feedback" role="alert">{chanceError}</p>}
           <div className="guess-row">
-            <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>
+            <button type="submit" className="btn btn-primary" disabled={busy||chanceBusy||mustReveal||!guess.trim()}>
               {msg("Check answer","정답 확인")}</button>
           </div>
         </form>}
