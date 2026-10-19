@@ -46,7 +46,9 @@ test("localized pack fields are saved independently and projected onto the origi
   assert.match(social,/scoreReviews:reviews/);
   assert.match(social,/closingMessage:ending/);
   assert.match(editor,/sections:.*draft/);
-  assert.match(detail,/PackTranslationEditor/);
+  assert.match(detail,/PackTranslationSummary/);
+  const translationPage=read("app/(creator)/studio/packs/[packId]/translations/page.tsx");
+  assert.match(translationPage,/PackTranslationEditor/);
   assert.match(page,/pack\?\.closingMessage/);
   assert.match(page,/chapterIntro/);
   assert.match(migration,/억만장자가 되기 전/);
