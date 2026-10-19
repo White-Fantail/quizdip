@@ -26,7 +26,7 @@ test("native discovery is read-only, locale-scoped and server-safe",()=>{
  assert.match(discovery,/time\.status!=="allowed"/);
  assert.match(source("../../packages/api-client/src/index.ts"),/kidsEligible===true/);
  assert.doesNotMatch(src,/play_guess|play_start|answer\.canonical/);
- assert.match(api,/export const KIDS_API_ORIGIN = "https:\/\/quizdip\.vercel\.app"/);
+ assert.match(api,/export const KIDS_API_ORIGIN = "https:\/\/quizdip\.com"/);
  assert.doesNotMatch(api,/process\.env|EXPO_PUBLIC_QUIZDIP_API_URL/);
  for(const client of ["QuizDipPublicApi","QuizDipKidsDeviceApi","QuizDipKidsParentApi"])
   assert.ok(api.includes("new "+client+"(KIDS_API_ORIGIN)"));
