@@ -41,3 +41,14 @@ export function comboMultiplier(combo: number): number {
 export function comboAward(baseScore: number, combo: number): number {
   return Math.round(Math.max(0, baseScore) * comboMultiplier(combo));
 }
+
+/** Current and best streak; an incorrect attempt breaks the streak even if later solved. */
+export function comboProgress(rows: Array<{status:string;hadWrongGuess?:boolean}>){
+  let current=0,best=0;
+  for(const row of rows){
+    if(row.hadWrongGuess || row.status==="FAILED")current=0;
+    if(row.status==="SOLVED"){current++;best=Math.max(best,current);}
+    if(row.status==="ACTIVE")break;
+  }
+  return {current,best};
+}

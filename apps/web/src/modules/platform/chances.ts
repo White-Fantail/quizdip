@@ -44,12 +44,13 @@ export async function useRunChance(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   if(user.childScope)fail(403,"chance_unavailable","Chances are not available in Kids play");
   const run=await checkedRun(p.runId,p.runToken,actor);
-  if(run.userId!==user.id||run.mode!=="PACK"||run.lane!=="GENERAL"||run.scoringVersion!==2)
+  if((run.userId!==null&&run.userId!==user.id)||run.mode!=="PACK"||run.lane!=="GENERAL"||run.scoringVersion!==2)
     fail(403,"chance_unavailable","Chances apply only to signed-in general quiz pack games");
   if(run.status!=="ACTIVE"||run.currentIndex!==p.position||run.expiresAt.getTime()<=Date.now())
     fail(409,"chance_round_unavailable","Finish syncing previous questions before using a chance");
   return db().$transaction(async tx=>{
     const freshRun=await tx.playRun.findUniqueOrThrow({where:{id:run.id}});
+    if(freshRun.userId!==null&&freshRun.userId!==user.id)fail(403,"forbidden","Not your run");
     if(freshRun.currentIndex!==p.position||freshRun.status!=="ACTIVE")
       fail(409,"chance_round_unavailable","This round has changed");
     const round=await tx.playRunQuestion.findUnique({where:{runId_position:{runId:run.id,position:p.position}},
@@ -83,6 +84,12 @@ export async function useRunChance(p:Record<string,any>,actor:Actor|null){
         usedClues:Array.isArray(round.revision.clues)&&round.revision.clues.length===0?0:1,
         expiresAt:run.expiresAt,chanceHint:JSON.stringify(hint)
       }});
+    }
+    // A signed-in owner holding a valid guest-run capability may claim that run.
+    if(freshRun.userId===null){
+      const claim=await tx.playRun.updateMany({where:{id:run.id,userId:null},data:{userId:user.id}});
+      if(claim.count!==1)fail(409,"run_claim_conflict","Run ownership changed");
+      await tx.playSession.updateMany({where:{runId:run.id,userId:null},data:{userId:user.id}});
     }
     const balance=await tx.user.findUniqueOrThrow({where:{id:user.id},select:{chanceBalance:true}});
     return {hint,balance:balance.chanceBalance,chancesUsed:freshRun.chancesUsed+1};

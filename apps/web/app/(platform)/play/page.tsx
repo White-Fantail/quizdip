@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../src/components/image-reveal";
 import { RemainingClues } from "../../../src/components/remaining-clues";
-import { activeImageStage, initialLocalProgress, revealLocalClue, guessLocalAnswer, localSummary,
+import { activeImageStage, initialLocalProgress, revealLocalClue, guessLocalAnswer, localSummary, comboProgress,
   type LocalQuestion, type LocalProgress } from "@quizdip/domain";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
@@ -25,7 +25,8 @@ type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"
   text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
 type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;packId?:string|null;packVersion?:number|null;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
-  solved?:number;failed?:number;exhausted?:boolean;message?:string};
+  solved?:number;failed?:number;scoringVersion?:number;currentCombo?:number;bestCombo?:number;chancesUsed?:number;
+  exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;explanation?:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
@@ -34,6 +35,8 @@ type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>;runTok
 const localKey=runStorageKey;
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
+type ChanceHint = {kind:"remove-choice";option:string}|{kind:"reveal-letter";index:number;character:string};
+type ChanceBalance = {authenticated:boolean;balance:number;cap:number;daily:number};
 
 async function api(path:string, method:"GET"|"POST"="GET",body?:unknown,locale:"en"|"ko"="en"):Promise<any> {
   const response=await fetch("/api/v1"+path,{
@@ -113,6 +116,32 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const [syncState,setSyncState]=useState<"idle"|"saving"|"saved"|"error">("idle");
   const [syncError,setSyncError]=useState("");
   const [confirmedRunId,setConfirmedRunId]=useState<string|null>(null);
+  const [combo,setCombo]=useState({current:0,best:0});
+  const [chances,setChances]=useState<ChanceBalance|null>(null);
+  const [chanceBusy,setChanceBusy]=useState(false);
+  const [chanceError,setChanceError]=useState("");
+
+  useEffect(()=>{
+    if(!packId)return;
+    let active=true;
+    void request("/me/chances").then((data:ChanceBalance)=>{if(active)setChances(data);}).catch(()=>{});
+    return ()=>{active=false;};
+  },[packId,locale]);
+
+  function streakThrough(position:number){
+    const entries:LocalProgress[]=[];
+    for(let i=0;i<=position;i++){
+      const progress=localProgressRef.current[i];
+      if(!progress)break;
+      entries.push(progress);
+      if(progress.status==="ACTIVE")break;
+    }
+    return comboProgress(entries);
+  }
+  function refreshCombo(){
+    const size=localBundleRef.current?.questions.length??0;
+    setCombo(streakThrough(size-1));
+  }
 
   useEffect(()=>{
     // Deep links from Kids and campaigns must preserve the audience selection.
@@ -122,6 +151,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   useEffect(()=>{
     let alive=true;
     setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
+    setCombo({current:0,best:0});setChanceError("");
     setSyncState("idle");setSyncError("");setConfirmedRunId(null);
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     setChapterIntro(null);
@@ -238,7 +268,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       const nextRun={...r,completed:summary.completed,score:summary.score,
         solved:summary.solved,failed:summary.failed,
         status:position<0?"FINISHED" as const:"ACTIVE" as const};
-      setRun(nextRun);saveLocal();
+      setRun(nextRun);refreshCombo();saveLocal();
       if(position<0){
         if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
         setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;
@@ -392,9 +422,10 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       let result:any;
       if(run?.mode!=="INFINITE"&&localBundleRef.current){
         const q=localBundleRef.current.questions[round.round-1];
-        const attempt=guessLocalAnswer(q,localProgressRef.current[q.position]??initialLocalProgress(q.clues.length),selectedAnswer.trim());
+        const attempt=guessLocalAnswer(q,localProgressRef.current[q.position]??initialLocalProgress(q.clues.length),selectedAnswer.trim(),
+          streakThrough(q.position-1).current,run?.mode==="PACK"&&run?.scoringVersion===2);
         if(!attempt)return;
-        localProgressRef.current[q.position]=attempt.progress;saveLocal();
+        localProgressRef.current[q.position]=attempt.progress;saveLocal();refreshCombo();
         result=attempt.result;
         if(result.status!=="ACTIVE")void syncLocal().catch(()=>{});
       }else result=await request("/play/"+round.sessionId+"/guess","POST",
@@ -415,6 +446,30 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       }
     }catch(e){setError(e instanceof Error?e.message:msg("Could not check your answer.","정답을 확인하지 못했어요."));}
     finally{submittingRef.current=false;setBusy(false);}
+  }
+
+  async function useChance(){
+    if(!packId||!run||!round||run.mode!=="PACK"||run.scoringVersion!==2||chanceBusy||busy)return;
+    const index=round.round-1;
+    const progress=localProgressRef.current[index]??initialLocalProgress(round.clueCount);
+    if(progress.chanceHint||progress.hadWrongGuess||progress.status!=="ACTIVE"||mustReveal)return;
+    if(!chances?.authenticated||chances.balance<=0)return;
+    setChanceBusy(true);setChanceError("");
+    try{
+      // Advance the server through completed cached rounds before spending scarce chances.
+      const receipt=await syncCachedRun(run.runId,{force:true});
+      if(receipt&&receipt.completed<index)throw new Error(msg(
+        "Save your previous round before using a chance.","이전 문제의 기록 저장 후 찬스를 사용할 수 있어요."));
+      const data=await request("/runs/"+run.runId+"/chance","POST",
+        {runToken:run.runToken,position:index}) as {hint:ChanceHint;balance:number;chancesUsed:number};
+      localProgressRef.current[index]={...progress,chanceHint:data.hint};
+      saveLocal();
+      setRound(previous=>previous?{...previous}:null);
+      setChances(previous=>previous?{...previous,balance:data.balance}:previous);
+      setRun(previous=>previous?{...previous,chancesUsed:data.chancesUsed}:null);
+      if(data.hint.kind==="remove-choice"&&guess===data.hint.option)setGuess("");
+    }catch(e){setChanceError(e instanceof Error?e.message:msg("Couldn't use a chance.","찬스를 사용하지 못했어요."));}
+    finally{setChanceBusy(false);}
   }
   async function toggleRemainingClues() {
     if (!round || reviewBusy || round.sessionStatus === "ACTIVE") return;
@@ -463,6 +518,13 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   }
 
   const isDone=!!round&&round.sessionStatus!=="ACTIVE";
+  const activeHint:ChanceHint|undefined=round?localProgressRef.current[round.round-1]?.chanceHint:undefined;
+  const activeProgress=round?localProgressRef.current[round.round-1]:undefined;
+  const comboEnabled=!!packId&&run?.mode==="PACK"&&run.scoringVersion===2;
+  const hintMask=activeHint?.kind==="reveal-letter"&&localBundleRef.current&&round
+    ?[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(
+      localBundleRef.current.questions[round.round-1]?.answer.canonical??"")].map((s,i)=>
+        i===activeHint.index?activeHint.character:/\\s/u.test(s.segment)?s.segment:"□").join(""):null;
   const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
   const scoreReview=[...(pack?.scoreReviews??[])].filter(review=>run&&run.score>=review.minimumScore).at(-1);
@@ -612,6 +674,11 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       <div className="play-top">
         <span className="small-tag">{mode==="PACK"?msg("Quiz pack","퀴즈팩"):mode==="RANDOM_FIVE"?msg("Quick five","랜덤 5문제"):msg("Continuous play","연속 플레이")}</span>
         <span className="clue-count">{run.completed}{msg(" quizzes finished · ","문제 완료 · ")}{run.score}{msg(" pts","점")}</span>
+        {comboEnabled&&<div className="quizdip-combo-bar" aria-live="polite">
+          <span className={combo.current>=3?"quizdip-combo is-hot":"quizdip-combo"}>🔥 {combo.current} COMBO
+            {combo.current===3?" · GREAT!":combo.current===5?" · AMAZING!":combo.current===10?" · LEGENDARY!":""}</span>
+          <span className="quizdip-chance-count">🎟️ {chances?.authenticated?chances.balance:"—"}</span>
+        </div>}
       </div>
       {round?<>
         <div className="round-progress"><span>{msg("Question ","문제 ")}{round.round}{run.total?" / "+run.total:""} </span>
@@ -644,14 +711,24 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           {round.responseMode==="multiple-choice"&&round.options?.length?
             <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
               {round.options.map((option,index)=><button type="button" key={option}
-                className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option} data-quizdip-choice={index}
-                disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
+                className={"guess-option"+(guess===option?" selected":"")+(activeHint?.kind==="remove-choice"&&activeHint.option===option?" quizdip-option-eliminated":"")} aria-pressed={guess===option} data-quizdip-choice={index}
+                disabled={busy||mustReveal||(activeHint?.kind==="remove-choice"&&activeHint.option===option)} onClick={()=>setGuess(option)}>
                 <span className="guess-option-letter">{index+1}</span>{option}
               </button>)}
             </div>:
             <input ref={answerInputRef} className="guess-input" id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
               aria-labelledby="quizdip-answer-label" autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")}
               maxLength={200} disabled={busy||mustReveal}/>}
+          {comboEnabled&&hintMask&&<p className="quizdip-letter-hint" role="status" aria-label={msg("One revealed answer letter","정답 한 글자 공개")}>{hintMask}</p>}
+          {comboEnabled&&!activeHint&&!activeProgress?.hadWrongGuess&&!mustReveal&&<div className="quizdip-chance-actions">
+            {chances?.authenticated?<button type="button" className="btn btn-outline" disabled={busy||chanceBusy||chances.balance===0||
+              (run.chancesUsed??0)>=2||(round.responseMode==="multiple-choice"?(round.options?.length??0)<3:false)}
+              onClick={()=>void useChance()}>{chanceBusy?msg("Using chance…","찬스 사용 중…"):msg("🎟️ Use chance","🎟️ 찬스 사용")}</button>:
+              <Link className="btn btn-outline" href={"/sign-in?callbackURL="+encodeURIComponent(localizeHref("/packs/"+packId+"/play",locale))}>
+                {msg("🎟️ Sign in for 3 chances","🎟️ 로그인하고 찬스 3개 받기")}</Link>}
+            {chances?.authenticated&&<span className="muted">{msg("1 wrong choice or 1 letter · 2 per pack","오답 보기 1개 또는 한 글자 · 팩당 2개")}</span>}
+          </div>}
+          {chanceError&&<p className="feedback" role="alert">{chanceError}</p>}
           <div className="guess-row">
             <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>
               {msg("Check answer","정답 확인")}</button>
@@ -690,6 +767,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
+          {comboEnabled&&<p className="quizdip-finish-combo">🔥 {msg("Best combo","최고 콤보")} <strong>{combo.best}</strong> · 🎟️ {msg("Chances used","사용한 찬스")} <strong>{run.chancesUsed??0}</strong></p>
           {run.mode==="PACK"&&pack?.closingMessage&&<section className="feature-card pack-ending-message">
              <h3>{msg("From the creator","제작자의 마무리 글")}</h3>
              <p style={{whiteSpace:"pre-wrap"}}>{pack.closingMessage}</p>
