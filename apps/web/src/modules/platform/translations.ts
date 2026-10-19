@@ -193,6 +193,10 @@ export async function quizTranslationHide(p:Record<string,any>,actor:Actor|null)
   if(!loc) fail(404,"translation_not_found","Language version not found");
   await db().$transaction(async tx=>{
     await tx.quizLocalization.update({where:{id:loc.id},data:{status:"HIDDEN"}});
+    if(loc.status==="PUBLISHED")await tx.quizPack.updateMany({
+      where:{publication:"PUBLISHED",items:{some:{quizId:quiz.id}}},
+      data:{currentVersion:{increment:1}}
+    });
     await tx.auditLog.create({data:{actorId:user.id,action:"quiz.translation.hide",objectId:quiz.id,
       detail:{locale:p.locale}}});
   });
