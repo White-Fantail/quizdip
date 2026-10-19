@@ -248,3 +248,12 @@ These endpoints use owner/admin authorization in shared platform operations. The
 ## Shared non-blocking fun rubric
 
 All quiz/pack authoring tools advertise `quizdip_catalog.funQuality` (five weighted editorial criteria totaling 100). Pack create/update, preflight and publish preview return a `funReview` payload; GET `/api/v1/packs/:id/fun-review` / `quizdip_pack_fun_review` returns that review without saving anything. The service enforces pack ownership and uses only the current owner's localized draft revisions or other authors' publicly published versions. The review reports objective signals (missing opening/ending, explanation coverage, duplicate prompts and thin multiple-choice distractors) and suggested revisions. It intentionally returns `score: null` because metadata rules cannot judge humor, surprise, fairness or narrative quality; editorial/AI interpretation is necessary. Suggestions **never** block ordinary publication, alter safety status, or substitute for factual/source validation.
+
+## Related-pack recommendations
+
+- `quizdip_pack_recommendations` ⇄ GET `/api/v1/packs/:id/recommendations`: public, spoiler-safe, locale-specific up to three currently playable packs.
+- `quizdip_pack_recommendations_set` ⇄ PUT `/api/v1/packs/:id/recommendations`: owner-only manual ordered picks; no Kids approval changes.
+- `quizdip_pack_recommendation_track` ⇄ POST `/api/v1/runs/recommendations`: idempotent recommendation impressions/clicks from a verified completed General run, with run capability.
+- `quizdip_my_pack_insights` ⇄ GET `/api/v1/me/packs/:id/insights`: includes anonymized recommendation impressions and clicks.
+
+See [result recommendations](pack-recommendations.md) for scoring and verification.

@@ -14,6 +14,7 @@ import { chanceBalance, useRunChance } from "./chances";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packFunReview, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
+import { packRecommendationsGet,packRecommendationsSet,packRecommendationTrack } from "./pack-recommendations";
 import { discoverSections } from "./discovery";
 import { editorialFeaturesList,adminFeatureList,adminFeatureCandidates,adminFeatureCreate,
   adminFeatureUpdate,adminFeatureRemove,adminPackSafetyList,adminPackSafetyReview,adminPackReportsList } from "./editorial";
@@ -58,6 +59,9 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
     case "pack_get": return packGet(p,actor);
+    case "pack_recommendations": return packRecommendationsGet(p,actor);
+    case "pack_recommendations_set": return packRecommendationsSet(p,actor);
+    case "pack_recommendation_track": return packRecommendationTrack(p,actor);
     case "my_pack_get": return myPackGet(p,actor);
     case "pack_list": return packList(p, actor);
     case "pack_preflight": return packPreflight(p,actor);

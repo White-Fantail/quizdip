@@ -11,7 +11,7 @@ type Pack={id:string;title:string;description:string;publication:string;sourceLo
   currentVersion?:number;orderMode:"CREATOR"|"RANDOM";safetyStatus:string;
   kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;
   excludedCount:number;quizIds:string[];members:Member[]};
-type Insights={runs:number;completed:number;averageSolved:number|null;
+type Insights={runs:number;completed:number;averageSolved:number|null;recommendationImpressions?:number;recommendationClicks?:number;
   ratings:{positive:number;negative:number};reportCounts:{reason:string;count:number}[]};
 type Preview={ready:boolean;issues:string[];draftCount:number;questionCount:number};
 
@@ -201,6 +201,8 @@ export default function PackDetail({packId,backHref,editHref}:{packId:string;bac
           <div><small>{ko?"완료":"Completed"}</small><strong>{insights.completed.toLocaleString()}</strong></div>
           <div><small>{ko?"좋아요":"Likes"}</small><strong>{insights.ratings.positive.toLocaleString()}</strong></div>
           <div><small>{ko?"아쉬워요":"Needs work"}</small><strong>{insights.ratings.negative.toLocaleString()}</strong></div>
+          <div><small>{ko?"추천 노출":"Recommendations shown"}</small><strong>{(insights.recommendationImpressions??0).toLocaleString()}</strong></div>
+          <div><small>{ko?"추천 클릭":"Recommendation clicks"}</small><strong>{(insights.recommendationClicks??0).toLocaleString()}</strong></div>
         </div>
         {insights.averageSolved!==null&&<p className="muted">{ko?"완료한 플레이의 평균 정답 수":"Average correct in completed runs"}: {insights.averageSolved.toFixed(1)}</p>}
         {insights.reportCounts.length>0&&<p className="muted">{ko?"신고 집계":"Reports"}: {insights.reportCounts.map(r=>r.reason+" "+r.count).join(", ")}</p>}

@@ -6,6 +6,7 @@ import {useRouter} from "next/navigation";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
 import MediaPicker from "../quizzes/quiz-media-picker";
+import PackRecommendationEditor from "./pack-recommendation-editor";
 type PackSection={start:number;title:string;description:string;mediaId?:string|null};
 type ScoreReview={minimumScore:number;title:string;description:string};
 
@@ -239,6 +240,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
         + {ko?"점수 평가 추가":"Add score commentary"}
       </button>
     </section>
+    {packId&&<PackRecommendationEditor packId={packId} locale={language}/>}
     <div className="pack-editor-columns">
       <section className="feature-card">
         <h2>{ko?"팩에 포함된 문제":"Questions in this pack"} ({members.length}/100)</h2>

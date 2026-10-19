@@ -172,6 +172,7 @@ model QuizPack {
   sections              Json          @default("[]")
   closingMessage        String        @default("")
   scoreReviews          Json          @default("[]")
+  recommendedPackIds    Json          @default("[]")
   sourceLocale          String        @default("und")
   localizations         QuizPackLocalization[]
   publication           String        @default("DRAFT")
@@ -466,11 +467,25 @@ model PlayRun {
   shareId     String?   @unique
   sharedAt    DateTime?
   questions   PlayRunQuestion[]
+  recommendationEvents PackRecommendationEvent[]
   sessions    PlaySession[]
   kidOwnership KidPlayRun?
   @@index([userId, startedAt])
   @@index([packId, status, startedAt])
   @@index([startedAt])
+}
+
+model PackRecommendationEvent {
+  id           String   @id @default(uuid())
+  runId        String
+  run          PlayRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourcePackId String
+  targetPackId String
+  kind         String
+  locale       String
+  createdAt    DateTime @default(now())
+  @@unique([runId, targetPackId, kind])
+  @@index([sourcePackId, kind, createdAt])
 }
 
 model PlayRunQuestion {

@@ -278,6 +278,16 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
     where:{id:{in:ids}},select:{id:true,authorId:true,publication:true,safetyStatus:true}
   }):[];
   const quizDetails=new Map(quizzes.map(quiz=>[quiz.id,quiz]));
+  const recommendedIds=Array.isArray(pack.recommendedPackIds)?
+    pack.recommendedPackIds.filter((id):id is string=>typeof id==="string"):[];
+  const recommendedRows=recommendedIds.length?await db().quizPack.findMany({
+    where:{id:{in:recommendedIds},publication:"PUBLISHED",safetyStatus:"ACTIVE"},
+    select:{id:true,localizations:{where:{locale:pack.sourceLocale,status:"PUBLISHED"},select:{title:true}}}
+  }):[];
+  const recommendedPacks=recommendedIds.flatMap(id=>{
+    const row=recommendedRows.find(row=>row.id===id);
+    return row?.localizations[0]?[{id,title:row.localizations[0].title}]:[];
+  });
   let kidsReady=false,kidsIssue="",excludedCount=0;
   if(pack.publication==="PUBLISHED"&&["en","ko"].includes(pack.sourceLocale)){
     if(pack.safetyStatus==="ACTIVE"){
@@ -288,7 +298,7 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
     catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
   }
   return {id:pack.id,title:pack.title,description:pack.description,coverMediaId:pack.coverMediaId,sections:pack.sections,
-    closingMessage:pack.closingMessage,scoreReviews:pack.scoreReviews,currentVersion:pack.currentVersion,
+    closingMessage:pack.closingMessage,scoreReviews:pack.scoreReviews,recommendedPackIds:pack.recommendedPackIds,recommendedPacks,currentVersion:pack.currentVersion,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
     safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
     kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,excludedCount,
@@ -308,6 +318,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     localizations: { some: { locale, status: "PUBLISHED" } },
     items: { some: { quiz: playableQuizWhere(locale) } }
   };
+  if(!p.mine&&p.search)where.localizations={some:{locale,status:"PUBLISHED",title:{contains:p.search,mode:"insensitive"}}};
   const [packs,total] = await Promise.all([
     db().quizPack.findMany({
       where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
