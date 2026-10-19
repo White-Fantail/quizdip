@@ -13,7 +13,7 @@ const imageHeaders = {"Content-Type":"image/png","Cache-Control":"public, max-ag
 async function loadKoreanFont(text:string):Promise<ArrayBuffer|null> {
   try {
     const cssUrl="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700&text="+
-      encodeURIComponent(text.slice(0,200)+" 나의 점수 맞힌 문제 QuizDip MY QUIZ PACK RESULT SCORE PTS CORRECT ANSWERS 0123456789 Think you can beat this score?");
+      encodeURIComponent(text.slice(0,200)+" 나의 점수 맞힌 문제 같은 버전의 점수만 비교할 수 있어요 QuizDip MY QUIZ PACK RESULT SCORE PTS CORRECT ANSWERS 0123456789 Compare scores only within the same version");
     const cssResponse=await fetch(cssUrl,{headers:{"User-Agent":"Mozilla/5.0 (Windows NT 6.1; rv:27.0) Gecko/20100101 Firefox/27.0"},signal:AbortSignal.timeout(1800)});
     if(!cssResponse.ok)return null;
     const css=await cssResponse.text();
