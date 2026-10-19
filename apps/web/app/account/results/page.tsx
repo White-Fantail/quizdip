@@ -7,7 +7,7 @@ import { localizeHref } from "../../../src/i18n/core";
 import PackResultShare from "../../../src/components/pack-result-share";
 import { recoverCachedRuns, cachedCompletedResults, getCachedRun, type RecoveryReport } from "../../../src/lib/local-run-sync";
 
-type RunResult = {runId:string;packId:string|null;packTitle:string|null;mode:string;status:string;
+type RunResult = {runId:string;packId:string|null;packTitle:string|null;packVersion:number|null;mode:string;status:string;
   score:number;solved:number;failed:number;completed:number;total:number|null;startedAt:string;shareId:string|null;canResume:boolean;locale:"ko"|"en"};
 type History = {items:RunResult[];total:number;limit:number;offset:number};
 const PAGE_SIZE=20;
@@ -105,6 +105,9 @@ export default function MyResults() {
         <div className="my-result-row">
           <div>
             <span className="small-tag">{run.mode==="PACK"?(korean?"퀴즈팩":"Quiz pack"):(korean?"자유 플레이":"Free play")}</span>
+            {run.mode==="PACK"&&<span className="muted" style={{fontSize:"0.75rem",marginLeft:8}}>
+              {run.packVersion!=null?`v${run.packVersion}`:(korean?"이전 버전 미확인":"Legacy version unknown")}
+            </span>
             <h2>{run.packTitle||(run.mode==="RANDOM_FIVE"?(korean?"랜덤 5문제":"Random five"):(korean?"연속 플레이":"Continuous play"))}</h2>
             <p className="muted">{new Date(run.startedAt).toLocaleDateString(korean?"ko-KR":"en-NZ")}
               {" · "}{run.score}{korean?"점":" pts"}{" · "}
@@ -125,7 +128,7 @@ export default function MyResults() {
           </button>:<span className="muted">{korean?"완료":"Finished"}</span>}
         </div>
         {open&&shareable&&run.packId&&<PackResultShare key={run.runId}
-          packId={run.packId} title={run.packTitle||"Quiz pack"} score={run.score}
+          packId={run.packId} title={run.packTitle||"Quiz pack"} score={run.score} packVersion={run.packVersion}
           completed={run.completed} solved={run.solved} existingShareId={run.shareId}
           createShareId={async()=>{
             const shared=await api("/runs/"+run.runId+"/share","POST",{});
