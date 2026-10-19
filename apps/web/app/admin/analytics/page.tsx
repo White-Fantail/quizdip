@@ -8,7 +8,7 @@ import {
   loadAdminContentAnalytics, resolveAnalyticsFilters,
   type AnalyticsParams, type RankRow,
 } from "../../../src/modules/platform/admin-content-analytics";
-import { loadAdminContentInsights } from "../../../src/modules/platform/admin-content-insights";
+import { loadAdminContentInsights, resolveRisingKind, type RisingKind } from "../../../src/modules/platform/admin-content-insights";
 
 export const dynamic = "force-dynamic";
 const selectStyle = { minWidth: 128, maxWidth: "100%", padding: "9px 10px", borderRadius: 9 };
@@ -77,11 +77,18 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
   if (!actor) redirect(localizeHref("/sign-in?callbackURL=%2Fadmin%2Fanalytics", locale));
   if (actor.role !== "ADMIN") notFound();
 
-  const filters = resolveAnalyticsFilters(await searchParams);
-  const [data, insights] = await Promise.all([loadAdminContentAnalytics(filters), loadAdminContentInsights(filters)]);
+  const query = await searchParams;
+  const filters = resolveAnalyticsFilters(query);
+  const risingKind = resolveRisingKind(query.risingKind);
+  const [data, insights] = await Promise.all([loadAdminContentAnalytics(filters), loadAdminContentInsights(filters, risingKind)]);
   const detailSuffix = "?" + new URLSearchParams({period:filters.period,start:filters.startDay,
     end:filters.endDay,locale:filters.locale,audience:filters.audience,mode:filters.mode}).toString();
   const url = localizeHref("/admin/analytics", locale);
+  const risingQuery = (kind: RisingKind) => new URLSearchParams({
+    period: filters.period, start: filters.startDay, end: filters.endDay,
+    locale: filters.locale, audience: filters.audience, mode: filters.mode,
+    creator: filters.creator, sort: filters.sort, risingKind: kind,
+  }).toString();
   const series = data.trend;
   const max = Math.max(1, ...series.map(v => v.plays));
   const tiles = [
@@ -103,6 +110,7 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
     <div className="actions"><Link href={localizeHref("/admin", locale)} className="card-link">← {tr("Admin home", "관리자 홈")}</Link></div>
     <section className="section review-console" style={{ marginTop: 20 }}>
       <form action={url} method="GET" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+        <input type="hidden" name="risingKind" value={risingKind}/>
         <label style={fieldStyle}>{tr("Period", "기간")}
           <select name="period" defaultValue={filters.period} style={selectStyle}>
             {[["today", tr("Today", "오늘")], ["yesterday", tr("Yesterday", "어제")],
@@ -193,6 +201,17 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
         {tr("Compared with the preceding equal-length period. At least 10 current starts and eight additional starts are required; existing baselines also need at least five starts and 50% growth. Ranked by absolute added plays.",
           "직전 동일 기간과 비교합니다. 현재 최소 10회, 순증 최소 8회가 필요하며 기존 기록이 있다면 직전 5회 이상·성장률 50% 이상이어야 합니다. 실제 증가한 플레이 수 순으로 정렬합니다.")}
       </p>
+      <div role="group" aria-label={tr("Rising content type", "급상승 콘텐츠 유형")}
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0 16px" }}>
+        {(["pack", "question"] as const).map(kind =>
+          <Link key={kind} href={url + "?" + risingQuery(kind)}
+            aria-current={risingKind === kind ? "page" : undefined}
+            className={risingKind === kind ? "small-tag" : "card-link"}
+            style={{ display: "inline-flex", alignItems: "center", padding: "7px 14px",
+              border: "1px solid var(--line, #dedede)", borderRadius: 999, textDecoration: "none" }}>
+            {kind === "pack" ? tr("Packs", "퀴즈팩") : tr("Questions", "개별 문제")}
+          </Link>)}
+      </div>
       <div className="review-result-list">
         {insights.rising.map((item,index)=><div key={item.kind+item.id} className="review-entry">
           <span className="review-entry-copy">
