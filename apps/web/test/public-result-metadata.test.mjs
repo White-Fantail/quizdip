@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { publicResultMetadata, publicResultOrigin } from "../src/lib/public-result-metadata.ts";
 
-const origin = "https://quizdip.vercel.app";
+const origin = "https://quizdip.com";
 const shareId = "f128d905-fb7c-4491-bca3-ccddca7bbb84";
 
 for (const locale of ["ko", "en"]) {
@@ -46,7 +46,7 @@ test("production metadata always honors configured public origin", () => {
   assert.equal(publicResultOrigin({
     VERCEL_ENV: "production",
     VERCEL_URL: "quizdip-temp.vercel.app",
-    PUBLIC_ORIGIN: "https://quizdip.vercel.app/",
+    PUBLIC_ORIGIN: "https://quizdip.com/",
   }), origin);
   assert.equal(publicResultOrigin({
     VERCEL_ENV: "production",
