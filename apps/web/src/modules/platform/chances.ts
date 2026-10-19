@@ -85,12 +85,8 @@ export async function useRunChance(p:Record<string,any>,actor:Actor|null){
         expiresAt:run.expiresAt,chanceHint:JSON.stringify(hint)
       }});
     }
-    // A signed-in owner holding a valid guest-run capability may claim that run.
-    if(freshRun.userId===null){
-      const claim=await tx.playRun.updateMany({where:{id:run.id,userId:null},data:{userId:user.id}});
-      if(claim.count!==1)fail(409,"run_claim_conflict","Run ownership changed");
-      await tx.playSession.updateMany({where:{runId:run.id,userId:null},data:{userId:user.id}});
-    }
+    // Signed-in users can spend chances in a guest run with a valid capability.
+    // Keep the original token so browser-cached guest progress remains resumable.
     const balance=await tx.user.findUniqueOrThrow({where:{id:user.id},select:{chanceBalance:true}});
     return {hint,balance:balance.chanceBalance,chancesUsed:freshRun.chancesUsed+1};
   },{isolationLevel:"Serializable"});
