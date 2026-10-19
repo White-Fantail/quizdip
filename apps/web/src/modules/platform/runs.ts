@@ -404,6 +404,7 @@ export async function runShareGet(p:Record<string,any>) {
   const run=await db().playRun.findUnique({where:{shareId:p.shareId},select:{
     shareId:true,mode:true,lane:true,locale:true,packId:true,
     status:true,completedAt:true,currentIndex:true,score:true,solved:true,failed:true,
+    packVersion:true,scoringVersion:true,
     pack:{select:{kidsEligible:true}}
   }});
   if(!run||run.mode!=="PACK"||run.lane!=="GENERAL"||run.status!=="FINISHED"||
@@ -412,6 +413,9 @@ export async function runShareGet(p:Record<string,any>) {
   try{pack=await safePack(run.packId,run.locale as Locale,"GENERAL");}
   catch{fail(404,"result_unavailable","This result is no longer public");}
   return {shareId:run.shareId,packId:run.packId,title:pack.title,locale:run.locale,
+    packVersion:run.packVersion,currentPackVersion:pack.packVersion,
+    // Legacy scores without a pinned pack version or comparable scoring rules are not comparable.
+    comparable:run.packVersion!==null && run.packVersion===pack.packVersion && run.scoringVersion===2,
     score:run.score,completed:run.currentIndex,solved:run.solved,failed:run.failed,
     completedAt:run.completedAt,kidsEligible:run.pack?.kidsEligible??true};
 }
