@@ -88,7 +88,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;kidsEligible?:boolean;
-    sections:Chapter[];closingMessage:string;scoreReviews:ScoreReview[];author:{displayName:string}}|null>(null);
+    sections:Chapter[];closingMessage:string;scoreReviews:ScoreReview[];currentVersion:number;author:{displayName:string}}|null>(null);
   const [chapterIntro,setChapterIntro]=useState<Chapter|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
   const [round,setRound]=useState<Round|null>(null);
@@ -532,7 +532,10 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         i===activeHint.index?activeHint.character:/\s/u.test(s.segment)?s.segment:"□").join(""):null;
   const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
-  const scoreReview=[...(pack?.scoreReviews??[])].filter(review=>run&&run.score>=review.minimumScore).at(-1);
+  // Current editorial score bands cannot be applied retroactively to an old pack edition.
+  const scoreReview=run?.mode==="PACK"&&run.packVersion===pack?.currentVersion
+    ?[...(pack?.scoreReviews??[])].filter(review=>run.score>=review.minimumScore).at(-1)
+    :undefined;
 
   // Keep a physical-keyboard player in the answer field after each new clue/round,
   // without opening the virtual keyboard unexpectedly on a touch device.
@@ -604,6 +607,12 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     {packId?<div className="play-pack-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
       <h1>{pack?.title||msg("Quiz pack","퀴즈팩")}</h1>
+      {(run?.mode==="PACK"||pack?.currentVersion!=null)&&
+        <p className="muted" style={{fontSize:"0.78rem",margin:"4px 0 0"}}>
+          {run?.mode==="PACK"
+            ?run.packVersion!=null?`v${run.packVersion}`:msg("Legacy result · version unknown","이전 기록 · 버전 정보 없음")
+            :`v${pack?.currentVersion}`}
+        </p>}
     </div>:<div className="play-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
       <h1>{msg("Discover and play at your pace.","흥미로운 퀴즈를 발견하고 자유롭게 플레이하세요.")}</h1>
@@ -773,6 +782,18 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
+          {run.mode==="PACK"&&<p className="muted" style={{fontSize:"0.78rem"}}>
+            {run.packVersion!=null?`v${run.packVersion}`:msg("Legacy result · version unknown","이전 기록 · 버전 정보 없음")}
+            {" · "}{msg("Compare scores only from the same pack version and scoring rules.","같은 팩 버전과 채점 기준의 결과만 비교할 수 있어요.")}
+          </p>}
+          {run.mode==="PACK"&&pack&&run.packVersion!==pack.currentVersion&&
+            <p className="muted" role="note">
+              {run.packVersion!=null
+                ?msg(`This run used v${run.packVersion}; the current pack is v${pack.currentVersion}. Scores are not directly comparable.`,
+                  `이 플레이는 v${run.packVersion} 기록이며, 현재 팩은 v${pack.currentVersion}입니다. 점수를 직접 비교할 수 없어요.`)
+                :msg("This older result has no recorded pack version, so scores are not directly comparable.",
+                  "버전 정보가 없는 이전 기록이므로 점수를 직접 비교할 수 없어요.")}
+            </p>}
           {comboEnabled&&<p className="quizdip-finish-combo">🔥 {msg("Best combo","최고 콤보")} <strong>{combo.best}</strong> · 🎟️ {msg("Chances used","사용한 찬스")} <strong>{run.chancesUsed??0}</strong></p>}
           {run.mode==="PACK"&&pack?.closingMessage&&<section className="feature-card pack-ending-message">
              <h3>{msg("From the creator","제작자의 마무리 글")}</h3>
@@ -795,7 +816,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
               {msg("Retry saving results","결과 저장 다시 시도")}</button>}
           </div>}
           {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&confirmedRunId===run.runId&&<PackResultShare
-            packId={packId} title={pack?.title||msg("Quiz pack","퀴즈팩")}
+            packId={packId} title={pack?.title||msg("Quiz pack","퀴즈팩")} packVersion={run.packVersion}
             score={run.score} completed={run.completed} solved={run.solved||0}
             createShareId={async()=>{
               // Recheck before making a public score claim.

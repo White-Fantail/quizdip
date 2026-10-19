@@ -39,6 +39,7 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
  return <main className="container inner-page management-page">
   <div className="play-intro"><span className="eyebrow">QUIZDIP · QUIZ PACK</span>
    <h1>{pack.title}</h1>
+   <p className="muted" style={{fontSize:"0.78rem",marginTop:4}}>v{pack.currentVersion}</p>
    {pack.kidsEligible&&<div className="pack-type-badges pack-detail-badges">
      <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
    </div>}

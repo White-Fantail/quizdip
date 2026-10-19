@@ -9,10 +9,11 @@ for (const locale of ["ko", "en"]) {
   test(`shared ${locale} result uses one URL for the shared link, canonical, and Open Graph`, () => {
     const result = publicResultMetadata({
       shareId, locale, origin,
-      packTitle: "Test quiz", score: 920, completed: 12, solved: 10,
+      packTitle: "Test quiz", packVersion:7, score: 920, completed: 12, solved: 10,
     });
     const expected = `${origin}/${locale}/results/${shareId}`;
-    const image = `${origin}/results/${shareId}/og?v=4`;
+    const image = `${origin}/results/${shareId}/og?v=5`;
+    assert.match(result.title, /v7/);
     assert.equal(result.alternates.canonical, expected);
     assert.equal(result.openGraph.url, expected);
     assert.equal(new URL(result.openGraph.url).search, "");
