@@ -532,7 +532,10 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         i===activeHint.index?activeHint.character:/\s/u.test(s.segment)?s.segment:"□").join(""):null;
   const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
-  const scoreReview=[...(pack?.scoreReviews??[])].filter(review=>run&&run.score>=review.minimumScore).at(-1);
+  // Current editorial score bands cannot be applied retroactively to an old pack edition.
+  const scoreReview=run?.mode==="PACK"&&run.packVersion===pack?.currentVersion
+    ?[...(pack?.scoreReviews??[])].filter(review=>run.score>=review.minimumScore).at(-1)
+    :undefined;
 
   // Keep a physical-keyboard player in the answer field after each new clue/round,
   // without opening the virtual keyboard unexpectedly on a touch device.
@@ -783,6 +786,14 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
             {run.packVersion!=null?`v${run.packVersion}`:msg("Legacy result · version unknown","이전 기록 · 버전 정보 없음")}
             {" · "}{msg("Compare scores only from the same pack version and scoring rules.","같은 팩 버전과 채점 기준의 결과만 비교할 수 있어요.")}
           </p>}
+          {run.mode==="PACK"&&pack&&run.packVersion!==pack.currentVersion&&
+            <p className="muted" role="note">
+              {run.packVersion!=null
+                ?msg(`This run used v${run.packVersion}; the current pack is v${pack.currentVersion}. Scores are not directly comparable.`,
+                  `이 플레이는 v${run.packVersion} 기록이며, 현재 팩은 v${pack.currentVersion}입니다. 점수를 직접 비교할 수 없어요.`)
+                :msg("This older result has no recorded pack version, so scores are not directly comparable.",
+                  "버전 정보가 없는 이전 기록이므로 점수를 직접 비교할 수 없어요.")}
+            </p>}
           {comboEnabled&&<p className="quizdip-finish-combo">🔥 {msg("Best combo","최고 콤보")} <strong>{combo.best}</strong> · 🎟️ {msg("Chances used","사용한 찬스")} <strong>{run.chancesUsed??0}</strong></p>}
           {run.mode==="PACK"&&pack?.closingMessage&&<section className="feature-card pack-ending-message">
              <h3>{msg("From the creator","제작자의 마무리 글")}</h3>
