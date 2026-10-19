@@ -61,8 +61,8 @@ export default async function SharedResult({params}:{params:Promise<{shareId:str
           ?(korean
             ?`이 기록은 v${result.packVersion}에서 달성했어요. 현재 퀴즈팩은 v${result.currentPackVersion}이므로 점수를 직접 비교할 수 없어요.`
             :`This is a v${result.packVersion} result. The current pack is v${result.currentPackVersion}; scores are not directly comparable.`)
-          :(korean?"채점 기준 또는 버전 정보가 달라 다른 기록과 직접 비교할 수 없어요.":
-            "Scoring rules or version information differ; do not directly compare this score.")}
+          :(korean?"문제 구성, 채점 기준 또는 버전 정보가 달라 다른 기록과 직접 비교할 수 없어요.":
+            "Question revisions, scoring rules, or version information differ; do not directly compare this score.")}
       </p>}
       <Link href={packHref} className="btn btn-primary">
         {korean?"현재 퀴즈팩 플레이 →":"Play the current quiz pack →"}
