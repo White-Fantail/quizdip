@@ -107,7 +107,7 @@ export default function MyResults() {
             <span className="small-tag">{run.mode==="PACK"?(korean?"퀴즈팩":"Quiz pack"):(korean?"자유 플레이":"Free play")}</span>
             {run.mode==="PACK"&&<span className="muted" style={{fontSize:"0.75rem",marginLeft:8}}>
               {run.packVersion!=null?`v${run.packVersion}`:(korean?"이전 버전 미확인":"Legacy version unknown")}
-            </span>
+            </span>}
             <h2>{run.packTitle||(run.mode==="RANDOM_FIVE"?(korean?"랜덤 5문제":"Random five"):(korean?"연속 플레이":"Continuous play"))}</h2>
             <p className="muted">{new Date(run.startedAt).toLocaleDateString(korean?"ko-KR":"en-NZ")}
               {" · "}{run.score}{korean?"점":" pts"}{" · "}
