@@ -10,6 +10,7 @@ import {listBackHref} from "../../../../src/lib/list-back-href";
 import AdSlot from "../../../../src/components/ads/AdSlot";
 import KidsPackBadge from "../../../../src/components/kids-pack-badge";
 import { splitPackDescription } from "../../../../src/modules/quiz/pack-description";
+import { INDEX_ORIGIN, canonicalUrl } from "../../../../src/lib/search-indexing";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -22,9 +23,8 @@ export async function generateMetadata({params}:{params:Promise<{packId:string}>
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
   const title=pack.title+" · QuizDip";
   const description=splitPackDescription(pack.description||"").intro||(`${pack.questionCount} questions · QuizDip`);
-  const origin=process.env.PUBLIC_ORIGIN||process.env.BETTER_AUTH_URL||"https://quizdip.com";
-  const url=new URL(localizeHref("/packs/"+pack.id,locale),origin).href;
-  return {title,description,metadataBase:new URL(origin),
+  const url=canonicalUrl(localizeHref("/packs/"+pack.id,locale));
+  return {title,description,metadataBase:new URL(INDEX_ORIGIN),
     alternates:{canonical:url},
     openGraph:{title,description,siteName:"QuizDip",type:"website",url},
     twitter:{card:"summary",title,description},
