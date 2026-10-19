@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { isCorrectAnswer, scoreForAnswer, normalizeAnswer } from "@quizdip/domain";
+import { isCorrectAnswer, scoreForAnswer, normalizeAnswer, comboAward } from "@quizdip/domain";
 import { db } from "./db";
 import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
@@ -115,30 +115,40 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const correct = isCorrectAnswer(answer, p.guess);
   const last = session.usedClues === clues.length;
   const failed = !correct && last;
-  const score = correct ? scoreForAnswer(clues.length, session.usedClues, answer.responseMode) : 0;
+  let score = correct ? scoreForAnswer(clues.length, session.usedClues, answer.responseMode) : 0;
   const terminal=correct || failed;
   await db().$transaction(async tx => {
+    const run=session.runId?await tx.playRun.findUnique({where:{id:session.runId}}):null;
+    if(run && (run.status!=="ACTIVE"||run.currentIndex!==session.roundIndex||
+      run.expiresAt.getTime()<=Date.now()))fail(409,"run_conflict","Run has moved to another question");
+    const comboEnabled=run?.mode==="PACK"&&run.scoringVersion===2;
+    const comboAfter=correct?(session.hadWrongGuess?1:(run?.currentCombo??0)+1):0;
+    if(comboEnabled&&correct)score=comboAward(score,comboAfter);
     const updated = await tx.playSession.updateMany({
       where: { id: session.id, status: "ACTIVE", wrongGuesses: session.wrongGuesses, usedClues: session.usedClues },
       data: { wrongGuesses: correct ? session.wrongGuesses : session.usedClues,
+        hadWrongGuess:!correct||session.hadWrongGuess,
         ...(firstChoice !== null ? { firstChoice } : {}),
         ...(terminal ? { status: correct ? "SOLVED" : "FAILED", score, finishedAt: new Date() } : {}) }
     });
     if (updated.count !== 1) fail(409, "conflict", "Concurrent session action, retry");
-    if (terminal && session.runId) {
-      const run=await tx.playRun.findUnique({where:{id:session.runId}});
-      if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
-          run.expiresAt.getTime()<=Date.now())
-        fail(409,"run_conflict","This run has already moved to another round");
+    if (terminal && run) {
       const finished=completesRun(run);
       const changed=await tx.playRun.updateMany({
         where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
         data:{currentIndex:{increment:1},score:{increment:score},
           solved:{increment:correct?1:0},failed:{increment:failed?1:0},
+          ...(comboEnabled?{currentCombo:comboAfter,bestCombo:Math.max(run.bestCombo,comboAfter)}:{}),
           ...(finished?{status:"FINISHED",completedAt:new Date()}:{}),
         }
       });
       if(changed.count!==1) fail(409,"run_conflict","Run result was already counted");
+    } else if(!correct&&comboEnabled&&run) {
+      const changed=await tx.playRun.updateMany({
+        where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
+        data:{currentCombo:0}
+      });
+      if(changed.count!==1)fail(409,"run_conflict","Run has moved");
     }
   });
   return {

@@ -17,6 +17,8 @@ model User {
   publishingRestrictedUntil DateTime?
   leaderboardEligible   Boolean       @default(false)
   leaderboardOptIn      Boolean       @default(false)
+  chanceBalance         Int           @default(3)
+  chanceGrantDay        String?
   uiLocale              String        @default("en")
   contentLocale         String        @default("en")
   createdAt             DateTime      @default(now())
@@ -284,6 +286,8 @@ model PlaySession {
   status                String        @default("ACTIVE")
   usedClues             Int           @default(1)
   wrongGuesses          Int           @default(0)
+  hadWrongGuess         Boolean       @default(false)
+  chanceHint            String?       // JSON: stable server-issued pre-answer hint
   firstChoice           String?       // Validated first submitted authored MC option; nullable before collection
   score                 Int           @default(0)
   startedAt             DateTime      @default(now())
@@ -449,6 +453,10 @@ model PlayRun {
   currentIndex Int      @default(0)
   targetCount  Int?
   score       Int       @default(0)
+  scoringVersion Int    @default(1) // 2 enables combo on new GENERAL PACK runs
+  currentCombo Int      @default(0)
+  bestCombo    Int      @default(0)
+  chancesUsed  Int      @default(0)
   solved      Int       @default(0)
   failed      Int       @default(0)
   status      String    @default("ACTIVE")

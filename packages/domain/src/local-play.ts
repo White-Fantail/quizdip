@@ -1,4 +1,4 @@
-import { isCorrectAnswer, scoreForAnswer, normalizeAnswer } from "./game.ts";
+import { isCorrectAnswer, scoreForAnswer, normalizeAnswer, comboAward } from "./game.ts";
 
 export type LocalAnswer = { canonical:string; aliases:string[]; responseMode?:"text"|"multiple-choice"; options?:string[] };
 export type LocalClue = { id?:string; type:string; text?:string; mediaId?:string; [key:string]:unknown };
@@ -8,7 +8,8 @@ export type LocalQuestion = {
 };
 export type LocalProgress = {
   clueIndex:number; wrongGuesses:number; status:"ACTIVE"|"SOLVED"|"FAILED";
-  score:number; mustReveal:boolean; firstChoice?:string;
+  score:number; mustReveal:boolean; hadWrongGuess?:boolean; firstChoice?:string;
+  chanceHint?:{kind:"remove-choice";option:string}|{kind:"reveal-letter";index:number;character:string};
 };
 export type LocalGuess = { correct:boolean; status:LocalProgress["status"]; score:number;
   cluesUsed:number; answer?:string; next?:string };
@@ -20,7 +21,7 @@ export function revealLocalClue(question:LocalQuestion,state:LocalProgress):Loca
   if(state.status!=="ACTIVE"||state.clueIndex>=question.clues.length)return state;
   return {...state,clueIndex:state.clueIndex+1,mustReveal:false};
 }
-export function guessLocalAnswer(question:LocalQuestion,state:LocalProgress,guess:string):
+export function guessLocalAnswer(question:LocalQuestion,state:LocalProgress,guess:string,previousCombo=0,comboEnabled=false):
   {progress:LocalProgress;result:LocalGuess}|null {
   if(state.status!=="ACTIVE"||state.mustReveal||!guess.trim())return null;
   const answer=question.answer;
@@ -29,11 +30,13 @@ export function guessLocalAnswer(question:LocalQuestion,state:LocalProgress,gues
   const correct=isCorrectAnswer(answer,guess);
   const failed=!correct&&state.clueIndex>=question.clues.length;
   const status=correct?"SOLVED":failed?"FAILED":"ACTIVE";
-  const score=correct?scoreForAnswer(question.clues.length,state.clueIndex,answer.responseMode):0;
+  const combo=correct?(state.hadWrongGuess?1:previousCombo+1):0;
+  const base=correct?scoreForAnswer(question.clues.length,state.clueIndex,answer.responseMode):0;
+  const score=correct&&comboEnabled?comboAward(base,combo):base;
   const firstChoice=answer.responseMode==="multiple-choice" && !state.firstChoice
     ? (answer.options??[]).find(option=>normalizeAnswer(option)===normalizeAnswer(guess))
     : undefined;
-  const progress:LocalProgress={...state,status,score,
+  const progress:LocalProgress={...state,status,score,hadWrongGuess:!correct||Boolean(state.hadWrongGuess),
     ...(firstChoice ? {firstChoice} : {}),
     wrongGuesses:correct?state.wrongGuesses:state.clueIndex,
     mustReveal:!correct&&!failed};

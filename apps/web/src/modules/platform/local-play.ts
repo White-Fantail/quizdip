@@ -7,9 +7,10 @@ import { RunSyncBusyError, RUN_SYNC_MAX_ATTEMPTS, withSerializableWriteRetry } f
 import { getPlaySession, playStart } from "./play";
 import { previewUrl } from "./storage";
 import { publicAnswerFormat, firstAuthoredChoice } from "./answer-options";
+import { scoreForAnswer, comboAward } from "@quizdip/domain";
 import type { LocalAnswer, LocalQuestion } from "@quizdip/domain";
 
-type Result = {position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number;firstChoice?:string};
+type Result = {position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number;hadWrongGuess?:boolean;firstChoice?:string};
 function hashed(value:string){return createHash("sha256").update(value).digest("hex");}
 function allowedQuiz(quiz:any,revision:any,lane:string,locale:string){
   if(!quiz||quiz.publication!=="PUBLISHED"||quiz.safetyStatus!=="ACTIVE"||
@@ -51,14 +52,16 @@ export async function localRunBundle(p:Record<string,any>,actor:Actor|null){
   for(const row of rows)allowedQuiz(row.quiz,row.revision,run.lane,run.locale);
   await checkMedia(rows.map(row=>row.revision));
   const sessions=await db().playSession.findMany({where:{runId:run.id},
-    select:{roundIndex:true,usedClues:true,wrongGuesses:true,score:true,status:true}});
+    select:{roundIndex:true,usedClues:true,wrongGuesses:true,score:true,status:true,hadWrongGuess:true,chanceHint:true}});
   return {runId:run.id,mode:run.mode,lane:run.lane,locale:run.locale,
     total:run.targetCount??null,packId:run.packId,packVersion:run.packVersion,
     status:run.status,completed:run.currentIndex,score:run.score,
     questions:rows.map(row=>questionData(row,p.runId+":"+row.position)),
     progress:sessions.filter(s=>s.roundIndex!==null).map(s=>({
       position:s.roundIndex!,clueIndex:s.usedClues,wrongGuesses:s.wrongGuesses,
-      status:s.status,score:s.score,mustReveal:s.status==="ACTIVE"&&s.wrongGuesses>=s.usedClues
+      status:s.status,score:s.score,hadWrongGuess:s.hadWrongGuess,
+      ...(s.chanceHint?{chanceHint:JSON.parse(s.chanceHint)}:{}),
+      mustReveal:s.status==="ACTIVE"&&s.wrongGuesses>=s.usedClues
     }))};
 }
 export async function localRunSync(p:Record<string,any>,actor:Actor|null){
@@ -83,11 +86,11 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
         fail(400,"invalid_choice","Submitted choice is not an authored option");
       const count=Array.isArray(revision?.clues)?revision.clues.length:1;
       const used=count===0?0:Math.min(Math.max(1,result.cluesUsed),count);
-      const score=result.status==="SOLVED"?Math.max(0,Math.min(100,Math.round(result.score))):0;
+      const score=result.status==="SOLVED"?Math.max(0,Math.min(run.scoringVersion===2?125:100,Math.round(result.score))):0;
       if(existing){
         await tx.playSession.updateMany({where:{id:existing.id,status:"ACTIVE"},data:{
           usedClues:used,wrongGuesses:result.status==="FAILED"?used:0,
-          status:result.status,score,finishedAt:new Date(),
+          status:result.status,score,hadWrongGuess:Boolean(result.hadWrongGuess),finishedAt:new Date(),
           ...(existing.firstChoice===null&&firstChoice!==null?{firstChoice}:{})
         }});
       }else{
@@ -97,13 +100,27 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
           tokenHash:hashed(sessionToken(p.runToken,run.id,result.position)),
           expiresAt:run.expiresAt,usedClues:used,
           wrongGuesses:result.status==="FAILED"?used:0,
-          status:result.status,score,finishedAt:new Date(),
+          status:result.status,score,hadWrongGuess:Boolean(result.hadWrongGuess),finishedAt:new Date(),
           ...(firstChoice!==null?{firstChoice}:{})
         }});
       }
     }
     const sessions=await tx.playSession.findMany({where:{runId:run.id},
-      select:{roundIndex:true,status:true,score:true}});
+      select:{id:true,roundIndex:true,status:true,score:true,usedClues:true,hadWrongGuess:true,
+        revision:{select:{clues:true,answer:true}}},orderBy:{roundIndex:"asc"}});
+    let combo=0, bestCombo=0;
+    for(const s of sessions){
+      if(s.status!=="SOLVED"&&s.status!=="FAILED")continue;
+      if(s.hadWrongGuess || s.status==="FAILED")combo=0;
+      if(s.status==="SOLVED")combo++;
+      bestCombo=Math.max(bestCombo,combo);
+      if(run.scoringVersion===2){
+        const answer=s.revision.answer as {responseMode?:"text"|"multiple-choice"};
+        const clues=Array.isArray(s.revision.clues)?s.revision.clues.length:1;
+        const wanted=s.status==="SOLVED"?comboAward(scoreForAnswer(clues,s.usedClues,answer.responseMode),combo):0;
+        if(s.score!==wanted){await tx.playSession.update({where:{id:s.id},data:{score:wanted}});s.score=wanted;}
+      }
+    }
     const done=new Map(sessions.filter(s=>s.status==="SOLVED"||s.status==="FAILED").map(s=>[s.roundIndex,s]));
     let completed=0;
     while(done.has(completed))completed++;
@@ -115,12 +132,14 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
     // Do not write an unchanged PlayRun row: unnecessary writes cause P2034
     // conflicts with other syncs and history reconciliation.
     const current=await tx.playRun.findUniqueOrThrow({where:{id:run.id},
-      select:{currentIndex:true,score:true,solved:true,failed:true,status:true}});
+      select:{currentIndex:true,score:true,solved:true,failed:true,status:true,currentCombo:true,bestCombo:true}});
     if(current.currentIndex!==completed||current.score!==score||
        current.solved!==solved||current.failed!==failed||
+        (run.scoringVersion===2&&(current.currentCombo!==combo||current.bestCombo!==bestCombo))||
        (finished&&current.status!=="FINISHED")){
       await tx.playRun.update({where:{id:run.id},data:{
         currentIndex:completed,score,solved,failed,
+        ...(run.scoringVersion===2?{currentCombo:combo,bestCombo}:{}),
         ...(finished?{status:"FINISHED",completedAt:new Date()}:{})
       }});
     }
@@ -160,11 +179,11 @@ export async function localSingleSync(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
   if(session.runId)fail(400,"invalid_session","Use run synchronization for run questions");
   if(session.status==="ACTIVE"){
+    const clues=Array.isArray(session.revision.clues)?session.revision.clues.length:1;
+    const used=clues===0?0:Math.min(Math.max(1,p.cluesUsed),clues);
     const firstChoice=firstAuthoredChoice(session.revision.answer,p.firstChoice);
     if(p.firstChoice && firstChoice===null)
       fail(400,"invalid_choice","Submitted choice is not an authored option");
-    const clues=Array.isArray(session.revision.clues)?session.revision.clues.length:1;
-    const used=clues===0?0:Math.min(Math.max(1,p.cluesUsed),clues);
     await db().playSession.updateMany({where:{id:session.id,status:"ACTIVE"},data:{
       usedClues:used,wrongGuesses:p.status==="FAILED"?used:0,
       status:p.status,score:p.status==="SOLVED"?Math.max(0,Math.min(100,Math.round(p.score))):0,
