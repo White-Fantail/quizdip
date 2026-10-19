@@ -13,7 +13,7 @@ const imageHeaders = {"Content-Type":"image/png","Cache-Control":"public, max-ag
 async function loadKoreanFont(text:string):Promise<ArrayBuffer|null> {
   try {
     const cssUrl="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700&text="+
-      encodeURIComponent(text.slice(0,200)+" 나의 점수 맞힌 문제 QuizDip MY QUIZ PACK RESULT SCORE PTS CORRECT ANSWERS 0123456789 Think you can beat this score?");
+      encodeURIComponent(text.slice(0,200)+" 나의 점수 맞힌 문제 같은 버전의 점수만 비교할 수 있어요 QuizDip MY QUIZ PACK RESULT SCORE PTS CORRECT ANSWERS 0123456789 Compare scores only within the same version");
     const cssResponse=await fetch(cssUrl,{headers:{"User-Agent":"Mozilla/5.0 (Windows NT 6.1; rv:27.0) Gecko/20100101 Firefox/27.0"},signal:AbortSignal.timeout(1800)});
     if(!cssResponse.ok)return null;
     const css=await cssResponse.text();
@@ -50,7 +50,9 @@ export async function resultOgImage(shareId:string):Promise<Response> {
           <span style={{fontSize:42,fontWeight:800,letterSpacing:-2}}>QuizDip</span>
           <span style={{display:"flex",width:14,height:14,borderRadius:"50%",backgroundColor:"#fff",flexShrink:0}} />
         </div>
-        <span style={{display:"flex",fontSize:22,opacity:.86}}>MY QUIZ PACK RESULT</span>
+        <span style={{display:"flex",fontSize:22,opacity:.86}}>
+          {result.packVersion!=null?`v${result.packVersion} · `:""}MY QUIZ PACK RESULT
+        </span>
       </div>
       <div style={{display:"flex",fontSize:56,fontWeight:800,lineHeight:1.17,
         maxWidth:1050,overflow:"hidden",textOverflow:"ellipsis",maxHeight:151}}>
@@ -70,7 +72,7 @@ export async function resultOgImage(shareId:string):Promise<Response> {
         </div>
       </div>
       <div style={{display:"flex",fontSize:20,justifyContent:"space-between",opacity:.90}}>
-        <span>{korean?"당신도 도전해 보세요!":"Think you can beat this score?"}</span>
+        <span>{korean?"같은 버전의 점수만 비교할 수 있어요":"Compare scores only within the same version"}</span>
         <span>QuizDip</span>
       </div>
     </div>,{...size,fonts});
@@ -86,6 +88,7 @@ export async function resultOgImage(shareId:string):Promise<Response> {
       <rect width="1200" height="630" fill="#5143cb"/>
       <text x="70" y="106" fill="white" font-size="46" font-family="sans-serif" font-weight="bold">QuizDip</text>
       <text x="70" y="245" fill="white" font-size="46" font-family="sans-serif" font-weight="bold">${escaped}</text>
+      <text x="70" y="295" fill="white" font-size="24" font-family="sans-serif">${result.packVersion!=null?"v"+result.packVersion:"Legacy result"}</text>
       <rect x="70" y="320" width="1060" height="238" rx="28" fill="white"/>
       <text x="105" y="388" fill="#5143cb" font-size="28" font-family="sans-serif">SCORE</text>
       <text x="105" y="488" fill="#5143cb" font-size="86" font-family="sans-serif" font-weight="bold">${score}</text>

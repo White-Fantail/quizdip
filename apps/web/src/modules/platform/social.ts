@@ -428,6 +428,9 @@ export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|nul
         sections,closingMessage,scoreReviews,status:p.status},
       update:{title:p.title,description:p.description,sections,closingMessage,scoreReviews,status:p.status}
     });
+    // Keep the whole pack's score-comparison version in sync with visible translations.
+    if(pack.publication==="PUBLISHED"&&(previous?.status==="PUBLISHED"||p.status==="PUBLISHED"))
+      await tx.quizPack.update({where:{id:pack.id},data:{currentVersion:{increment:1}}});
     await tx.auditLog.create({data:{actorId:user.id,action:"pack.translation.save",objectId:pack.id,
       detail:{locale:p.locale,status:p.status,chapters:sections.length,scoreBands:scoreReviews.length}}});
     return saved;

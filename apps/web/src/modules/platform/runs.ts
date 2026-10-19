@@ -402,8 +402,9 @@ export async function runUnshare(p:Record<string,any>,actor:Actor|null) {
 /** Minimal public, read-only result. Never include player identity, run tokens or answers. */
 export async function runShareGet(p:Record<string,any>) {
   const run=await db().playRun.findUnique({where:{shareId:p.shareId},select:{
-    shareId:true,mode:true,lane:true,locale:true,packId:true,
+    id:true,shareId:true,mode:true,lane:true,locale:true,packId:true,
     status:true,completedAt:true,currentIndex:true,score:true,solved:true,failed:true,
+    packVersion:true,scoringVersion:true,
     pack:{select:{kidsEligible:true}}
   }});
   if(!run||run.mode!=="PACK"||run.lane!=="GENERAL"||run.status!=="FINISHED"||
@@ -411,7 +412,19 @@ export async function runShareGet(p:Record<string,any>) {
   let pack;
   try{pack=await safePack(run.packId,run.locale as Locale,"GENERAL");}
   catch{fail(404,"result_unavailable","This result is no longer public");}
+  // Old records can share a number with newer content because historical question
+  // publication did not bump pack versions. Compare the pinned revision snapshot too.
+  const versionAligned=run.packVersion!==null &&
+    run.packVersion===pack.packVersion && run.scoringVersion===2;
+  const pinned=versionAligned?await db().playRunQuestion.findMany({
+    where:{runId:run.id},select:{quizId:true,revisionId:true}
+  }):[];
+  const revisions=new Set(pack.items.map(item=>item.quizId+":"+item.revisionId));
+  const comparable=versionAligned&&pinned.length===revisions.size &&
+    pinned.every(item=>revisions.has(item.quizId+":"+item.revisionId));
   return {shareId:run.shareId,packId:run.packId,title:pack.title,locale:run.locale,
+    packVersion:run.packVersion,currentPackVersion:pack.packVersion,
+    comparable,
     score:run.score,completed:run.currentIndex,solved:run.solved,failed:run.failed,
     completedAt:run.completedAt,kidsEligible:run.pack?.kidsEligible??true};
 }
