@@ -2,6 +2,10 @@ import { authPool } from "../../lib/auth";
 import { resolveAnalyticsFilters, type AnalyticsFilters } from "./admin-content-analytics";
 
 type SourceRow = Record<string, unknown>;
+export type RisingKind = "pack" | "question";
+export function resolveRisingKind(value: unknown): RisingKind {
+  return value === "question" ? "question" : "pack";
+}
 export type Insight = {
   id:string; title:string; kind:"pack"|"question"; plays:number;
   previous:number; growth:number|null; newActivity:boolean; difference:number;
@@ -81,7 +85,7 @@ export function qualitySignals(packs:SourceRow[],questions:SourceRow[]):QualityS
   }
   return signals.sort((a,b)=>a.rate-b.rate || b.plays-a.plays).slice(0,30);
 }
-export async function loadAdminContentInsights(f:AnalyticsFilters){
+export async function loadAdminContentInsights(f:AnalyticsFilters, risingKind: RisingKind = "pack"){
   // All-time has no preceding equally long comparison: use the last 7 days for trending only.
   const window=f.previousStart?f:resolveAnalyticsFilters({
     period:"7",locale:f.locale,audience:f.audience,mode:f.mode,creator:f.creator
@@ -93,7 +97,8 @@ export async function loadAdminContentInsights(f:AnalyticsFilters){
     rows(packSql,params(window,compare,window.start)),
     rows(questionSql,params(window,compare,window.start)),
   ]);
-  const rising=[...risingContent(p,oldP,"pack"),...risingContent(q,oldQ,"question")]
+  // Rank each type independently before taking its Top 10; pack members must not crowd out packs.
+  const rising = (risingKind === "question" ? risingContent(q,oldQ,"question") : risingContent(p,oldP,"pack"))
     .sort((a,b)=>b.difference-a.difference || b.plays-a.plays).slice(0,10);
   // Quality signals follow the user-selected filter, not the fallback seven-day window.
   const quality = window===f?qualitySignals(p,q) : qualitySignals(
