@@ -524,7 +524,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const hintMask=activeHint?.kind==="reveal-letter"&&localBundleRef.current&&round
     ?[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(
       localBundleRef.current.questions[round.round-1]?.answer.canonical??"")].map((s,i)=>
-        i===activeHint.index?activeHint.character:/\\s/u.test(s.segment)?s.segment:"□").join(""):null;
+        i===activeHint.index?activeHint.character:/\s/u.test(s.segment)?s.segment:"□").join(""):null;
   const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
   const scoreReview=[...(pack?.scoreReviews??[])].filter(review=>run&&run.score>=review.minimumScore).at(-1);
@@ -767,7 +767,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
-          {comboEnabled&&<p className="quizdip-finish-combo">🔥 {msg("Best combo","최고 콤보")} <strong>{combo.best}</strong> · 🎟️ {msg("Chances used","사용한 찬스")} <strong>{run.chancesUsed??0}</strong></p>
+          {comboEnabled&&<p className="quizdip-finish-combo">🔥 {msg("Best combo","최고 콤보")} <strong>{combo.best}</strong> · 🎟️ {msg("Chances used","사용한 찬스")} <strong>{run.chancesUsed??0}</strong></p>}
           {run.mode==="PACK"&&pack?.closingMessage&&<section className="feature-card pack-ending-message">
              <h3>{msg("From the creator","제작자의 마무리 글")}</h3>
              <p style={{whiteSpace:"pre-wrap"}}>{pack.closingMessage}</p>
