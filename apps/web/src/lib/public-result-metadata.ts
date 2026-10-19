@@ -62,5 +62,5 @@ export function publicResultOrigin(env: {
   return new URL(env.PUBLIC_ORIGIN ||
     (env.VERCEL_PROJECT_PRODUCTION_URL
       ? "https://" + env.VERCEL_PROJECT_PRODUCTION_URL
-      : "https://quizdip.vercel.app")).origin;
+      : "https://quizdip.com")).origin;
 }
