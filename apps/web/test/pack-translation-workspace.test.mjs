@@ -11,7 +11,7 @@ test("pack details show translation status instead of full translation inputs",(
   assert.doesNotMatch(detail,/<PackTranslationEditor/);
   assert.match(summary,/pack-translation-summary-row/);
   assert.match(summary,/coverage\.find/);
-  assert.match(summary,/pack-translation-summary.*?section/);
+  assert.match(summary,/className="placeholder-panel pack-translation-summary"/);
 });
 
 test("translations have a dedicated authenticated route and grouped source/target fields",()=>{
