@@ -57,3 +57,22 @@ test("choice details and the insight cards are ADMIN-only and provide revision-a
   assert.match(detail, /s\."firstChoice" IS NOT NULL/);
   assert.match(detail, /No choices have been captured/);
 });
+
+test("rising content type defaults to packs and ranks each type independently before Top 10", () => {
+  const insight=src("src/modules/platform/admin-content-insights.ts");
+  const dashboard=src("app/admin/analytics/page.tsx");
+  const filters=src("src/modules/platform/admin-content-analytics.ts");
+  assert.match(filters, /risingKind\?: string/);
+  assert.match(insight, /value === "question" \? "question" : "pack"/);
+  assert.match(insight, /risingKind: RisingKind = "pack"/);
+  assert.match(insight, /risingKind === "question" \? risingContent\(q,oldQ,"question"\) : risingContent\(p,oldP,"pack"\)/);
+  assert.match(insight, /\.sort\(\(a,b\)=>b\.difference-a\.difference \|\| b\.plays-a\.plays\)\.slice\(0,10\)/);
+  assert.doesNotMatch(insight, /\.\.\.risingContent\(p,oldP,"pack"\),\.\.\.risingContent\(q,oldQ,"question"\)/);
+  assert.match(dashboard, /resolveRisingKind\(query\.risingKind\)/);
+  assert.match(dashboard, /loadAdminContentInsights\(filters, risingKind\)/);
+  assert.match(dashboard, /name="risingKind" value=\{risingKind\}/);
+  assert.match(dashboard, /risingQuery\(kind\)/);
+  assert.match(dashboard, /sort: filters\.sort, risingKind: kind/);
+  assert.match(dashboard, /tr\("Packs", "퀴즈팩"\)/);
+  assert.match(dashboard, /tr\("Questions", "개별 문제"\)/);
+});
