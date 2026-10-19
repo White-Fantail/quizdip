@@ -9,7 +9,7 @@ type Part={start:number;title:string;description:string};
 type Band={minimumScore:number;title:string;description:string};
 type Language={locale:string;status:string;title:string;description:string;
   sections?:Part[];closingMessage?:string;scoreReviews?:Band[]};
-type LanguageResult={sourceLocale:string;languages:Language[];coverage:{locale:string;complete:boolean}[]};
+type LanguageResult={sourceLocale:string;publication:string;languages:Language[];coverage:{locale:string;complete:boolean}[]};
 type Draft={title:string;description:string;sections:Part[];closingMessage:string;scoreReviews:Band[]};
 
 async function request(path:string,method="GET",body?:object){
@@ -122,7 +122,7 @@ export default function PackTranslationEditor({packId}:{packId:string}){
   async function save(status:"DRAFT"|"PUBLISHED"){
     if(!draft||!target||busy)return;
     if(status==="PUBLISHED"){
-      if(!complete||missing>0||!draft.title.trim())return;
+      if(data?.publication!=="PUBLISHED"||!complete||missing>0||!draft.title.trim())return;
       if(!window.confirm(ko?
         "팩 텍스트와 모든 문제의 번역을 검토했습니다. 번역본을 공개할까요?":
         "Have you reviewed all pack text and question translations? Publish this translation?"))return;
@@ -252,7 +252,8 @@ export default function PackTranslationEditor({packId}:{packId:string}){
       <div className="pack-translation-save-state" aria-live="polite">
         <strong>{busy?(ko?"저장 중…":"Saving…"):dirty?(ko?"저장되지 않은 변경사항":"Unsaved changes"):
           (ko?"변경사항 저장됨":"All changes saved")}</strong>
-        <small>{missing>0?(ko?"팩 미번역 항목 "+missing+"개":"Missing pack fields: "+missing):
+        <small>{data.publication!=="PUBLISHED"?(ko?"번역 공개 전에 원본 팩을 먼저 공개하세요.":"Publish the original pack before this translation."):
+          missing>0?(ko?"팩 미번역 항목 "+missing+"개":"Missing pack fields: "+missing):
           !complete?(ko?"공개하려면 문제 번역도 완료해야 합니다.":"Question translations must be complete before publishing."):
           (ko?"번역 공개 조건을 확인했습니다.":"Ready for publication review.")}</small>
         {error&&<p role="alert" className="feedback">{error}</p>}
@@ -261,7 +262,7 @@ export default function PackTranslationEditor({packId}:{packId:string}){
       <div className="actions">
         <button type="button" className="btn btn-outline" disabled={busy||!dirty}
           onClick={()=>void save("DRAFT")}>{ko?"초안 저장":"Save draft"}</button>
-        <button type="button" className="btn btn-primary" disabled={busy||!complete||missing>0||!draft.title.trim()}
+        <button type="button" className="btn btn-primary" disabled={busy||data.publication!=="PUBLISHED"||!complete||missing>0||!draft.title.trim()}
           onClick={()=>void save("PUBLISHED")}>{ko?"검토 후 공개":"Review & publish"}</button>
       </div>
     </div>
