@@ -104,13 +104,15 @@ export async function packInsightsMine(p:Record<string,any>,actor:Actor|null) {
   if(!pack)fail(404,"not_found","Owned pack not found");
   const where={packId:pack.id,mode:"PACK",lane:"GENERAL",
     ...(p.locale==="all"?{}:{locale:p.locale})};
-  const [status,accuracy,reviews,reportCounts]=await Promise.all([
+  const [status,accuracy,reviews,reportCounts,recommendations]=await Promise.all([
     db().playRun.groupBy({by:["status"],where,_count:{_all:true}}),
     db().playRun.aggregate({where:{...where,status:"FINISHED"},
       _avg:{solved:true,failed:true,targetCount:true},_count:{_all:true}}),
     db().packReview.groupBy({by:["rating"],where:{packId:pack.id,
       ...(p.locale==="all"?{}:{locale:p.locale})},_count:{_all:true}}),
     db().packReport.groupBy({by:["reason"],where:{packId:pack.id,
+      ...(p.locale==="all"?{}:{locale:p.locale})},_count:{_all:true}}),
+    db().packRecommendationEvent.groupBy({by:["kind"],where:{sourcePackId:pack.id,
       ...(p.locale==="all"?{}:{locale:p.locale})},_count:{_all:true}})
   ]);
   return {id:pack.id,questionCount:pack.items.length,locale:p.locale,
@@ -120,5 +122,7 @@ export async function packInsightsMine(p:Record<string,any>,actor:Actor|null) {
     averagePackLength:accuracy._avg.targetCount,
     ratings:{positive:reviews.find(x=>x.rating===1)?._count._all??0,
       negative:reviews.find(x=>x.rating===-1)?._count._all??0},
-    reportCounts:reportCounts.map(r=>({reason:r.reason,count:r._count._all}))};
+    reportCounts:reportCounts.map(r=>({reason:r.reason,count:r._count._all})),
+    recommendationImpressions:recommendations.find(r=>r.kind==="IMPRESSION")?._count._all??0,
+    recommendationClicks:recommendations.find(r=>r.kind==="CLICK")?._count._all??0};
 }

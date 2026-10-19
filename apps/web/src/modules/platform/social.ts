@@ -288,7 +288,7 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
     catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
   }
   return {id:pack.id,title:pack.title,description:pack.description,coverMediaId:pack.coverMediaId,sections:pack.sections,
-    closingMessage:pack.closingMessage,scoreReviews:pack.scoreReviews,currentVersion:pack.currentVersion,
+    closingMessage:pack.closingMessage,scoreReviews:pack.scoreReviews,recommendedPackIds:pack.recommendedPackIds,currentVersion:pack.currentVersion,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
     safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
     kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,excludedCount,
@@ -308,6 +308,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     localizations: { some: { locale, status: "PUBLISHED" } },
     items: { some: { quiz: playableQuizWhere(locale) } }
   };
+  if(!p.mine&&p.search)where.localizations={some:{locale,status:"PUBLISHED",title:{contains:p.search,mode:"insensitive"}}};
   const [packs,total] = await Promise.all([
     db().quizPack.findMany({
       where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
