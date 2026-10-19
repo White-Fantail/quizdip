@@ -22,7 +22,7 @@ export async function generateMetadata({params}:{params:Promise<{packId:string}>
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
   const title=pack.title+" · QuizDip";
   const description=splitPackDescription(pack.description||"").intro||(`${pack.questionCount} questions · QuizDip`);
-  const origin=process.env.PUBLIC_ORIGIN||process.env.BETTER_AUTH_URL||"https://quizdip.vercel.app";
+  const origin=process.env.PUBLIC_ORIGIN||process.env.BETTER_AUTH_URL||"https://quizdip.com";
   const url=new URL(localizeHref("/packs/"+pack.id,locale),origin).href;
   return {title,description,metadataBase:new URL(origin),
     alternates:{canonical:url},
