@@ -2,7 +2,7 @@ import { authPool } from "../../lib/auth";
 
 export type AnalyticsParams = {
   period?: string; start?: string; end?: string; locale?: string;
-  audience?: string; mode?: string; creator?: string; sort?: string;
+  audience?: string; mode?: string; creator?: string; sort?: string; risingKind?: string;
 };
 export type AnalyticsFilters = {
   period: string; startDay: string; endDay: string; start: Date; end: Date;
