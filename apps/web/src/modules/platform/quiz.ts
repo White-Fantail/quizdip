@@ -153,6 +153,11 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
       answer: (p.answer ?? prior.answer) as any, clues: (p.clues ? normalizeClues(p.clues) : prior.clues) as any,
       promptMediaIds: nextPromptMediaIds as any,
       explanation:p.explanation ?? prior.explanation } });
+    // A published question edit changes the playable pack, even when pack membership stays the same.
+    if (old.publication === "PUBLISHED") await tx.quizPack.updateMany({
+      where:{publication:"PUBLISHED",items:{some:{quizId:old.id}}},
+      data:{currentVersion:{increment:1}}
+    });
     if (p.topics !== undefined) await saveTopicLinks(tx, old.id, p.topics, (p.answer ?? prior.answer) as any, old.sourceLocale);
     else if (p.answer !== undefined) {
       const existing = await tx.quizTopic.findMany({ where: { quizId: old.id }, include: { topic: true }, orderBy: { position: "asc" } });
@@ -191,6 +196,10 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     });
     if(checked.count!==1)fail(409,"publish_conflict","Quiz changed or was restricted during publication");
     await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED",publishedVersion:old.currentVersion}});
+    await tx.quizPack.updateMany({
+      where:{publication:"PUBLISHED",items:{some:{quizId:old.id}}},
+      data:{currentVersion:{increment:1}}
+    });
     await tx.auditLog.create({ data: { actorId: user.id, action: "quiz.publish", objectId: old.id } });
     if (autoKidsApproval) await tx.auditLog.create({ data: { actorId:user.id,
       action:"quiz.review",objectId:old.id,
