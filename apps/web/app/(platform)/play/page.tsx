@@ -523,7 +523,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const answerForChance=round?localBundleRef.current?.questions[round.round-1]?.answer:undefined;
   const chanceEligible=round?.responseMode==="multiple-choice"?(round.options?.length??0)>=3:
     Boolean(answerForChance&&[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(answerForChance.canonical)]
-      .filter(s=>/[\\p{L}\\p{N}]/u.test(s.segment)).length>=3);
+      .filter(s=>/[\p{L}\p{N}]/u.test(s.segment)).length>=3);
   const comboEnabled=!!packId&&run?.mode==="PACK"&&run.scoringVersion===2;
   const hintMask=activeHint?.kind==="reveal-letter"&&localBundleRef.current&&round
     ?[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(
