@@ -5,25 +5,27 @@ import type { Metadata } from "next";
  * Never add a cache-busting query to og:url: use the image URL for image revisions.
  */
 export function publicResultMetadata({
-  shareId, locale, packTitle, score, completed, solved, origin,
+  shareId, locale, packTitle, packVersion, score, completed, solved, origin,
 }: {
   shareId: string;
   locale: "ko" | "en";
   packTitle: string;
+  packVersion?: number | null;
   score: number;
   completed: number;
   solved: number;
   origin: string;
 }): Metadata {
   const korean = locale === "ko";
+  const version=packVersion!=null?` · v${packVersion}`:"";
   const title = korean
-    ? `${packTitle} · ${score}점 · QuizDip`
-    : `${packTitle} · ${score} points · QuizDip`;
+    ? `${packTitle}${version} · ${score}점 · QuizDip`
+    : `${packTitle}${version} · ${score} points · QuizDip`;
   const description = korean
-    ? `${completed}문제 중 ${solved}문제를 맞혔어요. 당신도 도전해 보세요!`
-    : `${solved} correct out of ${completed} questions. Try the quiz pack!`;
+    ? `${completed}문제 중 ${solved}문제 정답. 같은 버전에서 나온 결과끼리 비교해 주세요.`
+    : `${solved} correct out of ${completed}. Compare results only from the same pack version.`;
   const url = new URL(`/${locale}/results/${shareId}`, origin).href;
-  const image = new URL(`/results/${shareId}/og?v=4`, origin).href;
+  const image = new URL(`/results/${shareId}/og?v=5`, origin).href;
 
   return {
     title,
