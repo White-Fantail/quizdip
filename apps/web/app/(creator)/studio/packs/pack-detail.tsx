@@ -137,7 +137,7 @@ export default function PackDetail({packId,backHref,editHref}:{packId:string;bac
     </section>
 
     {["en","ko"].includes(pack.sourceLocale)&&<PackTranslationSummary packId={pack.id} sourceLocale={pack.sourceLocale}
-      href={localizeHref("/studio/packs/"+pack.id+"/translations",locale)}/>}
+      href={editHref.replace(/\/edit(?=\?|$)/,"/translations")}/>}
 
     <section className="placeholder-panel">
       <div className="studio-section-head">
