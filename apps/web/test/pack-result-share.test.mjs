@@ -75,7 +75,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(img.includes("width:1200,height:630"));
   assert.ok(route.includes("resultOgImage"));
   assert.match(proxy,/results.*og/);
-  assert.ok(metadata.includes("/og?v=4"));
+  assert.ok(metadata.includes("/og?v=5"));
   assert.ok(metadata.includes("url,\n      siteName:"));
   assert.doesNotMatch(og+metadata, /preview=4/);
   assert.ok(img.includes("sharp("));
