@@ -10,6 +10,7 @@ import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest
 import { playStart, playClue, playGuess, playReview } from "./play";
 import { localRunBundle,localRunSync,localRunMedia,localSingleBundle,localSingleStart,localSingleSync,localSingleMedia } from "./local-play";
 import { runStart,runCurrent,runFinish,runHistory,runReconcile,runFeedback,runShare,runUnshare,runShareGet } from "./runs";
+import { chanceBalance, useRunChance } from "./chances";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packFunReview, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
@@ -124,6 +125,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "local_single_bundle": return localSingleBundle(p,actor);
     case "local_single_sync": return localSingleSync(p,actor);
     case "local_single_media": return localSingleMedia(p,actor);
+    case "chance_balance": return chanceBalance(actor);
+    case "run_chance": return useRunChance(p,actor);
     case "run_start": return runStart(p,actor);
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);

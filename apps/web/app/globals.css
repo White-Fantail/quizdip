@@ -1134,3 +1134,21 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .pack-image-credits summary::marker { color:var(--purple); }
 .pack-image-credits[open] summary { border-bottom:1px solid var(--border); }
 .pack-image-credits p { margin:0; padding:18px 20px; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--muted); line-height:1.7; }
+
+/* Pack combo feedback and pre-answer chance.  Keep disabled options in place to prevent layout jumps. */
+.quizdip-combo-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;margin-top:8px}
+.quizdip-combo{display:inline-flex;align-items:center;gap:5px;font-weight:850;border-radius:12px;background:#fff3ed;color:#9c4029;padding:6px 12px;letter-spacing:.01em}
+.quizdip-combo.is-hot{animation:quizdip-combo-pop .48s ease-out}
+.quizdip-chance-count{font-weight:750;color:var(--ink);padding:6px 11px;border:1px solid var(--border);border-radius:12px}
+.quizdip-chance-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0}
+.quizdip-chance-actions .muted{font-size:.8rem}
+.quizdip-option-eliminated{position:relative;animation:quizdip-choice-vanish .55s ease-out both;border-style:dashed!important;pointer-events:none}
+.quizdip-option-eliminated::after{content:"✕";position:absolute;inset:0;display:grid;place-items:center;font-size:1.6rem;font-weight:800;color:#ba473d;animation:quizdip-choice-mark .55s ease-out both}
+.quizdip-letter-hint{background:#f4f0ff;border:1px solid var(--purple);padding:12px 16px;border-radius:12px;
+  font-size:clamp(1.3rem,3vw,1.8rem);letter-spacing:.22em;font-weight:750;text-align:center;animation:quizdip-letter-flip .45s ease-out}
+.quizdip-finish-combo{font-weight:650;color:#ab4528}
+@keyframes quizdip-combo-pop{0%{transform:scale(.88)}60%{transform:scale(1.09)}100%{transform:scale(1)}}
+@keyframes quizdip-choice-vanish{0%{transform:translateX(0);opacity:1;visibility:visible}24%{transform:translateX(-5px)}43%{transform:translateX(5px)}70%{opacity:.65}100%{opacity:0;visibility:hidden;transform:translateX(0)}}
+@keyframes quizdip-choice-mark{0%{opacity:0}30%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes quizdip-letter-flip{0%{opacity:.25;transform:rotateX(85deg)}100%{opacity:1;transform:rotateX(0deg)}}
+@media(prefers-reduced-motion:reduce){.quizdip-combo.is-hot,.quizdip-letter-hint{animation:none!important}.quizdip-option-eliminated{animation:none!important;visibility:hidden!important}.quizdip-option-eliminated::after{animation:none!important}}

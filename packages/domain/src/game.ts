@@ -33,3 +33,22 @@ export function scoreForAnswer(clueCount: number, cluesUsed: number, responseMod
   const base = scoreForClues(clueCount, cluesUsed);
   return Math.round(base * (responseMode === "multiple-choice" ? 0.75 : 1));
 }
+
+/** Each consecutive successful answer adds 5%, capped at 25%. */
+export function comboMultiplier(combo: number): number {
+  return 1 + Math.min(5, Math.max(0, Math.floor(combo) - 1)) * 0.05;
+}
+export function comboAward(baseScore: number, combo: number): number {
+  return Math.round(Math.max(0, baseScore) * comboMultiplier(combo));
+}
+
+/** Current and best streak; an incorrect attempt breaks the streak even if later solved. */
+export function comboProgress(rows: Array<{status:string;hadWrongGuess?:boolean}>){
+  let current=0,best=0;
+  for(const row of rows){
+    if(row.hadWrongGuess || row.status==="FAILED")current=0;
+    if(row.status==="SOLVED"){current++;best=Math.max(best,current);}
+    if(row.status==="ACTIVE")break;
+  }
+  return {current,best};
+}
