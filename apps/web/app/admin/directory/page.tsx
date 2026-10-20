@@ -6,6 +6,8 @@ import { resolveLocale, localizeHref } from "../../../src/i18n/core";
 import { actorFor } from "../../../src/modules/platform/auth";
 import { authPool } from "../../../src/lib/auth";
 import { db } from "../../../src/modules/platform/db";
+import { ATTEMPTED_SESSION_FILTER, ANSWERED_RUN_FILTER, UNANSWERED_RUN_FILTER,
+  RUN_IDLE_MS, effectiveRunStatus } from "../../../src/modules/platform/run-lifecycle";
 
 export const dynamic = "force-dynamic";
 const LIMIT = 20;
@@ -23,7 +25,7 @@ export default async function AdminDirectory({ searchParams }: { searchParams: P
   const params = await searchParams;
   const view: View = views.includes(params.view as View) ? params.view as View : "users";
   const q = (params.q ?? "").trim().slice(0, 100);
-  const allowedStatus = view === "plays" ? ["ACTIVE", "FINISHED"] : ["DRAFT", "PUBLISHED", "HIDDEN"];
+  const allowedStatus = view === "plays" ? ["ACTIVE", "NOT_STARTED", "IDLE", "EXPIRED", "FINISHED"] : ["DRAFT", "PUBLISHED", "HIDDEN"];
   const status = allowedStatus.includes(params.status ?? "") ? params.status! : "";
   const parsedPage = Number(params.page);
   const page = Number.isSafeInteger(parsedPage) ? Math.min(10000, Math.max(1, parsedPage)) : 1;
@@ -123,26 +125,45 @@ export default async function AdminDirectory({ searchParams }: { searchParams: P
       <Link className="card-link" href={localizeHref("/admin/quiz-review/" + quiz.id, locale)}>{tr("Inspect", "상세")} →</Link>
     </div>);
   } else {
-    const where = { ...(q ? { OR: [{ user: { displayName: search } }, { pack: { title: search } }] } : {}),
-      ...(status ? { status } : {}) };
-    const [count, rows] = await Promise.all([
-      db().playRun.count({ where }),
+    const now=new Date(),idleSince=new Date(now.getTime()-RUN_IDLE_MS);
+    // Filter by effective state in SQL, *before pagination*. No client-side
+    // filtering that could undercount or skip results between pages.
+    const stateWhere=status==="FINISHED"?{status:"FINISHED"}:
+      status==="EXPIRED"?{OR:[{status:"EXPIRED"},{status:"ACTIVE",expiresAt:{lte:now}}]}:
+      status==="ACTIVE"?{status:"ACTIVE",expiresAt:{gt:now},...ANSWERED_RUN_FILTER}:
+      status==="NOT_STARTED"?{status:"ACTIVE",expiresAt:{gt:now},startedAt:{gt:idleSince},...UNANSWERED_RUN_FILTER}:
+      status==="IDLE"?{status:"ACTIVE",expiresAt:{gt:now},startedAt:{lte:idleSince},...UNANSWERED_RUN_FILTER}:{};
+    const where={AND:[
+      ...(q?[{OR:[{user:{displayName:search}},{pack:{title:search}}]}]:[]),
+      stateWhere
+    ]};
+    const [count,rows]=await Promise.all([
+      db().playRun.count({where}),
       db().playRun.findMany({
-        where, orderBy: { startedAt: "desc" }, skip, take: LIMIT,
-        select: { id: true, mode: true, status: true, currentIndex: true, targetCount: true,
-          score: true, solved: true, failed: true, startedAt: true,
-          user: { select: { id: true, displayName: true } },
-          pack: { select: { title: true } },
-          kidOwnership: { select: { runId: true } } },
-      }),
+        where,orderBy:{startedAt:"desc"},skip,take:LIMIT,
+        select:{id:true,mode:true,status:true,currentIndex:true,targetCount:true,
+          score:true,solved:true,failed:true,startedAt:true,expiresAt:true,
+          sessions:{where:ATTEMPTED_SESSION_FILTER,take:1,select:{id:true}},
+          user:{select:{id:true,displayName:true}},
+          pack:{select:{title:true}},
+          kidOwnership:{select:{runId:true}}}
+      })
     ]);
-    total = count;
-    entries = rows.map(run => <div className="review-entry" key={run.id}>
-      <span className="review-entry-copy"><strong>{run.pack?.title ?? run.mode}</strong>
-        <small>{run.status} · {date(run.startedAt)} · {tr("Score", "점수")} {run.score} · {run.currentIndex}/{run.targetCount ?? "?"} · {tr("Solved", "정답")} {run.solved} · {tr("Failed", "오답")} {run.failed}</small>
-        <small>{run.kidOwnership ? tr("Kids play", "Kids 플레이") : run.user ? <Link href={localizeHref("/admin/directory/users/" + encodeURIComponent(run.user.id), locale)}>{run.user.displayName}</Link> : tr("Guest play", "비회원 플레이")}</small>
-      </span>
-    </div>);
+    const stateName:Record<string,string>={
+      ACTIVE:tr("In progress","진행 중"),NOT_STARTED:tr("Not started","미시작"),
+      IDLE:tr("Idle · resumable","휴면 · 이어하기 가능"),
+      EXPIRED:tr("Expired","만료됨"),FINISHED:tr("Finished","완료")
+    };
+    total=count;
+    entries=rows.map(run=>{
+      const effective=effectiveRunStatus(run,run.sessions.length>0,now);
+      return <div className="review-entry" key={run.id}>
+        <span className="review-entry-copy"><strong>{run.pack?.title??run.mode}</strong>
+          <small>{stateName[effective]} · {date(run.startedAt)} · {tr("Score","점수")} {run.score} · {run.currentIndex}/{run.targetCount??"?"} · {tr("Solved","정답")} {run.solved} · {tr("Failed","오답")} {run.failed}</small>
+          <small>{run.kidOwnership?tr("Kids play","Kids 플레이"):run.user?<Link href={localizeHref("/admin/directory/users/"+encodeURIComponent(run.user.id),locale)}>{run.user.displayName}</Link>:tr("Guest play","비회원 플레이")}</small>
+        </span>
+      </div>;
+    });
   }
   const pages = Math.max(1, Math.ceil(total / LIMIT));
   return <main className="container inner-page management-page">
@@ -163,7 +184,12 @@ export default async function AdminDirectory({ searchParams }: { searchParams: P
         </label>
         {view !== "users" && <label className="review-filter-label">{tr("Status", "상태")}
           <select name="status" defaultValue={status}><option value="">{tr("All", "전체")}</option>
-            {(view === "plays" ? ["ACTIVE", "FINISHED"] : ["DRAFT", "PUBLISHED", "HIDDEN"]).map(v => <option value={v} key={v}>{v}</option>)}
+            {(view === "plays" ? ["ACTIVE", "NOT_STARTED", "IDLE", "EXPIRED", "FINISHED"] : ["DRAFT", "PUBLISHED", "HIDDEN"]).map(v => <option value={v} key={v}>{
+              view === "plays" ? ({
+                ACTIVE:tr("In progress","진행 중"),NOT_STARTED:tr("Not started","미시작"),
+                IDLE:tr("Idle","휴면"),EXPIRED:tr("Expired","만료"),FINISHED:tr("Finished","완료")
+              } as Record<string,string>)[v] : v
+            }</option>)}
           </select>
         </label>}
         <button type="submit" className="btn btn-outline">{tr("Apply", "조회")}</button>
