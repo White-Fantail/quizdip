@@ -84,6 +84,21 @@ function ratio(a: number, b: number): number | null { return b ? a / b : null; }
 function growth(current: number, previous: number, hasPrevious: boolean): number | null {
   return hasPrevious && previous > 0 ? (current - previous) / previous : null;
 }
+/** A run is a real play only after an answer attempt reaches the server.
+ * Pack and random modes can allocate every question before anyone answers.
+ * Server-graded wrong attempts count; offline pack answers count once synced.
+ * The correlated lookup is indexed by PlaySession(runId, roundIndex).
+ */
+export const PARTICIPATED_RUN_SQL = `(
+  r."solved" > 0 OR r."failed" > 0 OR EXISTS (
+    SELECT 1 FROM "PlaySession" activity
+    WHERE activity."runId" = r."id"
+      AND (activity."status" IN ('SOLVED', 'FAILED') OR activity."wrongGuesses" > 0)
+  )
+)`;
+
+const ATTEMPTED_QUESTION_SQL = `(s."status" IN ('SOLVED', 'FAILED') OR s."wrongGuesses" > 0)`;
+
 function runFilters(): string {
   return `r."startedAt" >= $1::timestamptz AND r."startedAt" < $2::timestamptz
     AND ($3::text = 'all' OR r."locale" = $3::text)
@@ -141,11 +156,14 @@ function mapRanks(rows: Raw[], oldRows: Raw[], hasPrevious: boolean, isQuestion:
 }
 
 export async function loadAdminContentAnalytics(f: AnalyticsFilters) {
-  const runSql = `SELECT COUNT(*) AS plays,
-    COUNT(*) FILTER (WHERE r."status" = 'FINISHED') AS completed,
-    COUNT(DISTINCT CASE WHEN r."userId" IS NOT NULL THEN 'user:' || r."userId"
-      WHEN kr."profileId" IS NOT NULL THEN 'kid:' || kr."profileId" END) AS identified,
-    COUNT(*) FILTER (WHERE r."userId" IS NULL AND kr."profileId" IS NULL) AS guests
+  const runSql = `SELECT COUNT(*) AS created_runs,
+    COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) AS plays,
+    COUNT(*) FILTER (WHERE r."status" = 'FINISHED' AND ${PARTICIPATED_RUN_SQL}) AS completed,
+    COUNT(DISTINCT CASE WHEN ${PARTICIPATED_RUN_SQL} THEN
+      CASE WHEN r."userId" IS NOT NULL THEN 'user:' || r."userId"
+        WHEN kr."profileId" IS NOT NULL THEN 'kid:' || kr."profileId" END END) AS identified,
+    COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}
+      AND r."userId" IS NULL AND kr."profileId" IS NULL) AS guests
     ${runJoins} WHERE ${runFilters()}`;
   const answerSql = `SELECT COUNT(*) AS exposures,
     COUNT(*) FILTER (WHERE s."status" IN ('SOLVED', 'FAILED')) AS answered,
@@ -153,22 +171,27 @@ export async function loadAdminContentAnalytics(f: AnalyticsFilters) {
     COUNT(*) FILTER (WHERE s."status" = 'FAILED') AS failed
     ${questionJoins} WHERE ${questionFilters()}`;
   const trendSql = `SELECT date_trunc($7::text, r."startedAt" AT TIME ZONE 'Pacific/Auckland')::date::text AS bucket,
-    COUNT(*) AS plays ${runJoins} WHERE ${runFilters()}
+    COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) AS plays,
+    COUNT(*) AS created_runs ${runJoins} WHERE ${runFilters()}
     GROUP BY bucket ORDER BY bucket DESC LIMIT 60`;
   const packSql = `SELECT pack."id", pack."title", pack."createdAt" AS created_at,
-    pack."kidsEligible" AS is_kids, COUNT(*) AS plays,
-    COUNT(*) FILTER (WHERE r."status" = 'FINISHED') AS completed,
+    pack."kidsEligible" AS is_kids,
+    COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) AS plays,
+    COUNT(*) FILTER (WHERE r."status" = 'FINISHED' AND ${PARTICIPATED_RUN_SQL}) AS completed,
     COALESCE(SUM(r."solved"), 0) AS solved, COALESCE(SUM(r."failed"), 0) AS failed
     ${runJoins} WHERE ${runFilters()} AND r."mode" = 'PACK' AND pack."id" IS NOT NULL
     AND ($6::text = '' OR pack."authorId" = $6::text)
-    GROUP BY pack."id" ORDER BY plays DESC LIMIT 500`;
+    GROUP BY pack."id" HAVING COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) > 0
+    ORDER BY plays DESC LIMIT 500`;
   const questionSql = `SELECT q."id", MAX(rev."title") AS title, q."createdAt" AS created_at,
-    q."kidsEligible" AS is_kids, COUNT(*) AS plays,
+    q."kidsEligible" AS is_kids,
+    COUNT(*) FILTER (WHERE ${ATTEMPTED_QUESTION_SQL}) AS plays,
     COUNT(*) FILTER (WHERE s."status" IN ('SOLVED','FAILED')) AS completed,
     COUNT(*) FILTER (WHERE s."status" = 'SOLVED') AS solved,
     COUNT(*) FILTER (WHERE s."status" = 'FAILED') AS failed
     ${questionJoins} WHERE ${questionFilters()}
-    GROUP BY q."id" ORDER BY plays DESC LIMIT 500`;
+    GROUP BY q."id" HAVING COUNT(*) FILTER (WHERE ${ATTEMPTED_QUESTION_SQL}) > 0
+    ORDER BY plays DESC LIMIT 500`;
   const args = values(f);
   const previousArgs = f.previousStart ? values(f, f.previousStart, f.start) : null;
   const requests = [
@@ -188,16 +211,17 @@ export async function loadAdminContentAnalytics(f: AnalyticsFilters) {
   const oldPlays = number(pr.plays), oldAnswered = number(pa.answered);
   return {
     totals: {
-      plays, identifiedPlayers: number(r.identified), guestRuns: number(r.guests),
+      plays, createdRuns: number(r.created_runs), identifiedPlayers: number(r.identified), guestRuns: number(r.guests),
       completed, completionRate: ratio(completed, plays), exposures: number(a.exposures),
       answered, accuracy: ratio(solved, answered),
       playsChange: growth(plays, oldPlays, !!previousArgs),
       answersChange: growth(answered, oldAnswered, !!previousArgs),
-      previousPlays: oldPlays, previousAnswered: oldAnswered,
+      previousPlays: oldPlays, previousCreatedRuns: number(pr.created_runs), previousAnswered: oldAnswered,
       previousCompletionRate: ratio(number(pr.completed), oldPlays),
       previousAccuracy: ratio(number(pa.solved), oldAnswered),
     },
-    trend: trend.reverse().map(row => ({ day: String(row.bucket), plays: number(row.plays) })),
+    trend: trend.reverse().map(row => ({ day: String(row.bucket), plays: number(row.plays),
+      createdRuns: number(row.created_runs) })),
     packs: mapRanks(packs, oldPacks, !!previousArgs, false, f.sort),
     questions: mapRanks(questions, oldQuestions, !!previousArgs, true, f.sort),
   };
