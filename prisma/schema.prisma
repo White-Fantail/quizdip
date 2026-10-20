@@ -451,6 +451,7 @@ model PlayRun {
   pack        QuizPack? @relation(fields: [packId], references: [id], onDelete: Restrict)
   packVersion Int?
   tokenHash   String
+  guestStartKeyHash String? @unique // Per-browser idempotency; no raw guest key is persisted
   currentIndex Int      @default(0)
   targetCount  Int?
   score       Int       @default(0)
