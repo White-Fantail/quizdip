@@ -39,7 +39,7 @@ function RankTable({ kind, items, hasPrevious, tr, locale, detailSuffix }: {
         <thead><tr style={{ borderBottom: "1px solid var(--line, #dedede)" }}>
           <th style={{ padding: 12 }}>{tr("Rank", "순위")}</th>
           <th style={{ padding: 12 }}>{tr("Content", "콘텐츠")}</th>
-          <th style={{ padding: 12, textAlign: "right" }}>{tr("Starts", "시작")}</th>
+          <th style={{ padding: 12, textAlign: "right" }}>{kind === "packs" ? tr("Played", "실제 참여") : tr("Attempted", "답안 시도")}</th>
           <th style={{ padding: 12, textAlign: "right" }}>{tr("Finished", "완료")}</th>
           <th style={{ padding: 12, textAlign: "right" }}>{tr("Completion", "완료율")}</th>
           <th style={{ padding: 12, textAlign: "right" }}>{tr("Accuracy", "정답률")}</th>
@@ -92,12 +92,14 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
   const series = data.trend;
   const max = Math.max(1, ...series.map(v => v.plays));
   const tiles = [
-    { label: tr("Play starts", "플레이 시작"), value: count(data.totals.plays), change: diff(data.totals.playsChange) },
+    { label: tr("Run records created", "실행 기록 생성"), value: count(data.totals.createdRuns), change: null },
+    { label: tr("Runs with answers", "실제 참여"), value: count(data.totals.plays), change: diff(data.totals.playsChange) },
+    { label: tr("No saved answers", "응답 없는 실행"), value: count(data.totals.createdRuns - data.totals.plays), change: null },
     { label: tr("Identified players", "식별된 플레이어"), value: count(data.totals.identifiedPlayers), change: null },
     { label: tr("Run completion", "플레이 완료율"), value: percent(data.totals.completionRate),
       change: pp(data.totals.completionRate, data.totals.previousCompletionRate) },
     { label: tr("Question exposures", "문제 노출"), value: count(data.totals.exposures), change: null },
-    { label: tr("Answers submitted", "문제 응답"), value: count(data.totals.answered),
+    { label: tr("Graded questions", "채점 완료 문제"), value: count(data.totals.answered),
       change: diff(data.totals.answersChange) },
     { label: tr("Answer accuracy", "문제 정답률"), value: percent(data.totals.accuracy),
       change: pp(data.totals.accuracy, data.totals.previousAccuracy) },
@@ -174,11 +176,11 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
       </article>)}
     </div>
     <section className="section review-console" style={{ marginTop: 24 }}>
-      <div className="review-section-heading"><h2>{tr("Play starts over time", "기간별 플레이 시작 추이")}</h2></div>
-      {series.length ? <div role="img" aria-label={tr("Play starts per time bucket", "기간별 플레이 시작 건수")}
+      <div className="review-section-heading"><h2>{tr("Actual plays over time", "기간별 실제 참여 추이")}</h2></div>
+      {series.length ? <div role="img" aria-label={tr("Runs with saved answers per time bucket", "기간별 답안 시도가 저장된 실행 건수")}
         style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 192, overflowX: "auto", padding: "12px 4px 0" }}>
         {series.map((item, index) =>
-          <div key={item.day} title={item.day + ": " + count(item.plays)} style={{
+          <div key={item.day} title={item.day + " · " + tr("Participated", "실제 참여") + ": " + count(item.plays) + " · " + tr("Created", "생성") + ": " + count(item.createdRuns)} style={{
             display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center",
             flex: "1 0 10px", height: "100%", minWidth: series.length < 12 ? 25 : 10,
           }}>
@@ -188,7 +190,7 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
               {index % Math.max(1, Math.ceil(series.length / 7)) === 0 ? item.day.slice(5) : ""}
             </small>
           </div>)}
-      </div> : <p className="muted">{tr("No play starts in this period.", "이 기간에 시작된 플레이가 없습니다.")}</p>}
+      </div> : <p className="muted">{tr("No runs with saved answers in this period.", "이 기간에 답안 시도가 저장된 플레이가 없습니다.")}</p>}
     </section>
 
     <section className="section review-console" style={{marginTop:24}}>
@@ -198,8 +200,8 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
           ? tr("Last 7 days","최근 7일") : tr("Selected period","선택 기간")}</span>
       </div>
       <p className="muted" style={{fontSize:13}}>
-        {tr("Compared with the preceding equal-length period. At least 10 current starts and eight additional starts are required; existing baselines also need at least five starts and 50% growth. Ranked by absolute added plays.",
-          "직전 동일 기간과 비교합니다. 현재 최소 10회, 순증 최소 8회가 필요하며 기존 기록이 있다면 직전 5회 이상·성장률 50% 이상이어야 합니다. 실제 증가한 플레이 수 순으로 정렬합니다.")}
+        {tr("Compared with the preceding equal-length period. At least 10 participating plays and eight additional plays are required; existing baselines also need at least five and 50% growth. Ranked by additional participating plays.",
+          "직전 동일 기간과 비교합니다. 답안 시도가 저장된 실제 참여가 최소 10회, 순증 최소 8회 필요합니다. 기존 기록이 있다면 직전 5회 이상·성장률 50% 이상이어야 하며 실제 참여 증가량 순으로 정렬합니다.")}
       </p>
       <div role="group" aria-label={tr("Rising content type", "급상승 콘텐츠 유형")}
         style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0 16px" }}>
@@ -217,7 +219,7 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
           <span className="review-entry-copy">
             <strong>{index+1}. <Link href={localizeHref(item.kind==="pack"?"/packs/"+item.id:"/admin/analytics/questions/"+item.id,locale)+
               (item.kind==="question"?detailSuffix:"")}>{item.title}</Link></strong>
-            <small>{item.kind==="pack"?tr("Pack","퀴즈팩"):tr("Question","문제")} · {tr("Starts","시작")} {count(item.plays)}
+            <small>{item.kind==="pack"?tr("Pack","퀴즈팩"):tr("Question","문제")} · {tr("Participated","실제 참여")} {count(item.plays)}
               {" · "}{tr("Previous","직전")} {count(item.previous)}
               {" · "}+{count(item.difference)} ({item.newActivity?tr("No previous plays","직전 기록 없음"):diff(item.growth)})</small>
           </span>
@@ -231,8 +233,8 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
         <span className="small-tag">{insights.quality.length} {tr("signals","건")}</span>
       </div>
       <p className="muted" style={{fontSize:13}}>
-        {tr("Read-only signals, not automatic moderation. Packs need 20 starts with under 50% completion; questions need 20 exposures with under 60% completion, or 20 graded answers with accuracy of 20% or less / 95% or more.",
-          "품질 점검을 위한 참고 지표이며 자동 제재하지 않습니다. 팩은 최소 20회 시작·완료율 50% 미만, 문제는 최소 20회 노출·완료율 60% 미만 또는 최소 20회 채점·정답률 20% 이하/95% 이상일 때 표시합니다.")}
+        {tr("Read-only signals, not automatic moderation. Packs need 20 participating plays with under 50% completion; questions need 20 exposures with under 60% completion, or 20 graded answers with accuracy of 20% or less / 95% or more.",
+          "품질 점검을 위한 참고 지표이며 자동 제재하지 않습니다. 팩은 최소 20회 실제 참여·완료율 50% 미만, 문제는 최소 20회 노출·완료율 60% 미만 또는 최소 20회 채점·정답률 20% 이하/95% 이상일 때 표시합니다.")}
       </p>
       <div className="review-result-list">
         {insights.quality.map((item,index)=>{
@@ -244,7 +246,7 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
             <span className="review-entry-copy">
               <strong>{index+1}. <Link href={localizeHref(item.kind==="pack"?"/packs/"+item.id:"/admin/analytics/questions/"+item.id,locale)+
                 (item.kind==="question"?detailSuffix:"")}>{item.title}</Link></strong>
-              <small>{issue} · {tr("Starts","시작")} {count(item.plays)}
+              <small>{issue} · {item.issue === "dropoff" ? tr("Exposures", "노출") : tr("Participated", "실제 참여")} {count(item.plays)}
                 {" · "}{tr(item.issue==="too_easy"||item.issue==="too_hard"?"Accuracy":"Completion",
                 item.issue==="too_easy"||item.issue==="too_hard"?"정답률":"완료율")} {percent(item.rate)}</small>
             </span>
@@ -256,8 +258,8 @@ export default async function AdminContentAnalyticsPage({ searchParams }: {
     <RankTable kind="packs" items={data.packs} hasPrevious={!!filters.previousStart} tr={tr} locale={locale} detailSuffix={detailSuffix}/>
     <RankTable kind="questions" items={data.questions} hasPrevious={!!filters.previousStart} tr={tr} locale={locale} detailSuffix={detailSuffix}/>
     <p className="muted" style={{ marginTop: 24, fontSize: 12 }}>
-      {tr("Each new run counts once; resuming does not add a start. Question exposures count sessions opened, and accuracy excludes unfinished answers. Completion is measured for runs started in the period, including those completed later. Unique players include only identifiable accounts/child profiles (anonymous plays cannot be deduplicated). Ranking rates require at least five plays/answers; growth is unavailable when there is no prior baseline.",
-        "플레이는 새로 생성된 실행 기록마다 1회이며 이어하기는 중복 집계되지 않습니다. 문제 노출은 실제 시작된 문제 세션 기준이고 정답률은 미완료 풀이를 제외합니다. 완료율은 선택 기간에 시작된 플레이가 현재까지 완료됐는지 기준입니다. 고유 플레이어는 식별 가능한 계정·아동 프로필만 포함하며 비회원은 중복 식별할 수 없습니다. 비율 정렬은 최소 5회 이상의 기록을 대상으로 하며 직전 기록이 0이면 증가율을 계산하지 않습니다.")}
+      {tr("Created runs count allocated run records, but actual participation requires at least one saved answer attempt (a graded answer or a server-recorded wrong guess). Offline pack answers count after syncing. Periods use the run's original start date, even when the answer arrives later. Question exposures count sessions opened, and accuracy excludes unfinished answers. Completion rates use participating runs only. Identified players exclude guest runs, which cannot be deduplicated. Ranking rates require at least five attempts; growth is unavailable without a prior baseline.",
+        "생성 수는 실행 기록 기준, 실제 참여 수는 서버에 답안 시도가 최소 한 번 저장된 실행 기준입니다(채점 완료 또는 서버에 기록된 오답). 오프라인 팩 결과는 동기화 후 반영됩니다. 기간은 최초 실행 생성일 기준이며 나중에 답해도 생성일에 귀속됩니다. 문제 노출은 열린 세션 기준이고 정답률은 미채점 응답을 제외합니다. 완료율의 분모는 실제 참여한 실행이며 식별된 플레이어는 계정·아동 프로필만 포함합니다. 비회원 중복은 구별하지 못하고 비율 정렬에는 최소 5회의 시도가 필요합니다.")}
     </p>
   </main>;
 }
