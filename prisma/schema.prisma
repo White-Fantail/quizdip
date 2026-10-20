@@ -473,6 +473,7 @@ model PlayRun {
   kidOwnership KidPlayRun?
   @@index([userId, startedAt])
   @@index([packId, status, startedAt])
+  @@index([status, expiresAt])
   @@index([startedAt])
 }
 
