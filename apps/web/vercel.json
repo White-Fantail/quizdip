@@ -5,5 +5,11 @@
       "dev": false,
       "main": true
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/internal/run-expiry",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }
