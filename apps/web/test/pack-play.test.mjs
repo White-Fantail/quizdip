@@ -60,7 +60,7 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.match(play,/const \[packStartStatus,setPackStartStatus\]=useState/);
  assert.match(play,/if\(packStartKeyRef\.current===key\)return;/);
  assert.match(play,/void bootPack\(key\);/);
- assert.match(play,/const raw=sessionStorage\.getItem\(storageKey\);/);
+ assert.match(play,/const raw=localStorage\.getItem\(storageKey\)\|\|sessionStorage\.getItem\(storageKey\);/);
  assert.match(play,/if\(saved\)\{[\s\S]*?await showRound\(saved\);/);
  assert.match(play,/const started=await api\("\/runs","POST"/);
  assert.match(play,/await showRound\(started\);/);
@@ -70,9 +70,12 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.doesNotMatch(play,/Start or resume pack →/);
  assert.match(play,/onClick=\{\(\)=>void start\("RANDOM_FIVE"\)\}/);
  assert.match(play,/onClick=\{\(\)=>void start\("INFINITE"\)\}/);
- // A failed resume must not clear sessionStorage silently.
+ // A failed resume must not discard its capability; only explicit restart clears it.
  const boot=play.slice(play.indexOf("const bootPack="),play.indexOf("  async function start("));
- assert.doesNotMatch(boot,/sessionStorage\.removeItem/);
+ assert.match(boot,/if\(restart\)\{/);
+ assert.match(boot,/if\(!restart&&\!resumeRunId\)try\{/);
+ assert.match(boot,/navigator\.locks\.request/);
+ assert.match(boot,/guestStartKey/);
  // Restart is always a separate, explicitly user-triggered action.
  assert.match(play,/onClick=\{\(\)=>\{[\s\S]*?sessionStorage\.removeItem\("quizdip-pack-run:/);
  assert.match(play,/void bootPack\(packId\+":"\+locale\+":"\+\(resumeRunId\?\?""\),true\)/);
