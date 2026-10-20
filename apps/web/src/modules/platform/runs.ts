@@ -26,6 +26,15 @@ function secret(): string {
 function authToken(runId: string, userId: string): string {
   return createHmac("sha256", secret()).update("clupio:run:v1:" + runId + ":" + userId).digest("base64url");
 }
+/** A browser-held random secret grants access only to its own guest run.
+ * The opaque idempotency digest alone can never be used as a run token.
+ */
+function guestRunToken(runId:string, startKey:string):string {
+  return createHmac("sha256",secret()).update("quizdip:guest-run:v1:"+runId+":"+startKey).digest("base64url");
+}
+function guestStartHash(packId:string,locale:string,startKey:string):string {
+  return hash("quizdip:guest-pack-start:v1:"+packId+":"+locale+":"+startKey);
+}
 export function sessionToken(runToken: string, runId: string, index: number): string {
   return createHmac("sha256", runToken).update("clupio:round:v1:" + runId + ":" + index).digest("base64url");
 }
@@ -41,7 +50,7 @@ export async function checkedRun(id: string, token: string, actor: Actor|null) {
   if(kidBinding && (actor?.childScope?.profileId!==kidBinding.profileId ||
       actor?.childScope?.deviceId!==kidBinding.deviceId))
     fail(403,"kid_play_forbidden","A child-only run requires its authorized device");
-  if (run.status === "ACTIVE" && run.expiresAt.getTime() <= Date.now())
+  if (run.status === "EXPIRED" || (run.status === "ACTIVE" && run.expiresAt.getTime() <= Date.now()))
     fail(410,"run_expired","This play run has expired");
   return run;
 }
@@ -113,6 +122,23 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     select:{id:true,currentVersion:true}
   });
   if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
+  const guestKey=!actor&&typeof p.guestStartKey==="string"?p.guestStartKey:null;
+  const guestKeyHash=guestKey?guestStartHash(p.packId,locale,guestKey):null;
+  const findGuestRun=async()=>{
+    if(!guestKeyHash||!guestKey)return null;
+    const existing=await db().playRun.findUnique({where:{guestStartKeyHash:guestKeyHash}});
+    if(!existing)return null;
+    if(existing.userId || existing.packId!==current.id || existing.locale!==locale || existing.mode!=="PACK")
+      fail(409,"guest_start_conflict","This guest start key is already in use");
+    if(existing.status!=="ACTIVE"||existing.expiresAt.getTime()<=Date.now())
+      fail(409,"guest_start_closed","This guest run has ended. Start a new pack run.");
+    const runToken=guestRunToken(existing.id,guestKey);
+    if(!matchingToken(runToken,existing.tokenHash))
+      fail(409,"guest_start_conflict","This guest start key is already in use");
+    return {...runSummary(existing),runToken,resumed:true};
+  };
+  const existingGuest=await findGuestRun();
+  if(existingGuest)return existingGuest;
   if(p.resumeRunId){
     if(!actor||p.restart)fail(403,"resume_forbidden","Sign in to resume this play run");
     const selected=await db().playRun.findFirst({where:{
@@ -132,9 +158,10 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     }
   }
   const id=randomUUID();
-  const runToken=actor?authToken(id,actor.id):randomBytes(32).toString("base64url");
+  const runToken=actor?authToken(id,actor.id):guestKey?guestRunToken(id,guestKey):randomBytes(32).toString("base64url");
   const expiry=new Date(Date.now()+30*86400000);
-  return db().$transaction(async tx=>{
+  try {
+  return await db().$transaction(async tx=>{
     const pack=await tx.quizPack.findFirst({
       where:{id:p.packId,publication:"PUBLISHED",safetyStatus:"ACTIVE",
         currentVersion:safe.packVersion,
@@ -190,13 +217,22 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     const run=await tx.playRun.create({data:{
       id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,scoringVersion:2,
       packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
-      tokenHash:hash(runToken),expiresAt:expiry,
+      tokenHash:hash(runToken),guestStartKeyHash:guestKeyHash,expiresAt:expiry,
       questions:{create:orderedItems.map((item,index)=>({
         position:index,quizId:item.quizId,revisionId:pinned.get(item.quizId)!
       }))}
     }});
     return {...runSummary(run),runToken,resumed:false};
   },{isolationLevel:"Serializable"});
+  }catch(error:unknown){
+    if((error as {code?:string})?.code==="P2002"&&guestKey){
+      // Two tabs can race the first POST. The unique digest makes both get
+      // the same run without creating duplicate guest play records.
+      const existing=await findGuestRun();
+      if(existing)return existing;
+    }
+    throw error;
+  }
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;
