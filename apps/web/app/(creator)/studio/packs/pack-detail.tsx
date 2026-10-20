@@ -4,7 +4,7 @@ import Link from "next/link";
 import {useEffect,useState} from "react";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
-import PackTranslationEditor from "./pack-translation-editor";
+import PackTranslationSummary from "./pack-translation-summary";
 
 type Member={id:string;title:string;publication?:string;safetyStatus?:string;ownedByCreator?:boolean};
 type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;
@@ -136,7 +136,8 @@ export default function PackDetail({packId,backHref,editHref}:{packId:string;bac
       </p>}
     </section>
 
-    {["en","ko"].includes(pack.sourceLocale)&&<PackTranslationEditor packId={pack.id} sourceLocale={pack.sourceLocale}/>}
+    {["en","ko"].includes(pack.sourceLocale)&&<PackTranslationSummary packId={pack.id} sourceLocale={pack.sourceLocale}
+      href={editHref.replace(/\/edit(?=\?|$)/,"/translations")}/>}
 
     <section className="placeholder-panel">
       <div className="studio-section-head">
