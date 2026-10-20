@@ -316,7 +316,7 @@ export const operations = {
   chance_balance: {public:true,description:"Read my chance balance and grant one chance on the first daily visit (signed-in users only)",schema:z.object({})},
   run_chance: {public:false,description:"Spend one account chance before the first guess of an active general quiz pack question",schema:z.object({runId:uuid,runToken:z.string().min(32).max(200),position:z.number().int().min(0).max(10000)})},
   run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
-    mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), resumeRunId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
+    mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), resumeRunId:uuid.optional(), guestStartKey:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
