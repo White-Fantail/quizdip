@@ -97,7 +97,7 @@ export const PARTICIPATED_RUN_SQL = `(
   )
 )`;
 
-const ATTEMPTED_QUESTION_SQL = `(s."status" IN ('SOLVED', 'FAILED') OR s."wrongGuesses" > 0)`;
+export const ATTEMPTED_QUESTION_SQL = `(s."status" IN ('SOLVED', 'FAILED') OR s."wrongGuesses" > 0)`;
 
 function runFilters(): string {
   return `r."startedAt" >= $1::timestamptz AND r."startedAt" < $2::timestamptz
