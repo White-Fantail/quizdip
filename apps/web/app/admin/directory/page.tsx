@@ -140,7 +140,7 @@ export default async function AdminDirectory({ searchParams }: { searchParams: P
     const [count,rows]=await Promise.all([
       db().playRun.count({where}),
       db().playRun.findMany({
-        where,orderBy:{startedAt:"desc"},skip,take:LIMIT,
+        where,orderBy:{startedAt:"desc"},skip,take: LIMIT,
         select:{id:true,mode:true,status:true,currentIndex:true,targetCount:true,
           score:true,solved:true,failed:true,startedAt:true,expiresAt:true,
           sessions:{where:ATTEMPTED_SESSION_FILTER,take:1,select:{id:true}},
