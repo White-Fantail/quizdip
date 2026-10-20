@@ -1,5 +1,5 @@
 import { authPool } from "../../lib/auth";
-import { resolveAnalyticsFilters, type AnalyticsFilters } from "./admin-content-analytics";
+import { ATTEMPTED_QUESTION_SQL, PARTICIPATED_RUN_SQL, resolveAnalyticsFilters, type AnalyticsFilters } from "./admin-content-analytics";
 
 type SourceRow = Record<string, unknown>;
 export type RisingKind = "pack" | "question";
@@ -34,11 +34,15 @@ const questionFrom = `FROM "PlaySession" s JOIN "Quiz" q ON q."id"=s."quizId"
  LEFT JOIN "PlayRun" r ON r."id"=s."runId"
  LEFT JOIN "KidPlayRun" kr ON kr."runId"=r."id"
  LEFT JOIN "KidPlaySingle" ks ON ks."sessionId"=s."id"`;
-const packSql = `SELECT p."id", MAX(p."title") AS title, COUNT(*) AS plays,
-  COUNT(*) FILTER (WHERE r."status"='FINISHED') AS completed
+const packSql = `SELECT p."id", MAX(p."title") AS title,
+  COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) AS plays,
+  COUNT(*) FILTER (WHERE r."status"='FINISHED' AND ${PARTICIPATED_RUN_SQL}) AS completed
   ${packFrom} WHERE r."mode"='PACK' AND ${pf}
-  GROUP BY p."id" ORDER BY plays DESC LIMIT 1000`;
-const questionSql = `SELECT q."id", MAX(v."title") AS title, COUNT(*) AS plays,
+  GROUP BY p."id" HAVING COUNT(*) FILTER (WHERE ${PARTICIPATED_RUN_SQL}) > 0
+  ORDER BY plays DESC LIMIT 1000`;
+const questionSql = `SELECT q."id", MAX(v."title") AS title,
+  COUNT(*) AS exposures,
+  COUNT(*) FILTER (WHERE ${ATTEMPTED_QUESTION_SQL}) AS plays,
   COUNT(*) FILTER (WHERE s."status" IN ('SOLVED','FAILED')) AS completed,
   COUNT(*) FILTER (WHERE s."status"='SOLVED') AS solved
   ${questionFrom} WHERE ${qf}
@@ -70,7 +74,8 @@ export function qualitySignals(packs:SourceRow[],questions:SourceRow[]):QualityS
         issue:"low_completion",plays:starts,completed,rate:completed/starts});
   }
   for(const q of questions){
-    const starts=n(q.plays),answered=n(q.completed),solved=n(q.solved);
+    // Drop-off remains based on opened question sessions (exposures), not only answer attempts.
+    const starts=n(q.exposures ?? q.plays),answered=n(q.completed),solved=n(q.solved);
     if(starts>=20 && answered/starts<0.6)signals.push({
       id:String(q.id),title:String(q.title),kind:"question",issue:"dropoff",
       plays:starts,completed:answered,rate:answered/starts
