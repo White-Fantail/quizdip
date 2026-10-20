@@ -247,7 +247,12 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     setRemainingClues(null);setReviewOpen(false);setReviewError("");
     if(r.mode!=="INFINITE"){
       localRunTokenRef.current=r.runToken;
-      if(packId)try{sessionStorage.setItem("quizdip-pack-run:"+packId+":"+locale,JSON.stringify(r));}catch{}
+      if(packId){
+        // Session copy helps old tabs; the local copy survives reloads and is
+        // shared between tabs so guests do not create a fresh run on every visit.
+        try{sessionStorage.setItem("quizdip-pack-run:"+packId+":"+locale,JSON.stringify(r));}catch{}
+        try{localStorage.setItem("quizdip-pack-run:"+packId+":"+locale,JSON.stringify(r));}catch{}
+      }
       let bundle=localBundleRef.current;
       if(!bundle||bundle.runId!==r.runId){
         let stored:LocalSaved|null=null;
@@ -271,7 +276,17 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         status:position<0?"FINISHED" as const:"ACTIVE" as const};
       setRun(nextRun);refreshCombo();saveLocal();
       if(position<0){
-        if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+        if(packId){
+          try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+          // Do not erase a newer run opened in a different tab.
+          try{
+            const current=JSON.parse(localStorage.getItem("quizdip-pack-run:"+packId+":"+locale)||"null") as RunInfo|null;
+            if(current?.runId===r.runId){
+              localStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);
+              localStorage.removeItem("quizdip-guest-start-key:"+packId+":"+locale);
+            }
+          }catch{}
+        }
         setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;
       }
       const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress(q.clues.length);
@@ -343,28 +358,53 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     if(!packId)return;
     setPackStartStatus("loading");setError("");
     const storageKey="quizdip-pack-run:"+packId+":"+locale;
+    const guestKeyName="quizdip-guest-start-key:"+packId+":"+locale;
     try {
-      // Resume local guest capabilities first; signed-in users can also resume
-      // across devices through the idempotent PACK run_start endpoint.
-      let saved:RunInfo|null=null;
-      if(!restart&&!resumeRunId)try{
-        const raw=sessionStorage.getItem(storageKey);
-        if(raw){
-          const candidate=JSON.parse(raw) as RunInfo;
-          if(candidate.mode==="PACK"&&candidate.runId&&candidate.runToken&&
-              (!candidate.packId||candidate.packId===packId))saved=candidate;
+      const bootstrap=async()=>{
+        // A guest's run capability belongs to this browser, not just one tab.
+        // Keep old session-only capabilities readable for backward compatibility.
+        if(restart){
+          try{sessionStorage.removeItem(storageKey);}catch{}
+          try{localStorage.removeItem(storageKey);}catch{}
+          try{localStorage.removeItem(guestKeyName);}catch{}
+          localBundleRef.current=null;localProgressRef.current={};
         }
-      }catch{/* Unavailable or malformed browser storage never blocks new play. */}
-      if(saved){
-        // On transient network errors, keep the saved capability for Retry.
-        // Never silently discard progress or create a second guest run.
-        await showRound(saved);
-      }else{
-        const started=await api("/runs","POST",
-          {mode:"PACK",lane:"GENERAL",packId,locale,...(restart?{restart:true}:resumeRunId?{resumeRunId}:{})},locale);
-        if(packStartKeyRef.current!==key)return;
-        await showRound(started);
-      }
+        let saved:RunInfo|null=null;
+        if(!restart&&!resumeRunId)try{
+          const raw=localStorage.getItem(storageKey)||sessionStorage.getItem(storageKey);
+          if(raw){
+            const candidate=JSON.parse(raw) as RunInfo;
+            if(candidate.mode==="PACK"&&candidate.runId&&candidate.runToken&&
+                (!candidate.packId||candidate.packId===packId))saved=candidate;
+          }
+        }catch{/* Unavailable or malformed browser storage never blocks new play. */}
+        if(saved){
+          // Preserve the same capability on failures; never create a new run
+          // merely because /bundle or a temporary network request failed.
+          await showRound(saved);
+        }else{
+          let guestStartKey:string|null=null;
+          try{guestStartKey=localStorage.getItem(guestKeyName);}catch{}
+          if(!guestStartKey || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(guestStartKey)){
+            guestStartKey=crypto.randomUUID();
+            try{localStorage.setItem(guestKeyName,guestStartKey);}catch{}
+          }
+          const started=await api("/runs","POST",
+            {mode:"PACK",lane:"GENERAL",packId,locale,guestStartKey,
+              ...(restart?{restart:true}:resumeRunId?{resumeRunId}:{})},locale);
+          if(packStartKeyRef.current!==key)return;
+          // Save the returned capability *before* downloading the whole bundle.
+          // If the download fails, the next attempt resumes rather than duplicates.
+          try{localStorage.setItem(storageKey,JSON.stringify(started));}catch{}
+          try{sessionStorage.setItem(storageKey,JSON.stringify(started));}catch{}
+          await showRound(started);
+        }
+      };
+      // Serialize first starts in other tabs. The server-side unique guest
+      // key also deduplicates POST retries where the response was lost.
+      if(navigator.locks?.request){
+        await navigator.locks.request("quizdip:pack-start:"+packId+":"+locale,bootstrap);
+      }else await bootstrap();
       if(packStartKeyRef.current===key)setPackStartStatus("ready");
     }catch(e){
       if(packStartKeyRef.current===key){
@@ -636,6 +676,8 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
           onClick={()=>void bootPack(packId+":"+locale+":"+(resumeRunId??""))}>{msg("Try again","다시 시도")}</button>
         <button type="button" className="btn btn-outline" onClick={()=>{
           try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+          try{localStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+          try{localStorage.removeItem("quizdip-guest-start-key:"+packId+":"+locale);}catch{}
           localBundleRef.current=null;localProgressRef.current={};
           void bootPack(packId+":"+locale+":"+(resumeRunId??""),true);
         }}>{msg("Start a new game","새로 시작")}</button>
