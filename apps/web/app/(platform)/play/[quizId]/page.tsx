@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ExplanationText } from "../../../../src/components/explanation-text";
 import { ImageReveal, type RevealSettings } from "../../../../src/components/image-reveal";
 import { RemainingClues } from "../../../../src/components/remaining-clues";
 import { activeImageStage,initialLocalProgress,revealLocalClue,guessLocalAnswer,
@@ -289,7 +290,7 @@ export default function SingleQuizPage() {
         <kbd>Enter</kbd> {session.responseMode==="multiple-choice"?msg("Submit selected answer · none: next clue","선택한 답 제출 · 미선택 시 다음 단서"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {msg("Reveal next clue","다음 단서")}</p>}
       {status!=="ACTIVE"&&localQuestion.current?.explanation&&<section className="feature-card quiz-answer-explanation">
         <h3>{msg("Answer explanation","정답 해설")}</h3>
-        <p style={{whiteSpace:"pre-wrap"}}>{localQuestion.current.explanation}</p>
+        <ExplanationText text={localQuestion.current.explanation}/>
       </section>}
       {feedback && <div className={"feedback" + (status === "SOLVED" ? " success" : "")} role="status">
         {feedback}

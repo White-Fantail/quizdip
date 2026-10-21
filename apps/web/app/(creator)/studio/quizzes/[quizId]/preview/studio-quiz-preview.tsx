@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ExplanationText } from "../../../../../../src/components/explanation-text";
 import { ImageReveal, type RevealSettings } from "../../../../../../src/components/image-reveal";
 import { activeImageStage } from "@quizdip/domain";
 import { useEffect, useState, type FormEvent } from "react";
@@ -197,7 +198,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
       </form>}
       {result!=="ACTIVE"&&quiz.explanation&&<section className="feature-card quiz-answer-explanation">
         <h3>{msg("Answer explanation","정답 해설")}</h3>
-        <p style={{whiteSpace:"pre-wrap"}}>{quiz.explanation}</p>
+        <ExplanationText text={quiz.explanation}/>
       </section>}
       {feedback&&<div role="status" className={"feedback"+(result==="SOLVED"?" success":"")}>
         {feedback}

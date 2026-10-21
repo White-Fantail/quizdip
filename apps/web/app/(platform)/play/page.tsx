@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ExplanationText } from "../../../src/components/explanation-text";
 import { ImageReveal, type RevealSettings } from "../../../src/components/image-reveal";
 import { RemainingClues } from "../../../src/components/remaining-clues";
 import { activeImageStage, initialLocalProgress, revealLocalClue, guessLocalAnswer, localSummary, comboProgress,
@@ -796,7 +797,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         </div>}
         {isDone&&round.explanation&&<section className="feature-card quiz-answer-explanation" aria-label={msg("Answer explanation","정답 해설")}>
           <h3>{msg("Why this is the answer","정답 해설")}</h3>
-          <p style={{whiteSpace:"pre-wrap"}}>{round.explanation}</p>
+          <ExplanationText text={round.explanation}/>
         </section>}
         {isDone && remainingCount > 0 && <section className="remaining-clue-review">
           <button type="button" className="btn btn-outline" disabled={reviewBusy}
