@@ -6,16 +6,16 @@ import {localizeHref} from "../../../src/i18n/core";
 type Pick={id:string;type:"QUIZ"|"PACK";title:string;description:string;creator:string;
  headline:string;editorialDescription:string;placement:"HERO"|"ROW";
  questionCount:number;orderMode?:string;featureId:string};
-export default function EditorialHighlights(){
+export default function EditorialHighlights({onSelected}:{onSelected:(keys:string[])=>void}){
  const locale=useLocale(),ko=locale==="ko";
  const [items,setItems]=useState<Pick[]>([]);
  useEffect(()=>{
   let alive=true;
   void fetch("/api/v1/editorial?locale="+locale+"&limit=10",{cache:"no-store"})
    .then(async r=>r.ok?(await r.json()).data:null)
-   .then(v=>{if(alive)setItems(v?.items??[])}).catch(()=>{});
+   .then(v=>{if(alive){const picks=(v?.items??[]) as Pick[];setItems(picks);onSelected(picks.map(i=>i.type+":"+i.id));}}).catch(()=>{if(alive)onSelected([])});
   return ()=>{alive=false}
- },[locale]);
+ },[locale,onSelected]);
  if(!items.length)return null;
  const hero=items.filter(i=>i.placement==="HERO");
  const rest=items.filter(i=>i.placement!=="HERO");

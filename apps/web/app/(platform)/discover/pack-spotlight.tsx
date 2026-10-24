@@ -33,7 +33,7 @@ async function readData(path: string): Promise<any> {
   return body.data;
 }
 
-export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => void }) {
+export default function PackSpotlight({ onBrowsePacks, rotation, onSelected }: { onBrowsePacks: () => void; rotation:number; onSelected:(keys:string[])=>void }) {
   const locale = useLocale(), ko = locale === "ko";
   const [items, setItems] = useState<PackRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,12 +42,13 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
   useEffect(() => {
     let live = true;
     setItems([]);
+    onSelected([]);
     setLoading(true);
     setFailed(false);
     // The ranking API applies publication, locale, moderation and media gates.
     // The public pack list is a separately gated fallback for sparse/new catalogs.
     void Promise.allSettled([
-      loadDiscoverySections(locale),
+      loadDiscoverySections(locale,rotation),
       readData("/packs?locale=" + locale + "&limit=8&offset=0")
     ]).then(([discovery, catalog]) => {
       if (!live) return;
@@ -61,6 +62,7 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
         sections.find(section => section.key === key)?.items.filter(item => item.type === "PACK") ?? [];
       const popular = packSection("popular_packs");
       const newlyDiscovered = packSection("new_packs");
+      const surprise = packSection("surprise");
       const catalogRows: PackCard[] = catalog.status === "fulfilled"
         ? ((catalog.value.items ?? []) as CatalogPack[]).map(pack => ({
           id: pack.id, title: pack.title, subtitle: pack.description, creator: "",
@@ -70,19 +72,34 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
         : [];
       const unique = new Set<string>();
       const selected: PackRow[] = [];
-      for (const [group, isPopular] of [[popular, true], [newlyDiscovered, false], [catalogRows, false]] as const) {
-        for (const pack of group) {
-          if (unique.has(pack.id)) continue;
-          unique.add(pack.id);
-          selected.push({ pack, popular: isPopular });
-          if (selected.length === 3) break;
-        }
-        if (selected.length === 3) break;
+      // One genuinely popular pick, one newer pick, then a rotating discovery.
+      // The former implementation always filled all three slots from "popular".
+      const today = Math.floor(Date.now() / 86400000);
+      const rotate = (rows:PackCard[]) => rows.length
+        ? [...rows.slice((today+rotation)%rows.length),...rows.slice(0,(today+rotation)%rows.length)] : rows;
+      const groups = [[rotate(popular), true], [rotate(newlyDiscovered), false],
+        [surprise, false], [catalogRows, false]] as const;
+      for (const [group, isPopular] of groups) {
+        const pack=group.find(item=>!unique.has(item.id));
+        if(!pack)continue;
+        unique.add(pack.id);
+        selected.push({pack,popular:isPopular});
+        if(selected.length===3)break;
       }
+      // Sparse data can have fewer than three distinct groups.
+      if(selected.length<3)for(const [group,isPopular] of groups){
+        for(const pack of group){
+          if(unique.has(pack.id))continue;
+          unique.add(pack.id);selected.push({pack,popular:isPopular});
+          if(selected.length===3)break;
+        }
+        if(selected.length===3)break;
+      }
+      onSelected(selected.map(item=>"PACK:"+item.pack.id));
       setItems(selected);
     }).catch(() => { if (live) setFailed(true); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [locale]);
+  }, [locale,rotation,onSelected]);
 
   const hasPopular = items.some(item => item.popular);
   return <section className="discover-pack-spotlight" aria-label={ko ? "추천 퀴즈팩" : "Featured quiz packs"}>

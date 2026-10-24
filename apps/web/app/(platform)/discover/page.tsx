@@ -38,6 +38,9 @@ export default function DiscoverPage() {
   const answerType=listing.answerType,topic=listing.topic,kids=listing.kids==="true";
   const page=listPageIndex(listing.page);
   const setPage=(value:number)=>updateListing({page:String(value+1)});
+  const [rotation, setRotation] = useState(0);
+  const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
+  const [editorialIds, setEditorialIds] = useState<string[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [quizzes, setQuizzes] = useState<DiscoverQuiz[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -87,7 +90,22 @@ export default function DiscoverPage() {
       <span className="eyebrow">QUIZDIP DISCOVER</span>
       <h1>{t("discover.heading")}</h1>
       <p className="lead">{t("discover.lead")}</p>
-      {!kids && contentView === "ALL" && <PackSpotlight onBrowsePacks={() => updateListing({view:"PACK",packPage:"1"})} />}
+      {!kids&&<div className="discover-explore-prompt">
+        <div>
+          <span className="discover-explore-kicker">{locale==="ko"?"✨ 오늘은 뭘 맞혀볼까?":"✨ WHAT WILL YOU SOLVE?"}</span>
+          <strong>{locale==="ko"?"새로운 호기심을 하나 골라보세요.":"Your next little adventure starts here."}</strong>
+          <p>{locale==="ko"?"짧게 한 판, 좋아하는 주제로 길게, 아니면 뜻밖의 발견까지.":"A quick round, a deep dive into a topic, or a surprise discovery."}</p>
+        </div>
+        <div className="discover-explore-actions">
+          <Link className="btn btn-primary" href={localizeHref("/play",locale)}>
+            🎲 {locale==="ko"?"바로 플레이":"Quick play"}
+          </Link>
+          <button type="button" className="btn btn-outline" onClick={()=>updateListing({view:"PACK",packPage:"1"})}>
+            📚 {locale==="ko"?"시리즈 탐색":"Explore series"}
+          </button>
+        </div>
+      </div>}
+      {!kids && contentView === "ALL" && <PackSpotlight rotation={rotation} onSelected={setSpotlightIds} onBrowsePacks={() => updateListing({view:"PACK",packPage:"1"})} />}
 
       <div id="discover-content" className="actions discover-view-switch" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
         {(["ALL","PACK","QUIZ"] as const).map(view=><button key={view} type="button"
@@ -96,7 +114,7 @@ export default function DiscoverPage() {
           {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
         </button>)}
       </div>
-      {contentView==="ALL"&&!kids&&<><EditorialHighlights/><DiscoverySections/><AdSlot placement="DISCOVER_FEED"/></>}
+      {contentView==="ALL"&&!kids&&<><EditorialHighlights onSelected={setEditorialIds}/><DiscoverySections rotation={rotation} onRemix={()=>setRotation(value=>(value+1)%1001)} excludedIds={[...spotlightIds,...editorialIds]}/><AdSlot placement="DISCOVER_FEED"/></>}
       {contentView==="PACK"&&<PackBrowser kids={kids} page={listPageIndex(listing.packPage)}
         onPageChange={next=>updateListing({packPage:String(next+1)})} ready={ready}/>}
       {contentView!=="PACK"&&<>

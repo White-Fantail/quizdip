@@ -1173,3 +1173,32 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .related-pack-details small{color:#5d687c}
 .related-pack-details b{margin-top:auto;font-size:.88rem}
 @media(max-width:640px){.related-pack-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px}.related-pack-card{flex:0 0 78%;max-width:270px;scroll-snap-align:start}}
+
+/* Discovery invitation and an explicitly unranked, rotating surprise lane. */
+.discover-explore-prompt{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
+  padding:25px 28px;margin:25px 0 12px;border:1px solid #ded8fc;border-radius:24px;
+  background:linear-gradient(110deg,#f0eaff 0%,#f7faff 60%,#edfff8 100%);}
+.discover-explore-prompt strong{display:block;margin:7px 0;font-size:clamp(1.12rem,2.3vw,1.48rem);letter-spacing:-.025em;}
+.discover-explore-prompt p{margin:0;color:var(--muted);font-size:.9rem;}
+.discover-explore-kicker{font-size:.74rem;font-weight:850;letter-spacing:.06em;color:#5645cb;}
+.discover-explore-actions{display:flex;gap:9px;flex-wrap:wrap;}
+.discover-explore-actions .btn{white-space:nowrap;}
+.discovery-dashboard-heading{margin:30px 0 13px;}
+.discovery-dashboard-heading h2{margin:0;}
+.discovery-dashboard-heading p{margin:6px 0 0;font-size:.88rem;}
+.discover-remix-button{display:inline-flex;align-items:center;gap:7px;border:1px solid #aaa0ed;border-radius:999px;
+  padding:10px 17px;background:#f3efff;color:#4534b4;font-weight:800;cursor:pointer;white-space:nowrap;}
+.discover-remix-button:hover:not(:disabled){background:#e8e1ff;transform:translateY(-1px);}
+.discover-remix-button:focus-visible{outline:3px solid #6255e8;outline-offset:3px;}
+.discover-remix-button:disabled{opacity:.55;cursor:wait;}
+.discover-surprise-section{border:1px solid #dcd6fb;border-radius:24px;background:linear-gradient(145deg,#f5f0ff,#f1fdf9);
+  padding:22px;margin:22px 0 33px;}
+.discover-surprise-section .discover-grid{margin-bottom:0;}
+.discover-surprise-section .discover-card{border-color:#dcd6fb;background:#fff;}
+.discover-ranked-section h3{margin:18px 0 0;}
+@media(max-width:640px){
+ .discover-explore-prompt{padding:20px;gap:14px;}
+ .discover-explore-actions,.discover-explore-actions .btn{width:100%;}
+ .discover-surprise-section{padding:14px;}
+ .discover-remix-button{width:100%;justify-content:center;}
+}
