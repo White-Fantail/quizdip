@@ -13,7 +13,7 @@ type Card={id:string;type:"PACK"|"QUIZ";title:string;subtitle:string;creator:str
 type Section={key:"surprise"|"trending"|"popular"|"highly_rated"|"difficult"|"new";
  items:Card[];basis:string};
 const names:Record<Section["key"],{en:string;ko:string;icon:string}>={
- surprise:{en:"A little something different",ko:"취향 밖의 뜻밖의 발견",icon:"🎲"},
+ surprise:{en:"A little something different",ko:"뜻밖의 퀴즈 발견",icon:"🎲"},
  trending:{en:"Trending now",ko:"지금 인기",icon:"📈"},
  popular:{en:"Popular to play",ko:"많이 풀어본 콘텐츠",icon:"✨"},
  highly_rated:{en:"Highly rated",ko:"평가가 좋은 콘텐츠",icon:"👍"},
@@ -39,7 +39,7 @@ export default function DiscoverySections({rotation,onRemix,excludedIds=[]}:{
  // and featured-pack areas. Do not use the deduplicated order for ranking claims.
  const present=uniqueDiscoveryRows(eligible,excludedIds,3);
  // Keep an empty organic ranking from pushing the actual catalog down the page.
- if (!loading && !present.length) return null;
+ if (!loading && !error && !present.length) return null;
  return <section aria-label={ko?"추천 및 인기 퀴즈":"Discover recommended quizzes"} className="discovery-dashboard">
   <div className="discover-results-head discovery-dashboard-heading">
     <div>

@@ -101,16 +101,14 @@ export default function PackSpotlight({ onBrowsePacks, rotation, onSelected }: {
     return () => { live = false; };
   }, [locale,rotation,onSelected]);
 
-  const hasPopular = items.some(item => item.popular);
   return <section className="discover-pack-spotlight" aria-label={ko ? "추천 퀴즈팩" : "Featured quiz packs"}>
     <div className="discover-pack-heading">
       <div>
         <span className="eyebrow">{ko ? "먼저 즐겨보세요" : "START EXPLORING"}</span>
-        <h2>{hasPopular ? (ko ? "지금 인기 있는 퀴즈팩" : "Popular quiz packs")
-          : (ko ? "퀴즈팩부터 시작해 볼까요?" : "Start with a quiz pack")}</h2>
-        <p className="muted">{hasPopular
-          ? (ko ? "최근 30일 실제 플레이 기록을 기준으로 선정했어요." : "Popular picks are based on verified plays in the last 30 days.")
-          : (ko ? "여러 문제를 하나의 주제로 이어서 즐겨보세요." : "Explore a complete collection of questions around one theme.")}</p>
+        <h2>{ko ? "오늘 만나볼 퀴즈팩" : "Packs to try today"}</h2>
+        <p className="muted">{ko
+          ? "인기작과 새로운 이야기, 뜻밖의 발견을 섞었어요. 인기 표시는 실제 플레이 기록을 기준으로 해요."
+          : "A mix of popular, fresh and unexpected packs. Popular labels are backed by real plays."}</p>
       </div>
       <button type="button" className="discover-pack-more" onClick={onBrowsePacks}>
         {ko ? "모든 퀴즈팩 보기" : "Browse all packs"} <span aria-hidden="true">→</span>

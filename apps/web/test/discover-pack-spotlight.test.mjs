@@ -42,7 +42,7 @@ test("pack spotlight honors discover safety and localization gates and deduplica
   assert.match(component, /new Set<string>\(\)/);
   assert.match(component, /loadDiscoverySections\(locale,rotation\)/);
   assert.match(list, /Object.prototype.hasOwnProperty.call\(names,s.key\)/);
-  assert.match(list, /if \(!loading && !present.length\) return null/);
+  assert.match(list, /if \(!loading && !error && !present.length\) return null/);
   assert.match(client, /const inFlight = new Map/);
 });
 
