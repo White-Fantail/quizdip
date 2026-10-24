@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { mixDiscoveryCards, rotatedCatalogOffset } from "./discovery-mix";
 import { playableQuizWhere } from "./content-locale";
 import { ratingsForQuizzes } from "./ratings";
 import { packRatingsFor } from "./pack-social";
@@ -10,7 +11,7 @@ export type DiscoveryCard={
   questionCount:number;orderMode?:string;kidsEligible?:boolean;ratings:RatingSummary;started:number;completed:number;
   difficultyPercent:number|null;createdAt:string;
 };
-export type DiscoverySection={key:"popular_packs"|"new_packs"|"trending"|"popular"|"highly_rated"|"difficult"|"new";
+export type DiscoverySection={key:"popular_packs"|"new_packs"|"surprise"|"trending"|"popular"|"highly_rated"|"difficult"|"new";
   items:DiscoveryCard[];basis:string};
 
 /** Lower bound for a positive/negative rating distribution; neutral to tiny samples. */
@@ -62,21 +63,43 @@ export async function discoverSections(p:Record<string,any>) {
   const now=Date.now();
   const last7=new Date(now-7*86400000),last14=new Date(now-14*86400000),
     last30=new Date(now-30*86400000),last90=new Date(now-90*86400000);
-  const [quizzes,packs]=await Promise.all([
-    db().quiz.findMany({where:playableQuizWhere(locale),orderBy:[{updatedAt:"desc"},{id:"desc"}],take:160,
-      select:{id:true,authorId:true,createdAt:true,answerType:true,
-        author:{select:{displayName:true}},
-        localizations:{where:{locale,status:"PUBLISHED"},
-          select:{id:true,publishedVersion:true}}}}),
-    db().quizPack.findMany({where:{publication:"PUBLISHED",safetyStatus:"ACTIVE",
-      localizations:{some:{locale,status:"PUBLISHED"}},
-      items:{some:{quiz:playableQuizWhere(locale)}}},
-      orderBy:[{updatedAt:"desc"},{id:"desc"}],take:100,
-      select:{id:true,authorId:true,createdAt:true,orderMode:true,kidsEligible:true,
-        author:{select:{displayName:true}},
-        localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
-        items:{where:{quiz:playableQuizWhere(locale)},select:{quizId:true}}}})
+  // Stable within a UTC day, but older eligible content gets a rotating window.
+  // The bounds remain comparable to the previous 160-quiz/100-pack catalog,
+  // avoiding an unbounded ratings/revision or play-history query.
+  const rotation=p.rotation as number;
+  const day=Math.floor(now/86400000);
+  const quizWhere=playableQuizWhere(locale);
+  const packWhere={
+    publication:"PUBLISHED" as const,safetyStatus:"ACTIVE" as const,
+    localizations:{some:{locale,status:"PUBLISHED" as const}},
+    items:{some:{quiz:playableQuizWhere(locale)}}
+  };
+  const quizSelect={id:true,authorId:true,createdAt:true,answerType:true,
+    author:{select:{displayName:true}},
+    localizations:{where:{locale,status:"PUBLISHED" as const},
+      select:{id:true,publishedVersion:true}}} as const;
+  const packSelect={id:true,authorId:true,createdAt:true,orderMode:true,kidsEligible:true,
+    author:{select:{displayName:true}},
+    localizations:{where:{locale,status:"PUBLISHED" as const},select:{title:true,description:true}},
+    items:{where:{quiz:playableQuizWhere(locale)},select:{quizId:true}}} as const;
+  const [quizTotal,packTotal]=await Promise.all([
+    db().quiz.count({where:quizWhere}),db().quizPack.count({where:packWhere})
   ]);
+  const quizRecent=100,quizOlder=60,packRecent=60,packOlder=40;
+  const [latestQuizzes,olderQuizzes,latestPacks,olderPacks]=await Promise.all([
+    db().quiz.findMany({where:quizWhere,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      take:quizRecent,select:quizSelect}),
+    quizTotal>quizRecent?db().quiz.findMany({where:quizWhere,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      skip:rotatedCatalogOffset(quizTotal,quizRecent,quizOlder,day,rotation),
+      take:quizOlder,select:quizSelect}):Promise.resolve([]),
+    db().quizPack.findMany({where:packWhere,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      take:packRecent,select:packSelect}),
+    packTotal>packRecent?db().quizPack.findMany({where:packWhere,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      skip:rotatedCatalogOffset(packTotal,packRecent,packOlder,day,rotation),
+      take:packOlder,select:packSelect}):Promise.resolve([])
+  ]);
+  const quizzes=[...new Map([...latestQuizzes,...olderQuizzes].map(quiz=>[quiz.id,quiz])).values()];
+  const packs=[...new Map([...latestPacks,...olderPacks].map(pack=>[pack.id,pack])).values()];
   const allQuizIds=[...new Set([...quizzes.map(q=>q.id),...packs.flatMap(p=>p.items.map(i=>i.quizId))])];
   const localizations=await db().quizLocalization.findMany({
     where:{quizId:{in:allQuizIds},locale,status:"PUBLISHED",publishedVersion:{not:null}},
@@ -186,6 +209,8 @@ export async function discoverSections(p:Record<string,any>) {
         .map(r=>({card:r.card,score:r.card.started+1.5*r.card.completed})),6,3)},
     {key:"new_packs",basis:"Eligible published packs, ordered by creation time; not a popularity ranking",
       items:takeDiverse(packRows.map(r=>({card:r.card,score:Date.parse(r.card.createdAt)})),6,3)},
+    {key:"surprise",basis:"Rotating selection of eligible published packs and questions; not a popularity ranking",
+      items:mixDiscoveryCards(featured.map(row=>row.card),day,rotation)},
     {key:"trending",basis:"Growth in distinct signed-in players, last 7 days versus previous 7",
       items:takeDiverse(featured.filter(r=>{
         const recent=count(r.recent,r.card.id,"starts"),prior=count(r.prior,r.card.id,"starts");
@@ -207,5 +232,5 @@ export async function discoverSections(p:Record<string,any>) {
       items:takeDiverse(featured.map(r=>({card:r.card,
         score:Date.parse(r.card.createdAt)})))}
   ];
-  return {locale,sections,windowDays:30,note:"Organic sections use logged-in adult play data; empty sections have insufficient verified evidence."};
+  return {locale,sections,windowDays:30,note:"Activity-based rankings use distinct signed-in adult players within a bounded eligible catalog; the surprise lane rotates published content and is not a popularity ranking."};
 }

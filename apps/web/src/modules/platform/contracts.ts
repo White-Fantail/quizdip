@@ -206,7 +206,7 @@ export const operations = {
   }).refine(p=>!["RESTRICTED","REJECTED"].includes(p.verdict)||p.reason.length>=8,{
     path:["reason"],message:"A pack restriction or Kids rejection requires a reason of at least 8 characters"
   }) },
-  discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
+  discover_sections: { public:true, description:"Explore verified discovery rankings plus a rotating, unranked surprise mix. rotation changes the eligible sample without bypassing publication checks.", schema:z.object({locale:optionalLocale,rotation:z.number().int().min(0).max(1000).default(0)}) },
   pack_update: { public: false, description: "Edit quiz pack questions and optional coverMediaId, sections, closingMessage or scoreReviews; or change publication status. Apply quizdip_catalog.funQuality and inspect returned non-blocking funReview.", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.optional(), closingMessage:z.string().trim().max(4000).optional(), scoreReviews:scoreReviewsSchema.optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
   play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
   play_clue: { public: true, description: "Reveal the next clue using my play token", schema: z.object(session) },
