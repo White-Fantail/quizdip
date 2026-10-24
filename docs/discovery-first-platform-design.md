@@ -118,3 +118,30 @@ Every phase requires migrations/review of existing data, tests, typecheck, build
 - Every newly exposed UI, REST and MCP function has policy-consistent parity with regression coverage.
 
 **Not in MVP:** paid boosts, fan/celebrity rankings, public child standings, recurring competitions, personalized targeting based on sensitive interests, and automatic claim of verified celebrity identity.
+
+## Discover variety and remix (2026-10-25)
+
+The Discover page now keeps verified popularity, trend, rating and difficulty rankings
+distinct from the **unranked rotating surprise selection**. Its qualified candidate
+catalog remains bounded for query cost: 100 recently updated quizzes plus up to 60
+from an older rotating window; 60 recently updated packs plus up to 40 older.
+The UTC-day slot advances automatically, while an explicit remix can advance
+the window. The rotation and original ordering never affect play runs, record
+comparisons or a pack's question order.
+
+The public `discover_sections` operation accepts an optional integer
+`rotation` in 0–1000 (default 0), identically on
+`GET /api/v1/discover/sections?locale=...&rotation=...` and the
+`quizdip_discover_sections` MCP tool. REST parses `rotation` numerically.
+It only affects candidate sampling and the labeled surprise mix; no random item
+is ever labeled popular merely for inclusion. Every sample passes the same
+language, publication, moderation and approved-media gates. Rankings still
+represent verified adult signals *within the bounded candidate sample*, not
+an exhaustive global leaderboard.
+
+Featured packs are deliberately mixed across an eligible popular, a recent
+and a surprise group when available. Visible discovery lanes exclude featured
+and editor-picked cards and each other; when there are insufficient unique
+cards, short lanes disappear rather than repeating content. Direct quiz and
+pack browsing retain their paginated newest-first behavior and Kids gates.
+No schema migration or content rewrite is needed.

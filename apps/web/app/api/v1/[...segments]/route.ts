@@ -156,7 +156,7 @@ function route(method: string, segments: string[]): Match | null {
 export function parseQuery(query: URLSearchParams): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const [key, value] of query) {
-    if (["limit", "offset", "version"].includes(key)) values[key] = Number(value);
+    if (["limit", "offset", "version", "rotation"].includes(key)) values[key] = Number(value);
     else if (["mine", "kids", "includeContent", "confirm"].includes(key)) values[key] = value === "true";
     else values[key] = value;
   }

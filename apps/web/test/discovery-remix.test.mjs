@@ -23,6 +23,7 @@ test("Remix uses shared REST/MCP operation with an optional validated rotation",
  const ranked=read("app/(platform)/discover/discovery-sections.tsx");
  const spot=read("app/(platform)/discover/pack-spotlight.tsx");
  assert.match(client,/&rotation=" \+ rotation/);
+ assert.match(read("app/api/v1/[...segments]/route.ts"),/\["limit", "offset", "version", "rotation"\]/);
  assert.match(client,/inFlight\.get\(key\)/);
  assert.match(page,/onRemix=\{\(\)=>setRotation/);
  assert.match(page,/excludedIds=\{\[\.\.\.spotlightIds,\.\.\.editorialIds\]\}/);

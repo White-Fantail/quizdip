@@ -257,3 +257,17 @@ All quiz/pack authoring tools advertise `quizdip_catalog.funQuality` (five weigh
 - `quizdip_my_pack_insights` ⇄ GET `/api/v1/me/packs/:id/insights`: includes anonymized recommendation impressions and clicks.
 
 See [result recommendations](pack-recommendations.md) for scoring and verification.
+
+### Rotating Discover mix (2026-10-25)
+
+`GET /api/v1/discover/sections?locale=en|ko&rotation=0..1000` ⇄
+`quizdip_discover_sections` with `{locale,rotation}` (both fields optional;
+`rotation` defaults to 0). The public response adds a `surprise` section
+whose published, locale-eligible, media-approved and moderation-eligible
+cards are a deterministic rotating selection, **not** a popularity ranking.
+Existing section keys remain unchanged. Each call still evaluates the
+server-side live eligibility gates and restricts play-based ranking signals
+to qualified adult activity within a bounded sample. The client eliminates
+repeated cards across visible lanes without modifying the API's underlying
+ranked lists. This is an additive, backwards-compatible operation; there is
+no new MCP tool or independent REST endpoint.
