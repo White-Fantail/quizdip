@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint,screenControlPoint,fingerCount} from "../src/gestures.js";
+import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,answerCursorPoint,screenPoint,screenControlPoint,fingerCount} from "../src/gestures.js";
+import {readFileSync} from "node:fs";
 import {replayDwell} from "../src/replay.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/selection.js";
 import {updateStartPads,START_HOLD_MS} from "../src/start-zones.js";
@@ -327,3 +328,49 @@ test("offline grading is stable across accent, whitespace and case differences",
  assert.equal(game.players[0].correct,1);
 });
 
+
+test("both answer rows are reachable while keeping the whole hand above camera bottom",()=>{
+ // Mirrors the screenshot's wide two-by-two option grid.
+ const boxes=[
+  {left:30,right:759,top:328,bottom:473},
+  {left:777,right:1506,top:328,bottom:473},
+  {left:30,right:759,top:490,bottom:637},
+  {left:777,right:1506,top:490,bottom:637}
+ ];
+ // Centered hands move just 30–40% of camera height; no 80–90% lowering.
+ const samples=[
+  {cameraX:.22,cameraY:.20,expected:0},
+  {cameraX:.78,cameraY:.20,expected:1},
+  {cameraX:.22,cameraY:.52,expected:2},
+  {cameraX:.78,cameraY:.52,expected:3}
+ ];
+ for(const sample of samples){
+  const cursor=answerCursorPoint(sample,boxes);
+  assert.ok(cursor,"valid four-choice bounding rectangles project");
+  assert.equal(answerAtPosition(cursor.x,cursor.y,boxes),sample.expected,
+   "fingertip must hit choice "+sample.expected+" without leaving camera");
+ }
+ // Standard fingertip sensing must preserve unscaled camera coordinates.
+ const tracked=screenControlPoint(numberedPose(1,.24));
+ assert.ok(tracked&&Number.isFinite(tracked.cameraX)&&Number.isFinite(tracked.cameraY));
+ assert.ok(tracked.cameraX>.5,"front-camera horizontal mirroring is applied");
+ assert.equal(answerCursorPoint(null,boxes),null);
+ assert.equal(answerCursorPoint(tracked,boxes.slice(0,3)),null);
+});
+test("camera-to-answers projection follows responsive answer rectangles",()=>{
+ const boxes=[
+  {left:8,right:170,top:330,bottom:439},
+  {left:178,right:340,top:330,bottom:439},
+  {left:8,right:170,top:447,bottom:556},
+  {left:178,right:340,top:447,bottom:556}
+ ];
+ assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.22,cameraY:.51},boxes)),boxes),2);
+ assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.78,cameraY:.51},boxes)),boxes),3);
+});
+test("long text and question media are not clipped by the active play layout",()=>{
+ const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
+ const section=css.slice(css.lastIndexOf("/* 10-question play screen"));
+ assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*max-height:none[^}]*overflow:visible/s);
+ assert.match(section,/\.stage\.playing-stage \.touch-question \.question\s*\{[^}]*max-height:none[^}]*overflow:visible/s);
+ assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*min-height:218px/s);
+});
