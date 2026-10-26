@@ -112,3 +112,59 @@
  .question-media{max-height:75px}
  .question-media img{max-height:70px}
 }
+
+/* 10-question play screen: NEVER clamp or hide the published prompt. Long
+ * QuizDip prompts, first clues, and images must expand naturally above choices.
+ * The previous 35%-max-height/overflow:hidden chopped text behind the media.
+ */
+.stage.playing-stage .question-zone{
+ height:auto;min-height:0;display:flex;flex-direction:column;
+ justify-content:flex-start;gap:clamp(7px,1vh,12px)
+}
+.stage.playing-stage .question-head{flex:0 0 auto}
+.stage.playing-stage .touch-question{
+ display:flex;flex:0 0 auto;flex-direction:column;align-items:center;
+ gap:clamp(4px,.65vh,9px);width:100%;max-height:none;min-height:0;
+ overflow:visible;text-align:center
+}
+.stage.playing-stage .touch-question .question{
+ display:block;width:100%;max-width:1280px;
+ font-size:clamp(21px,2.45vw,39px);font-weight:850;
+ line-height:1.18;letter-spacing:-.035em;
+ margin:0 auto;min-height:0;max-height:none;overflow:visible;
+ overflow-wrap:anywhere;text-wrap:balance
+}
+.stage.playing-stage .question-clue{
+ font-size:clamp(13px,1.4vw,18px);line-height:1.35;
+ max-width:1200px;margin:0 auto;min-height:0;overflow:visible
+}
+.stage.playing-stage .question-media{
+ width:100%;height:auto;max-height:none;min-height:0;display:flex;justify-content:center;align-items:center
+}
+.stage.playing-stage .question-media img{
+ width:auto;height:auto;max-width:min(52vw,410px);
+ max-height:clamp(72px,12vh,132px);object-fit:contain;border-radius:10px
+}
+.stage.playing-stage .choices{
+ flex:none;height:clamp(218px,31vh,310px);min-height:218px;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ grid-template-rows:repeat(2,minmax(0,1fr))
+}
+.stage.playing-stage .choice{min-height:0}
+.stage.playing-stage .bottom-zone{
+ min-height:0;margin-top:clamp(8px,1vh,12px);padding:clamp(8px,1.1vh,12px) 0
+}
+.stage.playing-stage .camera-box{
+ height:clamp(112px,18vh,170px);min-height:112px;max-height:170px
+}
+@media(max-width:680px){
+ .stage.playing-stage .question-zone{height:auto;min-height:0}
+ .stage.playing-stage .touch-question{max-height:none;overflow:visible}
+ .stage.playing-stage .touch-question .question{
+  font-size:clamp(18px,4.8vw,27px);line-height:1.2;max-height:none;overflow:visible
+ }
+ .stage.playing-stage .question-media img{max-width:min(75vw,290px);max-height:80px}
+ .stage.playing-stage .choices{height:clamp(208px,31vh,260px);min-height:208px}
+ .stage.playing-stage .bottom-zone{margin-top:8px;gap:10px}
+ .stage.playing-stage .camera-box{height:120px;min-height:120px;max-height:120px}
+}
