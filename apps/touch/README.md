@@ -17,6 +17,14 @@ The server selects only active, published language revisions of active published
 
 Touch uses an hour-limited, HMAC-authenticated ticket for the 10 pinned revisions. The initial response includes the authored correct answer as existing QuizDip local play bundles do; Touch grades on the device. The media ticket is used only to request approved image URLs, not to grade. No QuizDip play history or leaderboard record is written by these temporary local multiplayer scores.
 
+## Vercel build quota protection
+
+- Only `main` automatically deploys the `quizdip-touch` Vercel project. Non-main branches (including `dev`, feature branches, and branches with slashes) are explicitly disabled in `apps/touch/vercel.json`.
+- Project-level `previewDeploymentsDisabled=true` is also enabled, so preview deployments are not queued from Git updates.
+- The ignored-build command permits `VERCEL_GIT_COMMIT_REF=main` (exit code 1) and skips any other branch (exit code 0). This is a fallback guard; ignored builds can still count toward Vercel deployment/build quotas, so the Git branch filter and disabled preview deployments are the primary prevention mechanisms.
+- GitHub Actions validation for `dev` is not a Vercel deployment; it remains enabled.
+- Keep development changes on `dev` and fast-forward to `main` only after explicit user approval. A push to `main` then deploys both QuizDip and Touch as configured.
+
 ## Deployment
 
 - **QuizDip web backend**: `apps/web/app/api/touch/route.ts`. Production base is `https://quizdip.com/api/touch`; the endpoint must be deployed before the Touch UI can load real questions.
