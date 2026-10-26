@@ -94,6 +94,62 @@ test("five fingers arm each round; holding a previous answer alone never auto-vo
  assert.equal(SELECT_COUNTDOWN_MS,1000);
 });
 
+test("resting with a closed fist prepares a vote without opening the palm",()=>{
+ let state=null;
+ for(let now=0;now<=NEUTRAL_HOLD_MS;now+=65){
+  const r=fingerVote(state,finger(0),now);
+  state=r.state;assert.equal(r.chosen,null);
+ }
+ assert.equal(state.phase,"ready");
+ const first=fingerVote(state,finger(3),330);
+ assert.equal(first.state.phase,"arming");
+ let result={state:first.state,chosen:null};
+ for(let now=430;now<=2200;now+=100){
+  result=fingerVote(result.state,finger(3),now);
+  if(result.chosen!==null)break;
+ }
+ assert.equal(result.chosen,2);
+ assert.equal(SELECT_COUNTDOWN_MS,1000);
+});
+
+test("a fist is safe indefinitely while thinking: no vote until 1–4 fingers",()=>{
+ let state=null;
+ for(let now=0;now<29000;now+=100){
+  const result=fingerVote(state,finger(0),now);
+  assert.equal(result.chosen,null);
+  state=result.state;
+ }
+ assert.equal(state.phase,"ready");
+});
+
+test("previous round answer fingers cannot silently repeat in the next round",()=>{
+ // Each round starts with its own neutral state. Keeping two fingers raised
+ // from the last vote must never count as an intentional new choice.
+ let state=null;
+ for(let now=0;now<=3000;now+=100){
+  const result=fingerVote(state,finger(2),now);state=result.state;
+  assert.equal(result.chosen,null);
+ }
+ assert.equal(state.phase,"neutral");
+ // A deliberate fist-to-answer transition is accepted.
+ state=fingerVote(state,finger(0),3100).state;
+ state=fingerVote(state,finger(0),3100+NEUTRAL_HOLD_MS).state;
+ assert.equal(state.phase,"ready");
+ let selected=null;
+ for(let now=3600;now<5600;now+=100){
+  const result=fingerVote(state,finger(2),now);state=result.state;
+  if(result.chosen!==null){selected=result.chosen;break;}
+ }
+ assert.equal(selected,1);
+ // Simulate new round; last pose cannot vote until a fresh neutral.
+ state=null;
+ for(let now=6000;now<8000;now+=100){
+  const result=fingerVote(state,finger(2),now);state=result.state;
+  assert.equal(result.chosen,null);
+ }
+ assert.equal(state.phase,"neutral");
+});
+
 test("a different answer restarts the per-player dwell countdown",()=>{
  let s=fingerVote(null,finger(5),0).state;
  s=fingerVote(s,finger(5),300).state;
