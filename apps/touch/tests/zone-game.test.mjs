@@ -82,7 +82,12 @@ test("five fingers arm each round; holding a previous answer alone never auto-vo
  assert.equal(s.phase,"ready");
  s=fingerVote(s,finger(2),2500).state;
  assert.equal(s.phase,"arming");
- let result=fingerVote(s,finger(2),2500+SELECT_ARM_MS+SELECT_COUNTDOWN_MS);
+ let result;
+ for(let t=2600;t<=3900;t+=100){
+  result=fingerVote(s,finger(2),t);
+  s=result.state;
+  if(result.chosen!==null)break;
+ }
  assert.equal(result.chosen,1);
  assert.equal(SELECT_COUNTDOWN_MS,1000);
 });
@@ -91,7 +96,7 @@ test("a different answer restarts the per-player dwell countdown",()=>{
  let s=fingerVote(null,finger(5),0).state;
  s=fingerVote(s,finger(5),300).state;
  s=fingerVote(s,finger(4),400).state;
- s=fingerVote(s,finger(4),800).state;
+ for(let t=500;t<=800;t+=100)s=fingerVote(s,finger(4),t).state;
  assert.equal(s.phase,"countdown");
  s=fingerVote(s,finger(1),900).state;
  assert.equal(s.phase,"arming");assert.equal(s.choice,0);

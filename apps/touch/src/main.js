@@ -65,8 +65,9 @@ function confirmPlayers(){
  recognitionPhase="locked";render(true);
 }
 function startRecognizedGame(){
- if(loading||!gameTicket||!game.players.length||(!mouseTest&&
-    (!cameraReady||seenHands.length!==game.players.length)))return;
+ // The player count was verified before lock. A hand may leave the frame
+ // briefly to press Start; the first round still requires neutral pose.
+ if(loading||!gameTicket||!game.players.length||(!mouseTest&&!cameraReady))return;
  if(begin(game,performance.now())){cleanPlayUI();render(true);}
 }
 function cameraGuide(){
@@ -140,8 +141,7 @@ function updateScores(){
  const confirm=el("confirmPlayers");if(confirm)confirm.disabled=!cameraReady||candidates.length===0||
   candidates.length!==tracker.visibleCount;
  const beginButton=el("beginGame");
- if(beginButton)beginButton.disabled=loading||!gameTicket||
-  (!mouseTest&&(!cameraReady||seenHands.length!==game.players.length));
+ if(beginButton)beginButton.disabled=loading||!gameTicket||(!mouseTest&&!cameraReady);
  cameraGuide();
 }
 function render(force=false){
