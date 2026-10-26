@@ -185,6 +185,7 @@ function render(force=false){
  document.querySelector(".stage").classList.toggle("playing-stage",game.phase==="playing"||game.phase==="revealed");
  // Keep the lobby controls, but dedicate the full viewport to gameplay once a round starts.
  document.querySelector(".app").classList.toggle("play-session",game.phase==="playing"||game.phase==="revealed");
+ document.querySelector(".app").classList.toggle("lobby-session",game.phase==="lobby"&&!!selectedLane);
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(!selectedLane){
