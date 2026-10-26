@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint,fingerCount} from "../src/gestures.js";
-import {foldSelection} from "../src/selection.js";
+import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/selection.js";
+import {updateStartPads,START_HOLD_MS} from "../src/start-zones.js";
 import {HandTracker} from "../src/tracker.js";
-import {freshGame,register,begin,submit,reveal,advance,DEMO_QUESTIONS,lobbyStartStatus} from "../src/game.js";
+import {freshGame,register,begin,submit,reveal,advance,DEMO_QUESTIONS,ROUND_MS} from "../src/game.js";
 function fingers(extended){
  const pts=Array.from({length:21},()=>({x:.5,y:.55}));pts[0]={x:.5,y:.9};
  for(const [i,tip,pip] of [[0,8,6],[1,12,10],[2,16,14],[3,20,18]]){
@@ -23,32 +24,41 @@ test("five fixed finger-number slots (1..5) and only one vote",()=>{
 });
 
 // Registration with an open palm must not be lost just because the hand opens again.
-test("all registered hands must hold fists together, keeping open hands registered",()=>{
- const g=freshGame();register(g,1);register(g,2);
- let since=null;
- const observe=(hands,at)=>{const s=lobbyStartStatus(g,hands,at,since,1000);since=s.since;return s;};
- assert.equal(observe([{id:1,gesture:"open"},{id:2,gesture:"open"}],100).ready,false);
- assert.equal(g.players.length,2);
- assert.equal(observe([{id:1,gesture:"fist"},{id:2,gesture:"open"}],400).since,null);
- let result=observe([{id:1,gesture:"fist"},{id:2,gesture:"fist"}],500);
- assert.equal(result.ready,false);
- assert.equal(observe([{id:1,gesture:"fist"},{id:2,gesture:"fist"}],1499).ready,false);
- assert.equal(observe([{id:1,gesture:"fist"},{id:2,gesture:"open"}],1500).since,null);
- assert.equal(g.players.length,2,"open hand does not unregister");
- assert.equal(observe([{id:1,gesture:"fist"},{id:2,gesture:"fist"}],1600).since,1600);
- assert.equal(observe([{id:1,gesture:"fist"},{id:2,gesture:"fist"}],2600).ready,true);
- assert.ok(begin(g,2600));
- assert.equal(g.phase,"playing");
-});
-test("missing and unregistered hands block auto-start; starting with no players is forbidden",()=>{
- const g=freshGame();
- assert.equal(lobbyStartStatus(g,[],1000).ready,false);
- register(g,1);register(g,2);
- assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"}],2000,1000).ready,false);
- assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"},{id:2,gesture:"fist"},{id:3,gesture:"fist"}],2000,1000).ready,false);
- assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"},{id:2,gesture:"fist"}],2000,1000).ready,true);
-});
 
+const openHand=(id,x=id/10,y=.55)=>({id,count:id,gesture:"open",x,y});
+const personalPad=(id,hand)=>hand.x===id/10;
+test("each player starts only by holding their OWN separated start zone",()=>{
+ let status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],100,personalPad);
+ assert.equal(status.start,false);
+ assert.equal(status.insideCount,2);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],100+START_HOLD_MS-1,personalPad);
+ assert.equal(status.start,false);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],100+START_HOLD_MS,personalPad);
+ // A missing camera frame over 320ms invalidates old accumulated time.
+ assert.equal(status.start,false);
+ let now=100+START_HOLD_MS;
+ status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],now,personalPad);
+ for(let i=0;i<15;i++){now+=100;status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],now,personalPad);}
+ assert.equal(status.start,true);
+ assert.equal(status.readyCount,2);
+});
+test("wrong number, wrong zone and missing player cancel start automatically",()=>{
+ let status=updateStartPads(null,[1,2],[openHand(1),openHand(2,.9)],100,personalPad);
+ assert.equal(status.insideCount,1);
+ assert.equal(status.start,false);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),{...openHand(2),count:1}],300,personalPad);
+ assert.equal(status.insideCount,1);
+ status=updateStartPads(status.holds,[1,2],[openHand(1)],350,personalPad);
+ assert.equal(status.readyCount,0);
+ assert.equal(status.start,false);
+ status=updateStartPads(status.holds,[1,2],[],400,personalPad);
+ assert.equal(status.holds.size,0);
+});
+test("no unregistered extra finger pose can join already-started game",()=>{
+ const g=freshGame();register(g,1);begin(g,100);
+ assert.equal(register(g,2),false);
+ assert.equal(g.endTime,100+ROUND_MS);
+});
 function numberedPose(n, x=.5){
  const pts=Array.from({length:21},()=>({x,y:.67}));
  pts[0]={x,y:.92};
@@ -120,41 +130,56 @@ test("overlapping hands do not keep an unverified player identity",()=>{
  const restored=wave(tracker,[[1,.22],[2,.78]],1900);
  assert.deepEqual(restored.map(h=>h.id).sort(),[1,2]);
 });
-const hand=(n,gesture="open")=>({id:2,count:n,gesture});
-test("passing over an option NEVER chooses, even after a long hover",()=>{
- let state;
- for(let ms=0;ms<=4500;ms+=250){
-  const result=foldSelection(state,hand(2),1,ms);state=result.state;
-  assert.equal(result.chosen,null);
- }
-});
-test("fold must be deliberate, preceded by own-number pose inside SAME option",()=>{
- let state;
- let r=foldSelection(state,hand(2),0,100);state=r.state;
- r=foldSelection(state,hand(2),0,310);state=r.state;
- assert.equal(r.chosen,null);
- r=foldSelection(state,hand(0,"fist"),0,500);state=r.state;
- r=foldSelection(state,hand(0,"fist"),0,680);
- assert.equal(r.chosen,0,"fist after armed number confirms");
- r=foldSelection(undefined,hand(0,"fist"),1,1000);
- assert.equal(r.chosen,null,"already-closed fist moving over another answer does nothing");
-});
-test("crossing to a different option while closing must not vote",()=>{
- let state=foldSelection(undefined,hand(2),0,0).state;
- state=foldSelection(state,hand(2),0,200).state;
- let r=foldSelection(state,hand(0,"fist"),1,400);
- assert.equal(r.chosen,null);
- r=foldSelection(r.state,hand(0,"fist"),1,640);
- assert.equal(r.chosen,null);
-});
-test("loss of identity clears pending fold; reacquisition needs explicit re-arm",()=>{
- let state=foldSelection(undefined,hand(2),2,0).state;
- state=foldSelection(state,hand(2),2,200).state;
- state=foldSelection(state,null,null,300).state;
- const r=foldSelection(state,hand(0,"fist"),2,600);
- assert.equal(r.chosen,null);
-});
 
+const hand=(id,option=0)=>({id,count:id,gesture:"open",option});
+test("a passing hand or brief hover never chooses any answer",()=>{
+ const results=[0,80,160,280,500].map(at=>dwellSelection(undefined,hand(2),1,at));
+ assert.ok(results.every(result=>result.chosen===null));
+ const first=dwellSelection(null,hand(2),1,0);
+ assert.equal(first.state.phase,"arming");
+});
+test("countdown starts after stable dwell and confirms ONLY after the full countdown",()=>{
+ let state=null,result;
+ for(let ms=0;ms<=2600;ms+=100){
+  result=dwellSelection(state,hand(2),1,ms);state=result.state;
+  if(ms<SELECT_ARM_MS)assert.equal(result.chosen,null);
+  if(ms>=SELECT_ARM_MS&&ms<SELECT_ARM_MS+SELECT_COUNTDOWN_MS){
+   assert.equal(state.phase,"countdown");
+   assert.ok(state.progress>=0&&state.progress<1);
+  }
+  if(result.chosen!==null)break;
+ }
+ assert.equal(result.chosen,1);
+ assert.equal(state,null);
+});
+test("switching from A to B restarts countdown; it cannot vote on flyover",()=>{
+ let state=null;
+ for(let ms=0;ms<=1700;ms+=100)state=dwellSelection(state,hand(3),0,ms).state;
+ const switched=dwellSelection(state,hand(3),3,1800);
+ assert.equal(switched.chosen,null);
+ assert.equal(switched.state.enteredAt,1800);
+ assert.equal(switched.state.phase,"arming");
+});
+test("lost number pose, closed fist, missing hand or camera pause DISARMS selection",()=>{
+ let state=null;
+ for(let ms=0;ms<=1000;ms+=100)state=dwellSelection(state,hand(4),2,ms).state;
+ assert.equal(dwellSelection(state,{id:4,count:3,gesture:"open"},2,1100).state,null);
+ assert.equal(dwellSelection(state,{id:4,count:0,gesture:"fist"},2,1100).state,null);
+ assert.equal(dwellSelection(state,null,null,1100).state,null);
+ const paused=dwellSelection(state,hand(4),2,1600);
+ assert.equal(paused.state.phase,"arming");
+ assert.equal(paused.chosen,null);
+});
+test("independent players can display simultaneous separate countdowns",()=>{
+ let a=null,b=null;
+ for(let ms=0;ms<=1300;ms+=100){
+  a=dwellSelection(a,hand(1),0,ms).state;
+  b=dwellSelection(b,hand(5),0,ms).state;
+ }
+ assert.equal(a.phase,"countdown");
+ assert.equal(b.phase,"countdown");
+ assert.equal(a.remainingMs,b.remainingMs);
+});
 test("folding P5 through a temporary four-finger pose does not switch to P4",()=>{
  const tracker=new HandTracker();tracker.setRegistered([4,5]);
  wave(tracker,[[5,.42]],100);

@@ -1,29 +1,26 @@
-// No dwell-only answer submission. Explicit open-number -> fist transition required.
-// The choice is latched BEFORE folding, so the palm may drift slightly while
-// fingers close without selecting a neighboring choice.
-export function foldSelection(state,hand,choice,now,{armMs=130,fistMs=150}={}){
- const next=state??{choice:null,armSince:null,armed:false,fistSince:null};
- if(!hand||choice===null||hand.id===undefined){
-  return {state:{choice:null,armSince:null,armed:false,fistSince:null},chosen:null};
+/**
+ * Progressive, per-player answer selection. Only a continuously observed hand
+ * displaying its assigned number can accumulate time. A short hover arms the
+ * countdown; only after the full countdown is a vote returned.
+ */
+export const SELECT_ARM_MS=650;
+export const SELECT_COUNTDOWN_MS=1800;
+export const OBSERVATION_GAP_MS=320;
+export function dwellSelection(previous,hand,choice,now){
+ const valid=hand&&Number.isInteger(hand.id)&&hand.id>=1&&hand.id<=5&&
+   hand.count===hand.id&&hand.gesture==="open"&&Number.isInteger(choice)&&choice>=0&&choice<=3;
+ if(!valid)return {state:null,chosen:null};
+ let s=previous;
+ if(!s||s.choice!==choice||now<s.lastAt||now-s.lastAt>OBSERVATION_GAP_MS){
+  s={choice,enteredAt:now,lastAt:now,phase:"arming",progress:0,remainingMs:SELECT_COUNTDOWN_MS};
+ }else{
+  s={...s,lastAt:now};
  }
- const ownNumber=hand.count===hand.id && hand.gesture==="open";
- if(ownNumber){
-  if(next.choice!==choice){next.choice=choice;next.armSince=now;next.armed=false;}
-  if(next.armSince===null)next.armSince=now;
-  if(now-next.armSince>=armMs)next.armed=true;
-  next.fistSince=null;
-  return {state:next,chosen:null};
- }
- if(hand.gesture==="fist"&&hand.count===0&&next.armed&&next.choice===choice){
-  if(next.fistSince===null)next.fistSince=now;
-  if(now-next.fistSince>=fistMs){
-   return {state:{choice:null,armSince:null,armed:false,fistSince:null},chosen:choice};
-  }
-  return {state:next,chosen:null};
- }
- // Intermediate folding is allowed briefly only within the same answer card.
- if(next.choice!==choice)return {state:{choice:null,armSince:null,armed:false,fistSince:null},chosen:null};
- next.fistSince=null;
- if(next.armSince!==null&&now-next.armSince>1800)return {state:{choice:null,armSince:null,armed:false,fistSince:null},chosen:null};
- return {state:next,chosen:null};
+ const elapsed=now-s.enteredAt;
+ if(elapsed<SELECT_ARM_MS)return {state:{...s,phase:"arming",progress:0,remainingMs:SELECT_COUNTDOWN_MS},chosen:null};
+ const counting=elapsed-SELECT_ARM_MS;
+ if(counting>=SELECT_COUNTDOWN_MS)return {state:null,chosen:choice};
+ return {state:{...s,phase:"countdown",
+   progress:Math.min(1,counting/SELECT_COUNTDOWN_MS),
+   remainingMs:SELECT_COUNTDOWN_MS-counting},chosen:null};
 }

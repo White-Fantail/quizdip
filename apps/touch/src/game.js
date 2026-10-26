@@ -8,6 +8,7 @@ export const DEMO_QUESTIONS=[
  {question:"What is the fastest land animal?",ko:"가장 빠르게 달리는 육상 동물은?",options:["Lion","Horse","Cheetah","Ostrich"],optionsKo:["사자","말","치타","타조"],answer:2},
  {question:"Which instrument has black and white keys?",ko:"흰 건반과 검은 건반이 있는 악기는?",options:["Violin","Piano","Flute","Trumpet"],optionsKo:["바이올린","피아노","플루트","트럼펫"],answer:1}
 ];
+export const ROUND_MS=30000;
 export function freshGame(){return {phase:"lobby",players:[],round:0,answers:new Map(),endTime:0,startedAt:0};}
 export function register(game,trackId){
  if(game.phase!=="lobby"||!Number.isInteger(trackId)||trackId<1||trackId>5||game.players.length>=5||
@@ -16,7 +17,7 @@ export function register(game,trackId){
 }
 export function begin(game,now){
  if(game.phase!=="lobby"||game.players.length===0)return false;
- game.phase="playing";game.round=0;game.answers=new Map();game.endTime=now+20000;game.startedAt=now;return true;
+ game.phase="playing";game.round=0;game.answers=new Map();game.endTime=now+ROUND_MS;game.startedAt=now;return true;
 }
 export function submit(game,trackId,choice,now,questions=DEMO_QUESTIONS){
  if(game.phase!=="playing"||now>game.endTime||game.answers.has(trackId)||!Number.isInteger(choice)||choice<0||choice>3)return false;
@@ -31,20 +32,6 @@ export function reveal(game){if(game.phase==="playing")game.phase="revealed";}
 export function advance(game,now,questions=DEMO_QUESTIONS){
  if(game.phase!=="revealed")return false;
  if(game.round+1>=questions.length){game.phase="finished";return true;}
- game.round++;game.answers=new Map();game.endTime=now+20000;game.phase="playing";return true;
+ game.round++;game.answers=new Map();game.endTime=now+ROUND_MS;game.phase="playing";return true;
 }
 
-// Starts only when every registered hand is currently visible and held in a fist.
-// Open palms remain registered; they simply cancel the start hold.
-export function lobbyStartStatus(game,hands,now,since=null,holdMs=1000){
- const ids=new Set(game.players.map(p=>p.trackId));
- const byId=new Map(hands.map(hand=>[hand.id,hand]));
- const visible=game.players.reduce((count,p)=>count+(byId.has(p.trackId)?1:0),0);
- const fists=game.players.reduce((count,p)=>count+(byId.get(p.trackId)?.gesture==="fist"?1:0),0);
- const eligible=game.phase==="lobby" && ids.size>0 && visible===ids.size &&
-   hands.length===ids.size && fists===ids.size;
- const started=eligible?(since??now):null;
- return {since:started,visible,fists,total:ids.size,
-  elapsed:started===null?0:Math.max(0,now-started),
-  ready:started!==null&&now-started>=holdMs};
-}
