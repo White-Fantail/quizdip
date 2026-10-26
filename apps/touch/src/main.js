@@ -6,7 +6,7 @@ const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80","#b9a9fc","#b3f4
 const params=new URLSearchParams(location.search);
 const mouseTest=params.get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
-let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0;
+let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,lastInferDuration=0,backend="CPU",lastUiRefresh=0;
 let revealUntil=0,stageStamp="",cameraReady=false,lobbyFistSince=null,testFists=false,lastLobbyUi=0;
 const intents=new Map(),pointerNodes=new Map();
 const root=document.getElementById("app");
@@ -17,9 +17,12 @@ const t=(ko,en)=>locale==="ko"?ko:en;
 const positionIndex=()=>Array.from(document.querySelectorAll("[data-answer]")).map(x=>x.getBoundingClientRect());
 function updateHeader(){
  el("status").textContent=cameraReady?t("● 카메라 연결됨","● CAMERA READY"):t("카메라 연결 전","CAMERA OFF");
- el("cameraLabel").textContent=t("카메라 영상은 기기 밖으로 전송되지 않습니다","Camera video stays on this device");
- el("footer").textContent=t("최대 8개의 손 · 한 사람당 한 손 · 교차/가림 시 인식이 바뀔 수 있습니다 · 현재 데모 점수는 로컬 전용",
- "Up to 8 hands · one hand per player · occlusion/crossing may swap IDs · demo scores stay local");
+ el("cameraLabel").textContent=cameraReady
+   ?t("감지 "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend,
+      "Seen "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend)
+   :t("카메라 영상은 기기 밖으로 전송되지 않습니다","Camera video stays on this device");
+ el("footer").textContent=t("손이 잠시 가려져도 등록은 유지됩니다. 원래 자리에서 다시 손을 펼쳐 주세요. 완전히 겹친 손은 카메라로 구분할 수 없습니다.",
+"Registered players survive brief hand loss. Show your hand near its old spot to reconnect; fully occluded hands cannot be distinguished.");
 }
 function showMessage(message,warning=false){
  el("messages").innerHTML='<div class="notice" style="margin:12px 0;'+(warning?'border-color:#eeb493;':'')+'">'+message+'</div>';
@@ -30,7 +33,7 @@ function updateScores(){
   const detected=!!hand||(mouseTest&&p.trackId<0);
   const label=game.phase==="lobby"&&hand
    ?(hand.gesture==="fist"?t("✊ 준비됨","✊ Ready"):hand.gesture==="open"?t("✋ 등록 유지","✋ Registered"):t("손 인식 중","Tracking"))
-   :(detected?t("인식 중","Tracking"):t("대기/끊김","Waiting/Lost"));
+   :(detected?t("인식 중","Tracking"):t("재연결 대기 · 원래 위치에서 손을 펼쳐주세요","Reconnecting · show hand near original spot"));
   return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+colors[(p.id-1)%colors.length]+'"><b>P'+p.id+'</b><b>'+p.score+'</b><em>'+label+'</em></div>';
  }).join("")||'<p style="grid-column:1/-1;color:#b8c8e4">'+t("손을 펼치고 카메라를 향해 주세요.","Show an open palm to the camera.")+'</p>';
 }
@@ -125,10 +128,17 @@ function touchInputs(hands,now){
 }
 function manageHands(hands,now){
  seenHands=hands;
+ // On any detection gap, clear stale selection dwell/fist timers.
+ const visibleIds=new Set(hands.map(h=>h.id));
+ for(const id of intents.keys())if(!visibleIds.has(id))intents.delete(id);
+ tracker.setPinnedIds(game.players.map(p=>p.trackId));
  if(game.phase==="lobby"){
   let added=false;
   for(const h of hands){
-   if(h.gesture==="open"&&now-h.gestureSince>=700&&h.y>=.42){added=register(game,h.id)||added;}
+   if(h.gesture==="open"&&now-h.gestureSince>=700&&h.y>=.42){
+    const didRegister=register(game,h.id);if(didRegister)tracker.pin(h.id);
+    added=didRegister||added;
+   }
   }
   if(added){lobbyFistSince=null;render(true);}
  }else touchInputs(hands,now);
@@ -139,7 +149,7 @@ function updateLobbyStart(now){
  // Only recent camera observations may count toward readiness. Simulation is dev-only.
  const hands=mouseTest&&testFists
   ?game.players.map(p=>({id:p.trackId,gesture:"fist"}))
-  :(cameraReady&&now-lastInference<350?seenHands:[]);
+  :(cameraReady&&now-lastInference<Math.min(1100,Math.max(550,lastInferDuration*2.2+120))?seenHands:[]);
  const status=lobbyStartStatus(game,hands,now,lobbyFistSince);
  lobbyFistSince=status.since;
  const progress=Math.min(100,Math.round(status.elapsed/1000*100));
@@ -174,14 +184,24 @@ function gameClock(now){
  }
 }
 function frame(now){
- if(video.readyState>=2&&landmarker&&now-lastInference>=95){
+ if(video.readyState>=2&&landmarker&&now-lastInference>=Math.max(45,Math.min(125,lastInferDuration*.55))){
+  const started=performance.now();
   try{
-   const detections=landmarker.detectForVideo(video,now);
-   manageHands(tracker.update(detections.landmarks,now),now);
-  }catch(e){showMessage(t("손 추적 오류: ","Tracking error: ")+String(e),true);landmarker.close();landmarker=null;cameraReady=false;lobbyFistSince=null;seenHands=[];}
-  lastInference=now;
+   const detections=landmarker.detectForVideo(video,started);
+   const completed=performance.now();
+   lastInferDuration=lastInferDuration*.7+(completed-started)*.3;
+   lastInference=completed;
+   tracker.setPinnedIds(game.players.map(p=>p.trackId));
+   manageHands(tracker.update(detections.landmarks,completed,detections.handednesses),completed);
+  }catch(e){
+   lastInference=performance.now();
+   showMessage(t("손 추적 오류: ","Tracking error: ")+String(e),true);
+   landmarker.close();landmarker=null;cameraReady=false;lobbyFistSince=null;seenHands=[];
+  }
  }
- gameClock(now);
+ const at=performance.now();
+ gameClock(at);
+ if(at-lastUiRefresh>320){updateScores();updateHeader();lastUiRefresh=at;}
  frameHandle=requestAnimationFrame(frame);
 }
 async function startCamera(){
@@ -195,11 +215,20 @@ async function startCamera(){
   video.srcObject=stream;await video.play();
   const {FilesetResolver,HandLandmarker}=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/+esm");
   const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm");
-  landmarker=await HandLandmarker.createFromOptions(vision,{
-   baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",delegate:"CPU"},
-   runningMode:"VIDEO",numHands:MAX_PLAYERS,minHandDetectionConfidence:.52,minHandPresenceConfidence:.48,minTrackingConfidence:.45
+  const modelAssetPath="https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+  const config=delegate=>({
+   baseOptions:{modelAssetPath,delegate},
+   runningMode:"VIDEO",numHands:MAX_PLAYERS,minHandDetectionConfidence:.42,
+   minHandPresenceConfidence:.40,minTrackingConfidence:.43
   });
-  videoStream=stream;cameraReady=true;el("messages").textContent="";lobbyFistSince=null;render(true);
+  try{
+   landmarker=await HandLandmarker.createFromOptions(vision,config("GPU"));
+   backend="GPU";
+  }catch{
+   landmarker=await HandLandmarker.createFromOptions(vision,config("CPU"));
+   backend="CPU";
+  }
+  videoStream=stream;cameraReady=true;lastInference=performance.now();lastInferDuration=0;el("messages").textContent="";lobbyFistSince=null;render(true);
   cancelAnimationFrame(frameHandle);frameHandle=requestAnimationFrame(frame);
  }catch(e){
   stream?.getTracks().forEach(t=>t.stop());video.srcObject=null;
