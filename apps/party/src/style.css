@@ -511,3 +511,54 @@
  .app.play-session{height:auto;min-height:100dvh;overflow:visible}
  .app.play-session .stage.playing-stage{min-height:600px}
 }
+
+/* PARTY BOARD v4: four answer cells plus a dedicated center clock slot.
+   These later, more specific rules supersede the old overlapping overlay. */
+.app.play-session .stage.playing-stage .choices{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) clamp(158px,12vw,205px) minmax(0,1fr);
+ grid-template-rows:repeat(2,minmax(0,1fr));
+ gap:clamp(6px,.9vw,12px);
+}
+.app.play-session .stage.playing-stage .choices .choice:nth-child(1){grid-column:1;grid-row:1}
+.app.play-session .stage.playing-stage .choices .choice:nth-child(2){grid-column:3;grid-row:1}
+.app.play-session .stage.playing-stage .choices .choice:nth-child(3){grid-column:1;grid-row:2}
+.app.play-session .stage.playing-stage .choices .choice:nth-child(4){grid-column:3;grid-row:2}
+.app.play-session .stage.playing-stage .choices .status-focus{
+ position:relative;left:auto;top:auto;transform:none;
+ grid-column:2;grid-row:1 / span 2;
+ justify-self:center;align-self:center;
+ width:100%;max-width:188px;max-height:100%;
+ min-height:clamp(150px,21dvh,200px);
+}
+@media(max-width:780px){
+ .app.play-session .stage.playing-stage .choices{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(134px,1fr) minmax(106px,auto) minmax(134px,1fr);
+  gap:clamp(5px,1.2vw,9px)
+ }
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(1){grid-column:1;grid-row:1}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(2){grid-column:2;grid-row:1}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(3){grid-column:1;grid-row:3}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(4){grid-column:2;grid-row:3}
+ .app.play-session .stage.playing-stage .choices .status-focus{
+  position:relative;left:auto;top:auto;transform:none;
+  grid-column:1 / -1;grid-row:2;align-self:center;justify-self:center;
+  width:min(100%,340px);max-width:340px;min-height:106px;
+  padding:7px 11px;border-radius:18px;
+  display:grid;grid-template-columns:70px minmax(0,1fr);
+  grid-template-rows:auto auto auto;gap:1px 10px;
+  text-align:left;align-content:center
+ }
+ .app.play-session .stage.playing-stage .status-focus__ring{
+  grid-column:1;grid-row:1 / span 3;width:68px
+ }
+ .app.play-session .stage.playing-stage .status-focus__ring strong{font-size:38px}
+ .app.play-session .stage.playing-stage .status-focus__headline{grid-column:2;grid-row:1;font-size:clamp(13px,3vw,16px)}
+ .app.play-session .stage.playing-stage .status-focus__detail{grid-column:2;grid-row:2;font-size:clamp(10px,2.4vw,12px)}
+ .app.play-session .stage.playing-stage .status-focus__time{grid-column:2;grid-row:3;font-size:clamp(11px,2.5vw,13px)}
+ .app.play-session .stage.playing-stage .status-focus[data-mode="critical"] .status-focus__ring strong{font-size:43px}
+ .app.play-session .stage.playing-stage .choices .choice{
+  padding:8px 6px 28px;gap:clamp(3px,.7dvh,7px)
+ }
+}
