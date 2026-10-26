@@ -1,8 +1,26 @@
 {
- "$schema":"https://openapi.vercel.sh/vercel.json",
- "git":{"deploymentEnabled":{"dev":false,"main":true}},
- "headers":[{"source":"/(.*)","headers":[
-  {"key":"Permissions-Policy","value":"camera=(self)"},
-  {"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}
- ]}]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "**": false,
+      "main": true
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self)"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi"
 }
