@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,answerCursorPoint,screenPoint,screenControlPoint,fingerCount} from "../src/gestures.js";
+import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint,screenControlPoint,fingerCount} from "../src/gestures.js";
+import {horizontalControl,CALIBRATION_MS,NEUTRAL_DEAD_ZONE} from "../src/horizontal-controls.js";
 import {readFileSync} from "node:fs";
 import {replayDwell} from "../src/replay.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/selection.js";
@@ -329,48 +330,70 @@ test("offline grading is stable across accent, whitespace and case differences",
 });
 
 
-test("both answer rows are reachable while keeping the whole hand above camera bottom",()=>{
- // Mirrors the screenshot's wide two-by-two option grid.
- const boxes=[
-  {left:30,right:759,top:328,bottom:473},
-  {left:777,right:1506,top:328,bottom:473},
-  {left:30,right:759,top:490,bottom:637},
-  {left:777,right:1506,top:490,bottom:637}
- ];
- // Centered fingertips move only in the top 10–42% of camera height.
- const samples=[
-  {cameraX:.22,cameraY:.20,expected:0},
-  {cameraX:.78,cameraY:.20,expected:1},
-  {cameraX:.22,cameraY:.34,expected:2},
-  {cameraX:.78,cameraY:.34,expected:3}
- ];
- for(const sample of samples){
-  const cursor=answerCursorPoint(sample,boxes);
-  assert.ok(cursor,"valid four-choice bounding rectangles project");
-  assert.equal(answerAtPosition(cursor.x,cursor.y,boxes),sample.expected,
-   "fingertip must hit choice "+sample.expected+" without leaving camera");
+test("all A/B/C/D choices need only a small sideways palm move, never a lowered finger",()=>{
+ let state=null,result;
+ for(let t=0;t<=CALIBRATION_MS+60;t+=60){
+  result=horizontalControl(state,{id:1,count:1,palmX:.50,palmY:.85},t);
+  state=result.state;
  }
- // Standard fingertip sensing must preserve unscaled camera coordinates.
- const tracked=screenControlPoint(numberedPose(1,.24));
- assert.ok(tracked&&Number.isFinite(tracked.cameraX)&&Number.isFinite(tracked.cameraY));
- assert.ok(tracked.cameraX>.5,"front-camera horizontal mirroring is applied");
- assert.equal(answerCursorPoint(null,boxes),null);
- assert.equal(answerCursorPoint(tracked,boxes.slice(0,3)),null);
-});
-test("camera-to-answers projection follows responsive answer rectangles",()=>{
- const boxes=[
-  {left:8,right:170,top:330,bottom:439},
-  {left:178,right:340,top:330,bottom:439},
-  {left:8,right:170,top:447,bottom:556},
-  {left:178,right:340,top:447,bottom:556}
+ assert.equal(result.ready,true);
+ assert.equal(result.choice,null,"neutral position is deliberately unarmed");
+ const positions=[
+  {dx:-.135,option:0,position:.125},
+  {dx:-.045,option:1,position:.375},
+  {dx:.045,option:2,position:.625},
+  {dx:.135,option:3,position:.875}
  ];
- assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.22,cameraY:.34},boxes)),boxes),2);
- assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.78,cameraY:.34},boxes)),boxes),3);
+ for(const entry of positions){
+  const moved=horizontalControl(state,{id:1,count:1,palmX:.5+entry.dx,palmY:.88},1200);
+  assert.equal(moved.choice,entry.option,"horizontal choice "+entry.option);
+  assert.ok(Math.abs(moved.position-entry.position)<.001);
+  // Player may keep an upright finger and NEVER move vertically.
+  const higher=horizontalControl(state,{id:1,count:1,palmX:.5+entry.dx,palmY:.15},1250);
+  assert.equal(higher.choice,entry.option);
+ }
+ assert.equal(horizontalControl(state,{id:1,count:1,palmX:.5+NEUTRAL_DEAD_ZONE/2},1300).choice,null);
 });
-test("long text and question media are not clipped by the active play layout",()=>{
+test("changing the question, text or media cannot shift a stationary player's pointer",()=>{
+ let state=null;
+ for(let ms=0;ms<=480;ms+=80){
+  state=horizontalControl(state,{id:2,count:2,palmX:.58},ms).state;
+ }
+ const first=horizontalControl(state,{id:2,count:2,palmX:.625},550);
+ const second=horizontalControl(first.state,{id:2,count:2,palmX:.625},15550);
+ assert.equal(first.choice,2);
+ assert.equal(first.position,second.position);
+ assert.equal(first.state.anchor,second.state.anchor);
+ assert.equal(second.ready,true,"calibration is never repeated per question");
+});
+test("invalid or missing hand never chooses, different players have independent centers",()=>{
+ let one=null,two=null;
+ for(let at=0;at<=480;at+=80){
+  one=horizontalControl(one,{id:1,count:1,palmX:.22},at).state;
+  two=horizontalControl(two,{id:2,count:2,palmX:.79},at).state;
+ }
+ assert.equal(horizontalControl(one,{id:1,count:1,palmX:.265},600).choice,2);
+ assert.equal(horizontalControl(two,{id:2,count:2,palmX:.835},600).choice,2);
+ assert.equal(horizontalControl(one,{id:1,count:0,palmX:.265},700).choice,null);
+ assert.equal(horizontalControl(one,null,700).choice,null);
+ assert.equal(horizontalControl(null,{id:1,count:1,palmX:.22},700).ready,false);
+});
+test("a projected palm stays in the same fixed four-column answer row",()=>{
+ const boxes=[
+  {left:30,right:387,top:350,bottom:620},
+  {left:402,right:759,top:350,bottom:620},
+  {left:774,right:1131,top:350,bottom:620},
+  {left:1146,right:1503,top:350,bottom:620}
+ ];
+ for(let choice=0;choice<4;choice++){
+  const centerX=(boxes[choice].left+boxes[choice].right)/2;
+  assert.equal(answerAtPosition(centerX,485,boxes),choice);
+ }
+});
+test("quiz layout fixes all four choices to a stable single row",()=>{
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
- const section=css.slice(css.lastIndexOf("/* 10-question play screen"));
- assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*max-height:none[^}]*overflow:visible/s);
- assert.match(section,/\.stage\.playing-stage \.touch-question \.question\s*\{[^}]*max-height:none[^}]*overflow:visible/s);
- assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*min-height:218px/s);
+ const section=css.slice(css.lastIndexOf("/* Hand-friendly PARTY BOARD v2"));
+ assert.match(section,/\.stage\.playing-stage \.question-zone\s*\{[^}]*grid-template-rows:auto minmax\(0,1fr\) clamp\(/s);
+ assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)[^}]*grid-template-rows:minmax\(0,1fr\)/s);
+ assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*overflow-y:auto/s);
 });
