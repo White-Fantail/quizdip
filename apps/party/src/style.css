@@ -178,12 +178,12 @@
  .stage.playing-stage .choice{font-size:clamp(14px,3.9vw,19px);padding:6px;gap:7px}
 }
 
-/* Hand-friendly PARTY BOARD v2
- * The answers stay in the SAME screen row on every round. Previously the
- * question/first-clue/image content pushed the grid down and the DOM-based
- * pointer moved even while the player's hand stayed perfectly still.
- * Reserve a fixed answer row; only the descriptive question panel scrolls
- * (in the rare case text + media truly exceed the available space).
+/* Hand-friendly PARTY BOARD v3
+ * Four numbered answers are always a stable 2x2 grid (1/2 above 3/4).
+ * Finger-number voting does not use screen coordinates, so there is no
+ * benefit in stretching all four choices into a single row.
+ * Reserve a fixed answer-grid height; lengthy question content scrolls
+ * only inside the descriptive area, without shifting the four choices.
  */
 .stage.playing-stage{
  height:calc(100dvh - 124px);min-height:580px;display:grid;
@@ -192,7 +192,7 @@
 }
 .stage.playing-stage .question-zone{
  height:100%;min-height:0;display:grid;justify-content:stretch;
- grid-template-rows:auto minmax(0,1fr) clamp(218px,29dvh,290px);
+ grid-template-rows:auto minmax(0,1fr) clamp(290px,42dvh,410px);
  gap:9px;padding:0
 }
 .stage.playing-stage .question-head{height:38px;min-height:38px}
@@ -210,8 +210,8 @@
 .stage.playing-stage .question-media{flex:0 0 auto}
 .stage.playing-stage .question-media img{max-height:clamp(80px,13dvh,135px)}
 .stage.playing-stage .choices{
- display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
- grid-template-rows:minmax(0,1fr);gap:clamp(6px,1vw,13px);
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(7px,1.1vw,14px);
  width:100%;height:100%;min-height:0;align-self:stretch
 }
 .stage.playing-stage .choice{
@@ -251,10 +251,10 @@
 .recenter-controls:hover,.recenter-controls:focus-visible{background:#31665d}
 @media(max-width:780px){
  .stage.playing-stage{height:auto;min-height:calc(100dvh - 110px);
-  grid-template-rows:minmax(420px,1fr) 140px}
+  grid-template-rows:minmax(500px,1fr) 140px}
  .stage.playing-stage .question-zone{
-  height:100%;min-height:420px;
-  grid-template-rows:auto minmax(0,1fr) minmax(205px,27dvh)
+  height:100%;min-height:500px;
+  grid-template-rows:auto minmax(0,1fr) clamp(300px,45dvh,400px)
  }
  .stage.playing-stage .choice{
   padding:8px 3px 22px;gap:5px;
@@ -310,7 +310,7 @@
 @media(max-width:780px){
  .stage.lobby-stage .bottom-zone{grid-template-columns:1fr;min-height:0}
  .stage.lobby-stage .camera-box{min-height:200px;max-height:46dvh}
- .stage.playing-stage{grid-template-rows:minmax(420px,1fr) clamp(110px,18dvh,145px)}
+ .stage.playing-stage{grid-template-rows:minmax(500px,1fr) clamp(110px,18dvh,145px)}
  .stage.playing-stage .bottom-zone{grid-template-columns:minmax(0,1fr)}
  .stage.playing-stage .scoreboard .player{min-width:0;flex:none;padding:4px 2px}
  .player-head{flex-wrap:wrap;justify-content:center}
@@ -330,8 +330,8 @@
  background:linear-gradient(90deg,#84f5d0,#9ee6fa);
  box-shadow:0 0 14px #84f5d088;transition:width .12s linear}
 
-/* Party focus station: fixed at the center of the four answer choices.
-   It never participates in grid layout and never changes answer positions. */
+/* Party focus station sits at the crossing of the four 2x2 options.
+   It never participates in grid layout or changes answer positions. */
 .stage.playing-stage .choices{position:relative;isolation:isolate}
 .status-focus{
  --focus-accent:#94f5db;position:absolute;left:50%;top:50%;z-index:7;
@@ -420,33 +420,42 @@
  animation:party-lobby-glow .9s ease-in-out infinite alternate
 }
 @keyframes party-lobby-glow{to{filter:brightness(1.19)}}
-/* Small screens keep all four numbered cards visible and readable. The status
-   sits in a reserved top strip, rather than covering answer labels. */
+/* Keep the counter at the exact center on tablets and phones too.
+   Push answer text toward outer edges to protect it from the center badge. */
 @media(max-width:780px){
  .stage.playing-stage .choices .status-focus{
-  top:5px;transform:translate(-50%,0);width:clamp(142px,43vw,190px);
-  min-height:78px;height:80px;border-radius:16px;padding:5px;
-  display:grid;grid-template-columns:52px 1fr;grid-template-rows:auto auto auto;
-  column-gap:5px;row-gap:0;text-align:left;align-content:center
+  left:50%;top:50%;transform:translate(-50%,-50%);
+  width:clamp(118px,32vw,154px);height:auto;
+  min-height:clamp(138px,22dvh,170px);
+  padding:7px 5px;border-radius:20px;gap:3px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center
  }
- .stage.playing-stage .status-focus__ring{width:50px;grid-column:1;grid-row:1/4}
- .stage.playing-stage .status-focus__ring strong{font-size:33px}
- .stage.playing-stage .status-focus__headline{
-  grid-column:2;grid-row:1;font-size:clamp(11px,2.6vw,15px)
+ .stage.playing-stage .status-focus__ring{width:clamp(54px,8vw,72px)}
+ .stage.playing-stage .status-focus__ring strong{font-size:clamp(31px,4.5vw,42px)}
+ .stage.playing-stage .status-focus__headline{font-size:clamp(11px,2.5vw,14px)}
+ .stage.playing-stage .status-focus__detail{font-size:clamp(9px,2vw,11px)}
+ .stage.playing-stage .status-focus__time{font-size:clamp(10px,2vw,12px)}
+ .stage.playing-stage .status-focus[data-mode="critical"] .status-focus__ring strong{font-size:clamp(36px,5vw,48px)}
+ .stage.playing-stage .choices .choice{
+  padding-top:8px;padding-bottom:clamp(25px,4dvh,42px);
+  gap:clamp(2px,.6dvh,7px);
  }
- .stage.playing-stage .status-focus__detail{
-  grid-column:2;grid-row:2;font-size:clamp(9px,2vw,11px)
+ .stage.playing-stage .choices .choice:nth-child(odd){
+  padding-left:7px;padding-right:clamp(38px,12vw,82px)
  }
- .stage.playing-stage .status-focus__time{
-  grid-column:2;grid-row:3;font-size:clamp(10px,2vw,12px)
+ .stage.playing-stage .choices .choice:nth-child(even){
+  padding-left:clamp(38px,12vw,82px);padding-right:7px
  }
- .stage.playing-stage .status-focus[data-mode="critical"] .status-focus__ring strong{font-size:38px}
- .stage.playing-stage .choices .choice{padding-top:clamp(90px,11dvh,102px);padding-bottom:16px}
- @keyframes party-ready-pop{
- 0%{transform:translate(-50%,0) scale(.78);opacity:.5}
- 68%{transform:translate(-50%,0) scale(1.06)}
- 100%{transform:translate(-50%,0) scale(1);opacity:1}
+}
+@media(max-width:430px){
+ .stage.playing-stage .choices .choice{
+  font-size:clamp(12px,3.5vw,16px);line-height:1.1
  }
+ .stage.playing-stage .choices .choice b{font-size:clamp(19px,5vw,26px)}
+ .stage.playing-stage .choices .status-focus{width:clamp(112px,31vw,132px);min-height:135px}
+ .stage.playing-stage .status-focus__ring{width:55px}
+ .stage.playing-stage .status-focus__ring strong{font-size:31px}
 }
 @media(prefers-reduced-motion:reduce){
  .status-focus,.status-focus__ring,.lobby-hands-status{animation:none!important;transition:none!important}
