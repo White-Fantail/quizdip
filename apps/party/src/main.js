@@ -13,7 +13,7 @@ let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
-root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
+root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>PARTY</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
 const video=el("camera");
 const t=(ko,en)=>locale==="ko"?ko:en;
@@ -176,7 +176,7 @@ function render(force=false){
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(!selectedLane){
-  top.innerHTML='<div class="hero mode-hero"><span class="chip">QUIZDIP · TOUCH</span><h1>'+
+  top.innerHTML='<div class="hero mode-hero"><span class="chip">QUIZDIP · PARTY</span><h1>'+
    t("어떤 게임을 할까요?","Choose a game!")+'</h1><p>'+t("QuizDip의 실제 공개 문제를 무작위로 10개씩 풀어요.","10 random questions from the real QuizDip!")+'</p></div>'+
    '<div class="mode-tiles"><button id="adultMode" class="mode-card adult"><span>🧠</span><strong>'+
    t("어른용 게임","Adult game")+'</strong><small>'+t("전체 공개 퀴즈에서 랜덤 10문제","10 questions from published quizzes")+
@@ -262,7 +262,7 @@ function render(force=false){
  }else{
   const sorted=[...game.players].sort((a,b)=>b.score-a.score);
   const winner=sorted[0];
-  top.innerHTML='<div class="results"><span class="chip">QUIZDIP TOUCH · FINISHED</span>'+
+  top.innerHTML='<div class="results"><span class="chip">QUIZDIP PARTY · FINISHED</span>'+
    '<h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
    '<div class="result-winner" style="--accent:'+color(winner.id)+'"><span>🥇 P'+winner.id+'</span><strong>'+winner.score+' pts</strong><small>'+t("최고 점수","Top score")+'</small></div>'+
    '<div class="result-standings">'+sorted.map((p,i)=>

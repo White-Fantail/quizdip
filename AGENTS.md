@@ -124,3 +124,7 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 - App store Kids/Families/privacy compliance is **not certified** by static SDK permissions. Publish an accurate privacy policy, configure `CRON_SECRET` and authenticated daily retention cleanup, run real device/security tests, and document proof before rollout.
 - Phase 5 moved first-time pairing to `/account/kids` + `/api/account/kids`. The `20261012230000_retire_web_kids_sessions` migration revokes only WEB device tokens but keeps hashed records for PIN exit. Main branch requires explicit request; staging migrations and native device distribution are separately unverified.
 - Full verification matrix: `docs/kids-native-phase4-release.md`. Do not claim Phase 4 release readiness or merge `main` without explicit user request.
+
+## QuizDip Party module (2026-10-27)
+
+QuizDip Party source is `apps/party`, the Vercel project is `quizdip-party`, and public hostname is `party.quizdip.com`. Keep `apps/party/vercel.json` main-only build protection and `.github/workflows/party-check.yml`. Canonical REST `/api/party` and compatibility `/api/touch` must maintain the same authorized bundle rules and a restricted CORS allowlist. Do not rewrite stable touch-named internal gesture engines just for branding. Development occurs on `dev`, with `main` updated only via explicitly approved fast-forward.

@@ -115,7 +115,7 @@ test("missing hand longer than grace resets readiness and cancels vote",()=>{
  assert.equal(fingerVote(s,finger(1),1000).chosen,null);
 });
 
-test("Touch bottom board uses recognized dynamic player-count columns",()=>{
+test("Party bottom board uses recognized dynamic player-count columns",()=>{
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
  const main=readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
  assert.match(css,/grid-template-columns:repeat\(var\(--player-count,1\),minmax\(0,1fr\)\)/);
@@ -188,7 +188,7 @@ test("additional, missing, curled, or overlapping hands reset lobby progress",()
  assert.equal(state.progress,0);
 });
 
-test("Touch lobby has hands-only progress and start wiring",()=>{
+test("Party lobby has hands-only progress and start wiring",()=>{
  const main=readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
  assert.match(main,/updateLobbyHold\(lobbyHold,"scanning"/);

@@ -302,11 +302,14 @@ test("only a complete ten-question QuizDip set can start",()=>{
 });
 test("preview override accepts only trusted QuizDip hosts",()=>{
  const dev="https://quizdip-xyz-nomadonghos-projects.vercel.app/api/touch";
+ const partyDev="https://quizdip-xyz-nomadonghos-projects.vercel.app/api/party";
+ assert.equal(touchApiEndpoint("?partyApi="+encodeURIComponent(partyDev)),partyDev);
+ assert.equal(touchApiEndpoint(),"https://quizdip.com/api/party");
  assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent(dev)),dev);
  assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent("https://evil.example/api/touch")),
-   "https://quizdip.com/api/touch");
+   "https://quizdip.com/api/party");
  assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent(dev+"?admin=1")),
-   "https://quizdip.com/api/touch");
+   "https://quizdip.com/api/party");
 });
 test("offline answer grading uses downloaded canonical answer and cannot double-award",()=>{
  const game=freshGame();setQuestions(game,realQuestions);register(game,2);begin(game,0);

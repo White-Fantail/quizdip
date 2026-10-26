@@ -8,10 +8,13 @@ const allowed=(origin:string|null)=>{
  try{
   const url=new URL(origin);
   if(url.protocol!=="https:"||url.pathname!=="/"||url.search)return null;
-  if(["touch.quizdip.com","quizdip-touch.vercel.app",
+  if(["party.quizdip.com","quizdip-party.vercel.app",
+      "quizdip-party-nomadonghos-projects.vercel.app",
+      "quizdip-party-git-main-nomadonghos-projects.vercel.app",
+      "touch.quizdip.com","quizdip-touch.vercel.app",
       "quizdip-touch-nomadonghos-projects.vercel.app",
       "quizdip-touch-git-dev-nomadonghos-projects.vercel.app"].includes(url.hostname))return origin;
-  if(/^quizdip-touch-[a-z0-9-]+-nomadonghos-projects\.vercel\.app$/.test(url.hostname))return origin;
+  if(/^quizdip-(?:touch|party)-[a-z0-9-]+-nomadonghos-projects\.vercel\.app$/.test(url.hostname))return origin;
  }catch{}
  return null;
 };

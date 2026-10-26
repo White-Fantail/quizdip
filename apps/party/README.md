@@ -1,11 +1,11 @@
-# QuizDip Touch — Live party quiz (1–5 players)
+# QuizDip Party — Live party quiz (1–5 players)
 
-QuizDip Touch lives at `apps/touch` and is a separate Vercel project.
+QuizDip Party lives at `apps/party` and is a separate Vercel project.
 Develop on **dev**; fast-forward **main** only after the user explicitly requests it.
 
 ## Live game flow — camera seats and finger votes
 
-1. Choose **Adult** or **Kids** before turning on the webcam. Touch downloads ten published four-option QuizDip questions. There are no bundled mock questions; Adult uses Korean/English and Kids uses English Kids-approved content.
+1. Choose **Adult** or **Kids** before turning on the webcam. Party downloads ten published four-option QuizDip questions. There are no bundled mock questions; Adult uses Korean/English and Kids uses English Kids-approved content.
 2. **Hands-only recognition**: Show up to five separated **open palms** to the camera. A visible hand must first track for at least 800 ms. When all currently visible hands have the four long fingers extended, a visible 2.7-second countdown begins. New hands, tracking loss, or folded fingers reset it, so a late participant can join. Once complete, the count automatically freezes; P1–P5 are assigned by left-to-right order in the mirrored camera preview. Finger count is not identity. A manual Lock players fallback remains available but is not required.
 3. The camera lanes are partitioned by midpoints between palm centers and the bottom player panel splits into exactly N equal-width seats. Overlapping or crossing hands do not transfer votes. Lost/reacquired hands require 250 ms of in-lane presence. To change the count, use Rescan players.
 4. **Hands-only start**: After locking, keep all the open palms visible in their assigned lanes for another 1.5-second countdown; gameplay starts automatically as soon as questions are loaded. The four long fingers (index through pinky) define an open-palm start gesture, irrespective of thumb misclassification. A manual Start game fallback remains available. Fists are not required; participants never need to walk over to press a button.
@@ -21,7 +21,7 @@ MediaPipe detects hand joints, **not permanent person IDs**. Assigned regions gu
 
 ## Vercel build quota protection
 
-- Only `main` automatically deploys the `quizdip-touch` Vercel project. Non-main branches (including `dev`, feature branches, and branches with slashes) are explicitly disabled in `apps/touch/vercel.json`.
+- Only `main` automatically deploys the `quizdip-party` Vercel project. Non-main branches (including `dev`, feature branches, and branches with slashes) are explicitly disabled in `apps/party/vercel.json`.
 - Project-level `previewDeploymentsDisabled=true` is also enabled, so preview deployments are not queued from Git updates.
 - The ignored-build command permits `VERCEL_GIT_COMMIT_REF=main` (exit code 1) and skips any other branch (exit code 0). This is a fallback guard; ignored builds can still count toward Vercel deployment/build quotas, so the Git branch filter and disabled preview deployments are the primary prevention mechanisms.
 - GitHub Actions validation for `dev` is not a Vercel deployment; it remains enabled.
@@ -29,16 +29,20 @@ MediaPipe detects hand joints, **not permanent person IDs**. Assigned regions gu
 
 ## Deployment
 
-- **QuizDip web backend**: `apps/web/app/api/touch/route.ts`. Production base is `https://quizdip.com/api/touch`; the endpoint must be deployed before the Touch UI can load real questions.
-- **QuizDip Touch**: `apps/touch`. Preview testing can set `?touchApi=https%3A%2F%2Fquizdip-...-nomadonghos-projects.vercel.app%2Fapi%2Ftouch` to an authorized QuizDip preview API. Cross-origin preview deployments protected by Vercel Authentication may block browser requests; avoid weakening deployment protection for testing.
-- Touch CORS only permits QuizDip Touch-owned origins, and no credentials are used. Set `PLAY_RUN_SECRET` on the web backend (existing QuizDip server secret). Never copy it into the Touch public client.
-- If the web route has not reached production, the Touch preview displays a clear loading error rather than returning mock questions.
+- **QuizDip web backend**: `apps/web/app/api/party/route.ts`. Production base is `https://quizdip.com/api/party`; the endpoint must be deployed before the Party UI can load real questions.
+- **QuizDip Party**: `apps/party`. Preview testing can set `?partyApi=https%3A%2F%2Fquizdip-...-nomadonghos-projects.vercel.app%2Fapi%2Ftouch` to an authorized QuizDip preview API. Cross-origin preview deployments protected by Vercel Authentication may block browser requests; avoid weakening deployment protection for testing.
+- Party CORS only permits QuizDip Party-owned origins, and no credentials are used. Set `PLAY_RUN_SECRET` on the web backend (existing QuizDip server secret). Never copy it into the Touch public client.
+- If the web route has not reached production, the Party preview displays a clear loading error rather than returning mock questions.
 
 ## Verification
 
-- `node --check apps/touch/src/*.js`
-- `node --test apps/touch/tests/*.test.mjs`
+- `node --check apps/party/src/*.js`
+- `node --test apps/party/tests/*.test.mjs`
 - Root CI: `npm run test`, `npm run typecheck`, `npm run build`.
 - Real-world validation must include cross-origin fetch, Korean adult, English adult, English Kids, image-first clues, camera multiplayer, revoked/withdrawn questions, fully offline round grading, and missing language.
 
 The image and text handling is deliberately a one-clue presentation: full progressive clue navigation is not currently included in Touch.
+
+## Rename compatibility
+
+The product is **QuizDip Party** at `https://party.quizdip.com` and the Vercel project is `quizdip-party`. The previous `touch.quizdip.com` domain and `/api/touch` backend endpoint remain compatibility paths. The `touchApi` preview query parameter is accepted alongside canonical `partyApi`. Existing internal touch-named hand engine functions remain untouched to avoid gameplay regressions.

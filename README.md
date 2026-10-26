@@ -111,3 +111,7 @@ Open Studio → My Quiz → Language Versions to draft, AI-suggest (optional), r
 ## Phase 4 — language-specific reviews and metrics
 
 Ratings and quiz/translation feedback are now language-specific after finished plays. Studio offers per-language result filters. Weekly edition hosts can view per-language private aggregate insights through REST/MCP. Migration `20261012120000_locale_feedback_analytics` must be applied before production use.
+
+## QuizDip Party
+
+The camera-based multiplayer QuizDip game is **QuizDip Party** at `apps/party` (`party.quizdip.com`). It is deployed by the `quizdip-party` Vercel project. The backend provides `/api/party` while preserving `/api/touch` for compatibility. See [Party README](apps/party/README.md). Develop on `dev`; advance `main` only via an explicitly requested fast-forward.
