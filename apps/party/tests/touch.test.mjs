@@ -397,10 +397,10 @@ test("answer numbers 1-4 occupy the same fixed 2-by-2 tile positions",()=>{
 test("quiz layout fixes four choices to a stable 2-by-2 grid",()=>{
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
  const section=css.slice(css.lastIndexOf("/* Hand-friendly PARTY BOARD v3"));
- assert.match(section,/\\.stage\\.playing-stage \\.question-zone\\s*\\{[^}]*grid-template-rows:auto minmax\\(0,1fr\\) clamp\\(/s);
- assert.match(section,/\\.stage\\.playing-stage \\.choices\\s*\\{[^}]*grid-template-columns:repeat\\(2,minmax\\(0,1fr\\)\\)[^}]*grid-template-rows:repeat\\(2,minmax\\(0,1fr\\)\\)/s);
- assert.match(section,/\\.stage\\.playing-stage \\.touch-question\\s*\\{[^}]*overflow-y:auto/s);
- assert.doesNotMatch(section,/grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
+ assert.match(section,/\.stage\.playing-stage \.question-zone\s*\{[^}]*grid-template-rows:auto minmax\(0,1fr\) clamp\(/s);
+ assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)[^}]*grid-template-rows:repeat\(2,minmax\(0,1fr\)\)/s);
+ assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*overflow-y:auto/s);
+ assert.doesNotMatch(section,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
 });
 test("players enrolled close to left/right camera edges can reach all four lanes",()=>{
  for(const center of [.11,.89]){
