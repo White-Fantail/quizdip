@@ -30,11 +30,13 @@ export function isThumbExtended(points){
  const reach=distance(tip,base);
  const linkLength=distance(base,ip)+distance(ip,tip);
  // Independent camera rotation / hand-size invariant evidence of splay.
- // Both a wider thumb-index gap and extended thumb geometry are required,
- // preventing a curled thumb from randomly converting answer 4 into 5.
- return awayFromIndex>palmWidth*.045 &&
-  (awayFromWrist>palmWidth*.06 ||
-   (linkLength>0&&reach/linkLength>.88));
+ // On a rotated hand, the thumb tip can move up toward the index MCP
+ // even as the thumb straightens. Require two independent extension cues,
+ // rather than always insisting on a larger thumb-index distance.
+ const splayed=awayFromIndex>palmWidth*.045;
+ const reaching=awayFromWrist>palmWidth*.06;
+ const straight=linkLength>0&&reach/linkLength>.88;
+ return (splayed&&reaching)||(splayed&&straight)||(reaching&&straight);
 }
 export function fingerCount(points){
  const raised=raisedLongFingers(points);

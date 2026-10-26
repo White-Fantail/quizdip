@@ -147,6 +147,13 @@ test("open palm counts five even with natural short thumb splay and wrist rotati
  // Rotation/reflection preserves all distance-based decisions.
  const reflected=points.map(p=>({x:1-p.x,y:p.y}));
  assert.equal(fingerCount(reflected),5);
+ // Thumb extending diagonally toward the index base can make the
+ // tip-index gap SHORTER than the IP-index gap even when fully straight.
+ points[2]={x:.39,y:.70};points[3]={x:.35,y:.62};points[4]={x:.31,y:.54};
+ assert.ok(Math.hypot(points[4].x-points[5].x,points[4].y-points[5].y)<
+   Math.hypot(points[3].x-points[5].x,points[3].y-points[5].y));
+ assert.equal(isThumbExtended(points),true);
+ assert.equal(fingerCount(points),5);
 });
 
 test("hands-only countdown automatically locks and starts without touching a button",()=>{
