@@ -49,7 +49,7 @@ The product is **QuizDip Party** at `https://party.quizdip.com` and the Vercel p
 
 ## Central round readiness and visible clock (2026-10-27)
 
-- A fixed **center status station** sits between the four answer cards. The answer cards stay in one stable row and do not shift with question length, media or readiness changes. On narrow screens the station moves to a reserved strip at the top of the option area so it does not cover labels.
+- A fixed **center status station** sits at the intersection of a stable **2-column × 2-row** choice grid: 1/2 on the first row and 3/4 below. The timer and ready indicator remain centered on desktop and mobile without shifting choices when question length, media or readiness changes. On narrow screens, the center station is compact and option labels are pushed toward the outer edges so text stays readable.
 - Every new question asks for **five open fingers** again. The station shows how many of the locked players have armed their hands. As soon as all are ready it celebrates **Everyone ready!** for about a second, then switches to a large circular countdown.
 - The round clock **still starts at the normal round transition**; no extra hand gate, pause or answer-scoring rule was introduced. The station also shows seconds remaining during readiness. At 5 seconds it turns amber, and at 3 seconds it turns coral with a stronger pulse; low time overrides the readiness prompt so players always see the deadline.
 - Player-specific 1–4 finger choice countdowns and confirmation markers are unchanged. All temporary readiness state clears at every new question and replay; a lost hand that requires a new open-palm gesture no longer counts as ready.
