@@ -319,3 +319,13 @@
  .stage.playing-stage .scoreboard .player em{font-size:9px;min-height:24px}
  .stage.playing-stage .dwell-marker{width:28px;height:28px;font-size:8px;border-width:1px}
 }
+
+/* Hands-only registration and start — prominent feedback from the camera. */
+.lobby-hands-status{max-width:700px;width:100%;margin:0 auto 12px;
+ display:flex;flex-direction:column;align-items:center;gap:9px;
+ text-align:center;color:#d8ffee;font-size:clamp(13px,1.5vw,20px)}
+.lobby-hands-track{height:17px;width:min(100%,630px);
+ border-radius:100px;background:#303b59;border:1px solid #799aab;overflow:hidden}
+.lobby-hands-track span{display:block;width:0;height:100%;
+ background:linear-gradient(90deg,#84f5d0,#9ee6fa);
+ box-shadow:0 0 14px #84f5d088;transition:width .12s linear}

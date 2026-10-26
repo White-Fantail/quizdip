@@ -1,4 +1,4 @@
-import {palmPoint,screenPoint,fingerCount,nearestTrackMatching,distance} from "./gestures.js";
+import {palmPoint,screenPoint,fingerCount,raisedLongFingers,nearestTrackMatching} from "./gestures.js";
 
 // Player identity belongs to a physical camera lane, NEVER to the finger pose.
 export const MAX_ZONE_PLAYERS=5;
@@ -24,7 +24,7 @@ export class ZoneHandTracker {
    !active.some(other=>other.rawId!==track.rawId &&
     Math.abs(other.palm.x-track.palm.x)<MIN_HAND_SPACING))
    .sort((a,b)=>a.palm.x-b.palm.x)
-   .map(track=>({rawId:track.rawId,x:track.palm.x,y:track.palm.y,count:track.count}));
+   .map(track=>({rawId:track.rawId,x:track.palm.x,y:track.palm.y,count:track.count,spread:track.spread}));
  }
  lockPlayers(now){
   if(this.locked)return this.getZones();
@@ -43,7 +43,7 @@ export class ZoneHandTracker {
    .map(points=>{
     const center=palmPoint(points);
     const count=fingerCount(points);
-    return center&&count!==null?{palm:screenPoint(center),count}:null;
+    return center&&count!==null?{palm:screenPoint(center),count,spread:raisedLongFingers(points)===4}:null;
    }).filter(Boolean);
   const recent=this.tracks.filter(track=>now-track.lastAt<=TRACK_GAP_MS);
   const matched=nearestTrackMatching(recent.map(x=>x.palm),detections.map(x=>x.palm),.18);
@@ -53,7 +53,7 @@ export class ZoneHandTracker {
    const previous=match===undefined?null:recent[match];
    if(previous)used.add(previous.rawId);
    return {rawId:previous?.rawId??this.nextRawId++,
-    since:previous?.since??now,palm:d.palm,count:d.count,lastAt:now};
+    since:previous?.since??now,palm:d.palm,count:d.count,spread:d.spread,lastAt:now};
   });
   this.tracks=[...current,...recent.filter(t=>!used.has(t.rawId))];
   this.current=current;
@@ -80,7 +80,7 @@ export class ZoneHandTracker {
    const since=same?prior.since:now;
    this.presence.set(zone.id,{rawId:hand.rawId,since,lastAt:now});
    if(now-since<REACQUIRE_HOLD_MS)continue;
-   assigned.push({id:zone.id,count:hand.count,
+   assigned.push({id:zone.id,count:hand.count,spread:hand.spread,
     gesture:hand.count===0?"fist":"open",
     x:hand.palm.x,y:hand.palm.y,seen:now});
   }

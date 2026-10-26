@@ -1,5 +1,6 @@
 import {ZoneHandTracker,MAX_ZONE_PLAYERS} from "./zone-tracker.js";
 import {fingerVote} from "./finger-vote.js";
+import {updateLobbyHold,LOCK_HOLD_MS,LAUNCH_HOLD_MS} from "./lobby-hands.js";
 import {TOUCH_COUNT,freshGame,setQuestions,register,begin,submit,reveal,advance,ROUND_MS} from "./game.js";
 import {touchRequest,validateTouchSet} from "./source.js";
 
@@ -8,7 +9,7 @@ const mouseTest=new URLSearchParams(location.search).get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new ZoneHandTracker(),recognitionPhase="scanning";
 let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,lastInferDuration=0,backend="CPU";
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
-let selectedLane=null,gameTicket=null,loadedLocale=null;
+let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
@@ -45,7 +46,7 @@ function selectLane(lane){
 }
 function changeLane(){
  loadRevision++;gameTicket=null;selectedLane=null;loadedLocale=null;
- game=freshGame();tracker.reset();recognitionPhase="scanning";seenHands=[];
+ game=freshGame();tracker.reset();recognitionPhase="scanning";seenHands=[];lobbyHold=null;
  cleanPlayUI();el("messages").textContent="";render(true);
 }
 function cleanPlayUI(){
@@ -55,14 +56,14 @@ function cleanPlayUI(){
 }
 function resetGame(){
  loadRevision++;game=freshGame();tracker.reset();recognitionPhase="scanning";
- seenHands=[];gameTicket=null;cleanPlayUI();render(true);
+ seenHands=[];gameTicket=null;lobbyHold=null;cleanPlayUI();render(true);
  if(selectedLane)void loadTenQuestions();
 }
 function confirmPlayers(){
  const zones=tracker.lockPlayers(performance.now());
  if(!zones.length){showMessage(t("서로 떨어진 손을 1~5개 보여주고 약 1초 유지하세요.","Show 1–5 separated hands steadily for about a second."),true);return;}
  for(const zone of zones)register(game,zone.id);
- recognitionPhase="locked";render(true);
+ recognitionPhase="locked";lobbyHold=null;render(true);
 }
 function startRecognizedGame(){
  // The player count was verified before lock. A hand may leave the frame
@@ -95,10 +96,10 @@ function updateHeader(){
    ?t("각자 자리에서 손가락 5개로 준비, 1~4개로 정답 선택. 손 이동은 필요 없어요.",
       "Stay in your lane. Show five fingers to get ready; show 1–4 to vote. No reaching.")
    :recognitionPhase==="scanning"
-    ?t("최대 다섯 손을 카메라에 펼쳐 보여주세요. 손가락 개수는 플레이어 번호와 무관해요.",
-       "Show up to five hands to the camera. Finger count does not identify players.")
-    :t("인원을 확정했어요. 각자의 카메라 영역을 지킨 채 시작 버튼을 누르세요.",
-       "Players locked. Stay in your camera lanes and press Start.");
+    ?t("최대 다섯 손을 펼쳐 그대로 유지하면 인원이 자동 확정됩니다. 손가락 개수는 플레이어 번호가 아니에요.",
+       "Hold up to five open hands steady to lock players automatically. Finger count is not player ID.")
+    :t("같은 자리에서 손을 계속 펼쳐 유지하면 게임이 자동 시작됩니다.",
+       "Keep your hands open in the same seats to start automatically.");
 }
 function showMessage(message,warning=false){
  const note=el("messages");
@@ -142,6 +143,23 @@ function updateScores(){
   candidates.length!==tracker.visibleCount;
  const beginButton=el("beginGame");
  if(beginButton)beginButton.disabled=loading||!gameTicket||(!mouseTest&&!cameraReady);
+ const meter=el("lobbyHoldProgress");
+ if(meter)meter.style.width=Math.round((lobbyHold?.progress??0)*100)+"%";
+ const status=el("lobbyHoldText");
+ if(status){
+  const validHands=scanning?candidates.length:seenHands.length;
+  const target=scanning?tracker.visibleCount:game.players.length;
+  const seconds=((1-(lobbyHold?.progress??0))*(scanning?LOCK_HOLD_MS:LAUNCH_HOLD_MS)/1000).toFixed(1);
+  status.textContent=!cameraReady?t("카메라를 먼저 시작하세요","Start the camera first"):
+   !scanning&&(loading||!gameTicket)?t("문제를 준비하는 중…","Loading questions…"):
+   !target?t("1~5명의 손을 카메라에 보여주세요","Show 1–5 hands to the camera"):
+   validHands!==target?t("손이 겹치지 않게 펼쳐주세요","Separate your hands"):
+   !lobbyHold?.signature?t("모두 손을 쫙 펼쳐주세요 (엄지 제외 네 손가락 기준)",
+      "Everyone, show an open palm (four long fingers)"):
+   scanning?t("인원 자동 확정까지 "+seconds+"초 · "+target+"명",
+      "Locking "+target+" players in "+seconds+"s"):
+    t("게임 자동 시작까지 "+seconds+"초","Starting in "+seconds+"s");
+ }
  cameraGuide();
 }
 function render(force=false){
@@ -172,10 +190,10 @@ function render(force=false){
   const locked=recognitionPhase==="locked";
   top.innerHTML='<div class="hero lobby-hero"><span class="chip">PARTY TRIVIA · '+MAX_ZONE_PLAYERS+' PLAYERS</span><h1>'+
    (locked?t("플레이어 준비 완료","Players ready"):t("손 인식하기","Recognize players"))+'</h1><p>'+
-   (locked?t("카메라의 색상 구역이 각 플레이어의 자리예요. 손가락 개수를 바꿔도 플레이어는 유지돼요.",
-      "The colored camera lanes are your seats. Finger counts can change without changing players.")
-    :t("카메라 앞에 나란히 서서 최대 5개의 손을 보여주세요. 1초간 안정적으로 보이면 인원 확정이 가능해요.",
-       "Show up to five separated hands. Hold steady for a second, then lock the number of players."))+
+   (locked?t("인원이 확정됐어요! 같은 자리에서 모두 손바닥을 펼쳐 유지하면 자동으로 시작해요.",
+      "Players locked! Everyone keep an open palm visible to start automatically.")
+    :t("최대 5명이 나란히 손을 펼쳐 보여주세요. 인원수가 안정되면 자동으로 확정돼요.",
+       "Show up to five separated open palms. Hold steady to lock player count automatically."))+
    '</p><p class="content-badge">'+(selectedLane==="KIDS"
    ?t("🦕 어린이용 · 영어로 된 Kids 승인 문제","🦕 Kids · approved English questions")
    :t("🧠 어른용 · "+(questionLocale()==="ko"?"한국어":"English")+" 10문제",
@@ -183,16 +201,18 @@ function render(force=false){
    '</p></div><div class="lobby-control"><span class="chip" id="recognizedCount"></span>'+
    '<div class="actions"><button class="secondary" id="enableCamera" '+(cameraReady?'disabled':'')+'>'+
     t(cameraReady?"카메라 연결됨":"카메라 시작",cameraReady?"Camera ready":"Start camera")+'</button>'+
-   (locked?'<button class="primary" id="beginGame" disabled>'+t("게임 시작","Start game")+'</button>'+
+   (locked?'<button class="secondary" id="beginGame" disabled>'+t("게임 시작","Start game")+'</button>'+
      '<button class="secondary" id="rescanPlayers">'+t("다시 인식","Rescan players")+'</button>'
-    :'<button class="primary" id="confirmPlayers" disabled>'+t("인원 확정","Lock players")+'</button>')+
+    :'<button class="secondary" id="confirmPlayers" disabled>'+t("인원 확정","Lock players")+'</button>')+
    '<button class="secondary" id="changeMode">'+t("게임 종류 변경","Change mode")+'</button>'+
    (mouseTest?'<button class="secondary" id="testJoin">+ Test player</button>':"")+
    '</div></div><p class="ready-status">'+
-   (locked?t("준비할 땐 손가락 5개, 정답을 고를 땐 1~4개를 보여주세요. 시작 방식은 버튼으로 먼저 검증합니다.",
-      "Show five fingers to get ready, then 1–4 to answer. Start is a button while we test the best gesture.")
-    :t("화면 아래 카메라에서 손이 정확히 보이는지 확인하세요. 손가락 수는 등록 번호가 아니에요.",
-       "Check the camera preview below. Your finger count does not set your player number."))+'</p>';
+   (locked?t("손을 움직이거나 화면을 누를 필요가 없어요. 손을 펼친 채 카운트다운을 기다리세요.",
+      "No reaching or screen taps. Keep your hands open through the countdown.")
+    :t("모두 손을 쫙 편 채로 유지하세요. 참가자가 추가되면 인식 카운트다운은 다시 시작됩니다.",
+       "Keep your hands open. If someone joins, the recognition countdown restarts."))+
+   '</p><div class="lobby-hands-status"><strong id="lobbyHoldText"></strong>'+
+   '<div class="lobby-hands-track"><span id="lobbyHoldProgress"></span></div></div>';
   el("enableCamera").onclick=()=>void startCamera();
   el("changeMode").onclick=changeLane;
   if(el("confirmPlayers"))el("confirmPlayers").onclick=confirmPlayers;
@@ -323,6 +343,19 @@ function touchInputs(hands,now){
 }
 function manageHands(hands,now){
  seenHands=hands;lastGoodFrame=now;
+ // Hands are the primary lobby control. A steady open palm is safer than
+ // making everyone travel toward a button, and unlike a fist it keeps
+ // landmarks continuously visible throughout recognition and countdown.
+ if(selectedLane&&cameraReady&&!mouseTest&&game.phase==="lobby"){
+  if(recognitionPhase==="scanning"){
+   const candidates=tracker.candidates(now);
+   lobbyHold=updateLobbyHold(lobbyHold,"scanning",candidates,tracker.visibleCount,now);
+   if(lobbyHold.action==="lock")confirmPlayers();
+  }else if(recognitionPhase==="locked"){
+   lobbyHold=updateLobbyHold(lobbyHold,"locked",hands,game.players.length,now,!loading&&!!gameTicket);
+   if(lobbyHold.action==="start")startRecognizedGame();
+  }
+ }
  if(game.phase==="playing")touchInputs(hands,now);
  updateScores();
 }

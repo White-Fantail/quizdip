@@ -6,22 +6,40 @@ export function palmPoint(points){
  if(ids.some(i=>!Number.isFinite(points[i]?.x)||!Number.isFinite(points[i]?.y)))return null;
  return {x:ids.reduce((s,i)=>s+points[i].x,0)/5,y:ids.reduce((s,i)=>s+points[i].y,0)/5};
 }
-// Count explicitly extended fingers. 1–4 use index→pinky with thumb folded;
-// 5 additionally extends thumb. This is a pose cue, not biometric identity.
-export function fingerCount(points){
+// Four long fingers determine an open palm independently of the thumb.
+// This also works while the thumb tip is partially occluded by the camera.
+export function raisedLongFingers(points){
  if(!palmPoint(points))return null;
  const wrist=points[0];
- const fingers=[[8,6],[12,10],[16,14],[20,18]];
- let count=0;
- for(const [tip,pip] of fingers){
+ let raised=0;
+ for(const [tip,pip] of [[8,6],[12,10],[16,14],[20,18]]){
   if(!points[tip]||!points[pip])return null;
-  if(distance(points[tip],wrist)>distance(points[pip],wrist)*1.16)count++;
+  if(distance(points[tip],wrist)>distance(points[pip],wrist)*1.16)raised++;
  }
- // Thumb is identified by distance from the index-finger base. This
- // orientation-independent check is more reliable than x ordering.
- const thumbOpen=distance(points[4],points[5])>distance(points[3],points[5])*1.32 &&
-   distance(points[4],points[5])>distance(points[2],points[5])*1.52;
- return count+(thumbOpen?1:0);
+ return raised;
+}
+// Distinguish 4 (thumb tucked) from 5 (thumb extended). The previous
+// 1.32 / 1.52 index-base ratios rejected genuine splayed thumbs, because
+// the thumb tip often advances only slightly farther than the IP joint.
+export function isThumbExtended(points){
+ if(!palmPoint(points)||![2,3,4].every(i=>points[i]))return false;
+ const tip=points[4],ip=points[3],base=points[2],wrist=points[0],index=points[5];
+ const palmWidth=Math.max(.001,distance(points[5],points[17]));
+ const awayFromIndex=distance(tip,index)-distance(ip,index);
+ const awayFromWrist=distance(tip,wrist)-distance(ip,wrist);
+ const reach=distance(tip,base);
+ const linkLength=distance(base,ip)+distance(ip,tip);
+ // Independent camera rotation / hand-size invariant evidence of splay.
+ // Both a wider thumb-index gap and extended thumb geometry are required,
+ // preventing a curled thumb from randomly converting answer 4 into 5.
+ return awayFromIndex>palmWidth*.045 &&
+  (awayFromWrist>palmWidth*.06 ||
+   (linkLength>0&&reach/linkLength>.88));
+}
+export function fingerCount(points){
+ const raised=raisedLongFingers(points);
+ if(raised===null)return null;
+ return raised+(isThumbExtended(points)?1:0);
 }
 export function handGesture(points){
  const n=fingerCount(points);

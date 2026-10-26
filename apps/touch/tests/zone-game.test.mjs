@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {ZoneHandTracker,ENROLL_HOLD_MS,REACQUIRE_HOLD_MS} from "../src/zone-tracker.js";
 import {fingerVote,NEUTRAL_HOLD_MS,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/finger-vote.js";
+import {raisedLongFingers,isThumbExtended,fingerCount} from "../src/gestures.js";
+import {updateLobbyHold,LOCK_HOLD_MS,LAUNCH_HOLD_MS} from "../src/lobby-hands.js";
 
 function pose(n,x=.5){
  const pts=Array.from({length:21},()=>({x,y:.67}));
@@ -123,4 +125,68 @@ test("Touch bottom board uses recognized dynamic player-count columns",()=>{
  assert.doesNotMatch(main,/new HandTracker\(/);
  assert.doesNotMatch(main,/horizontalControl\(/);
  assert.doesNotMatch(main,/dwellSelection\(/);
+});
+
+test("open palm counts five even with natural short thumb splay and wrist rotation",()=>{
+ const points=pose(5,.52);
+ assert.equal(raisedLongFingers(points),4);
+ assert.equal(isThumbExtended(points),true);
+ assert.equal(fingerCount(points),5);
+ const folded=pose(4,.52);
+ assert.equal(raisedLongFingers(folded),4);
+ assert.equal(isThumbExtended(folded),false);
+ assert.equal(fingerCount(folded),4);
+
+ // Less extreme real-world thumb geometry: thumb tip only slightly farther
+ // from the index base than the thumb IP joint. Old 1.32x/1.52x tests failed.
+ points[0]={x:.50,y:.88};
+ points[2]={x:.37,y:.70};points[3]={x:.29,y:.62};points[4]={x:.20,y:.55};
+ points[5]={x:.43,y:.52};points[17]={x:.68,y:.54};
+ assert.equal(isThumbExtended(points),true);
+ assert.equal(fingerCount(points),5);
+ // Rotation/reflection preserves all distance-based decisions.
+ const reflected=points.map(p=>({x:1-p.x,y:p.y}));
+ assert.equal(fingerCount(reflected),5);
+});
+
+test("hands-only countdown automatically locks and starts without touching a button",()=>{
+ let state=null,out;
+ const first=[{rawId:7,spread:true},{rawId:9,spread:true}];
+ for(let now=0;now<=LOCK_HOLD_MS;now+=100){
+  out=updateLobbyHold(state,"scanning",first,2,now);state=out;
+  if(now<LOCK_HOLD_MS)assert.equal(out.action,null);
+ }
+ assert.equal(out.action,"lock");
+ state=null;
+ const players=[{id:1,spread:true},{id:2,spread:true}];
+ for(let now=4000;now<=4000+LAUNCH_HOLD_MS;now+=100){
+  out=updateLobbyHold(state,"locked",players,2,now);state=out;
+ }
+ assert.equal(out.action,"start");
+});
+
+test("additional, missing, curled, or overlapping hands reset lobby progress",()=>{
+ let state=null;
+ const one=[{rawId:1,spread:true}],two=[...one,{rawId:2,spread:true}];
+ for(let t=0;t<1500;t+=100)state=updateLobbyHold(state,"scanning",one,1,t);
+ assert.ok(state.progress>0);
+ state=updateLobbyHold(state,"scanning",two,2,1500);
+ assert.equal(state.progress,0,"new player restarts countdown");
+ state=updateLobbyHold(state,"scanning",[two[0]],2,1700);
+ assert.equal(state.progress,0,"missing hand resets countdown");
+ state=updateLobbyHold(state,"scanning",[{rawId:1,spread:false}],1,1800);
+ assert.equal(state.progress,0,"folded hand resets countdown");
+ state=updateLobbyHold(state,"locked",[{id:1,spread:true}],2,1900);
+ assert.equal(state.action,null);
+ assert.equal(state.progress,0);
+});
+
+test("Touch lobby has hands-only progress and start wiring",()=>{
+ const main=readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
+ const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
+ assert.match(main,/updateLobbyHold\(lobbyHold,"scanning"/);
+ assert.match(main,/updateLobbyHold\(lobbyHold,"locked"/);
+ assert.match(main,/if\(lobbyHold\.action==="lock"\)confirmPlayers\(\)/);
+ assert.match(main,/if\(lobbyHold\.action==="start"\)startRecognizedGame\(\)/);
+ assert.match(css,/lobby-hands-track/);
 });
