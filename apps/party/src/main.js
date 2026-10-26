@@ -12,7 +12,7 @@ let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
 let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
-let allReadyAt=null,lastFocusAnnouncement="";
+let allReadyAt=null,lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
 const readyPlayers=new Set();
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
@@ -296,6 +296,10 @@ function render(force=false){
 // readiness, celebration, countdown, and urgency without shifting the layout.
 function updateStatusFocus(now){
  const focus=el("statusFocus");if(!focus)return;
+ // Keep the webcam inference loop responsive: DOM output updates at ~10fps,
+ // but a freshly rendered round station is always initialized immediately.
+ if(focus===lastFocusElement&&now-lastFocusRefresh<90)return;
+ lastFocusElement=focus;lastFocusRefresh=now;
  const readyCount=mouseTest?game.players.length:
   game.players.filter(p=>readyPlayers.has(p.id)||game.answers.has(p.id)).length;
  if(game.phase==="playing"){
