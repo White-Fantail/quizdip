@@ -206,3 +206,34 @@ test("one dropped inference during fist retains same number but never registers 
  const closed=tracker.update([numberedPose(0,.40)],1390);
  assert.equal(closed[0]?.gesture,"fist");
 });
+
+test("answer arm is 0.4s and countdown lasts exactly 1.0s",()=>{
+ assert.equal(SELECT_ARM_MS,400);
+ assert.equal(SELECT_COUNTDOWN_MS,1000);
+ const h={id:3,count:3,gesture:"open"};
+ let result=dwellSelection(null,h,2,1000);
+ result=dwellSelection(result.state,h,2,1399);
+ assert.equal(result.state.phase,"arming");
+ assert.equal(result.chosen,null);
+ result=dwellSelection(result.state,h,2,1400);
+ assert.equal(result.state.phase,"countdown");
+ assert.equal(result.state.remainingMs,1000);
+ result=dwellSelection(result.state,h,2,2399);
+ assert.equal(result.chosen,null);
+ assert.equal(result.state.remainingMs,1);
+ result=dwellSelection(result.state,h,2,2400);
+ assert.equal(result.chosen,2);
+ assert.equal(result.state,null);
+});
+test("moving to another answer during 1-second countdown cancels previous answer",()=>{
+ const h={id:2,count:2,gesture:"open"};
+ let r=dwellSelection(null,h,0,0);
+ r=dwellSelection(r.state,h,0,400);
+ r=dwellSelection(r.state,h,1,900);
+ assert.equal(r.chosen,null);
+ assert.equal(r.state.choice,1);
+ assert.equal(r.state.phase,"arming");
+ r=dwellSelection(r.state,h,1,1299);
+ assert.equal(r.chosen,null);
+ assert.equal(r.state.phase,"arming");
+});

@@ -3,8 +3,8 @@
  * displaying its assigned number can accumulate time. A short hover arms the
  * countdown; only after the full countdown is a vote returned.
  */
-export const SELECT_ARM_MS=650;
-export const SELECT_COUNTDOWN_MS=1800;
+export const SELECT_ARM_MS=400;
+export const SELECT_COUNTDOWN_MS=1000;
 export const OBSERVATION_GAP_MS=720;
 export function dwellSelection(previous,hand,choice,now){
  const valid=hand&&Number.isInteger(hand.id)&&hand.id>=1&&hand.id<=5&&

@@ -5,7 +5,7 @@ QuizDip Touch lives in White-Fantail/quizdip at apps/touch, deployed as a separa
 ## Controls (no fists required)
 - Register by showing 1–5 fingers for approximately 0.8 seconds; fixed finger count is your player number (P1–P5). Keep that same number throughout the game. After overlap, show the number again.
 - **Start:** Each registered player moves their numbered hand into their own horizontally separated, color-coded start pad and holds it for 1.35 seconds. All active player pads must be ready simultaneously to start. Moving away, changing count or losing tracking resets the affected pad. No fist or group overlap.
-- **Answer:** Hold a numbered hand over a choice for 0.65 seconds to arm, then a further 1.8 seconds while the circular countdown appears at that player's position (2.45 seconds total). The colored countdown pin shows the player number and remaining seconds, then changes to 'P2 ✓'. A colored badge remains on the choice. Every player has an independent countdown and may vote once.
+- **Answer:** Hold a numbered hand over a choice for 0.4 seconds to arm, then a further 1.0 second while the circular countdown appears at that player's position (1.4 seconds total). The colored countdown pin shows the player number and remaining seconds, then changes to 'P2 ✓'. A colored badge remains on the choice. Every player has an independent countdown and may vote once.
 - Exiting the choice, changing number, disappearing or camera stall cancels the pending countdown. Hovering briefly or crossing a card never votes.
 - Each round lasts 30 seconds.
 
