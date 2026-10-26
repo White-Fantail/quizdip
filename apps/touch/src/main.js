@@ -275,7 +275,7 @@ function frame(now){
  }
  const current=performance.now();
  // Stalled inference must never leave a cursor or a dwell countdown active.
- if(current-lastGoodFrame>440&&seenHands.length){
+ if(current-lastGoodFrame>Math.min(1600,Math.max(800,lastInferDuration*2.8+230))&&seenHands.length){
   seenHands=[];startHolds.clear();intents.clear();drawHands([]);
   if(game.phase==="lobby")refreshPads({holds:startHolds,insideCount:0,readyCount:0,total:game.players.length,start:false});
   if(game.phase==="playing")refreshChoiceMarkers();

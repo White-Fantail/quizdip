@@ -4,7 +4,7 @@
  * their own pads with their same count until the simultaneous hold completes.
  */
 export const START_HOLD_MS=1350;
-export const START_GAP_MS=320;
+export const START_GAP_MS=720;
 export function updateStartPads(previous,playerIds,hands,inPad,now){
  const old=previous||new Map();
  const next=new Map();

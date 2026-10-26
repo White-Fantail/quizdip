@@ -5,7 +5,7 @@
  */
 export const SELECT_ARM_MS=650;
 export const SELECT_COUNTDOWN_MS=1800;
-export const OBSERVATION_GAP_MS=320;
+export const OBSERVATION_GAP_MS=720;
 export function dwellSelection(previous,hand,choice,now){
  const valid=hand&&Number.isInteger(hand.id)&&hand.id>=1&&hand.id<=5&&
    hand.count===hand.id&&hand.gesture==="open"&&Number.isInteger(choice)&&choice>=0&&choice<=3;
