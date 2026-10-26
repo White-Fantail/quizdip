@@ -183,6 +183,8 @@ function render(force=false){
  document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished"&&!!selectedLane);
  document.querySelector(".stage").classList.toggle("selection-stage",!selectedLane);
  document.querySelector(".stage").classList.toggle("playing-stage",game.phase==="playing"||game.phase==="revealed");
+ // Keep the lobby controls, but dedicate the full viewport to gameplay once a round starts.
+ document.querySelector(".app").classList.toggle("play-session",game.phase==="playing"||game.phase==="revealed");
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(!selectedLane){
