@@ -19,21 +19,20 @@ test("camera mirror and hit testing",()=>{assert.equal(screenPoint({x:.2,y:.8}).
 test("distinct tracks matched once",()=>{const m=nearestTrackMatching([{x:.1,y:.1},{x:.9,y:.9}],[{x:.88,y:.9},{x:.12,y:.13}]);assert.equal(m.get(0),1);assert.equal(m.get(1),0);});
 const realQuestions=Array.from({length:TOUCH_COUNT},(_,i)=>({
  id:"quiz-"+i,title:"Real question",prompt:"Which answer?",clue:null,mediaId:null,
- version:1,options:["One","Two","Three","Four"]
+ version:1,options:["One","Two","Three","Four"],answer:{canonical:"Three",aliases:[],responseMode:"multiple-choice"}
 }));
-test("five fixed finger-number slots and only one vote after server grading",()=>{
+test("five fixed finger-number slots and one locally graded vote",()=>{
  const game=freshGame();for(let id=1;id<=9;id++)register(game,id);assert.equal(game.players.length,5);
  assert.equal(begin(game,1000),false,"No bundled fake questions may be played");
  assert.ok(setQuestions(game,realQuestions));
  assert.ok(begin(game,1000));assert.ok(submit(game,1,2,2000));
  assert.equal(submit(game,1,0,2001),false);
- assert.equal(game.players[0].score,0,"Answer must not be scored before server grading");
- game.phase="grading";assert.ok(reveal(game,2));
+ assert.equal(game.players[0].score,0,"Answer is scored only after round concludes");
+ assert.ok(reveal(game));
  assert.ok(game.players[0].score>100);
  for(let i=1;i<TOUCH_COUNT;i++){
   assert.ok(advance(game,3000+i));
-  game.phase="grading";
-  assert.ok(reveal(game,2));
+  assert.ok(reveal(game));
  }
  advance(game,9999);assert.equal(game.phase,"finished");
 });
@@ -307,13 +306,24 @@ test("preview override accepts only trusted QuizDip hosts",()=>{
  assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent(dev+"?admin=1")),
    "https://quizdip.com/api/touch");
 });
-test("round grading requires server-confirmed answer and cannot double-award",()=>{
+test("offline answer grading uses downloaded canonical answer and cannot double-award",()=>{
  const game=freshGame();setQuestions(game,realQuestions);register(game,2);begin(game,0);
- submit(game,2,0,1000);game.phase="grading";
- assert.equal(reveal(game,-1),false);
+ submit(game,2,2,1000);
  assert.equal(game.players[0].score,0);
- assert.equal(reveal(game,1),true);
- assert.equal(game.players[0].score,0);
- assert.equal(reveal(game,1),false);
- assert.equal(game.players[0].score,0);
+ assert.equal(reveal(game),true);
+ assert.equal(game.players[0].correct,1);
+ const prior=game.players[0].score;
+ assert.ok(prior>0);
+ assert.equal(reveal(game),false);
+ assert.equal(game.players[0].score,prior);
 });
+test("offline grading is stable across accent, whitespace and case differences",()=>{
+ const game=freshGame(),questions=realQuestions.map(q=>({
+  ...q,options:["One","Two","  thReE  ","Four"],
+  answer:{canonical:"THREE",aliases:[],responseMode:"multiple-choice"}
+ }));
+ setQuestions(game,questions);register(game,1);begin(game,0);
+ submit(game,1,2,1000);assert.equal(reveal(game),true);
+ assert.equal(game.players[0].correct,1);
+});
+
