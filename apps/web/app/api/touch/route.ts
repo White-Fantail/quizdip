@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { startTouchGame, gradeTouchRound, touchImage } from "../../../src/modules/platform/touch-party";
+import { startTouchGame, touchImage } from "../../../src/modules/platform/touch-party";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -34,7 +34,6 @@ export async function POST(request:NextRequest){
   if(!body||typeof body!=="object"||Array.isArray(body))throw new Error("Invalid request");
   let result;
   if(body.action==="start")result=await startTouchGame(body.lane,body.locale);
-  else if(body.action==="grade")result=await gradeTouchRound(body.ticket,body.index);
   else if(body.action==="image")result=await touchImage(body.ticket,body.index);
   else return NextResponse.json({error:"Unknown action"},{status:400,headers:cors(origin)});
   return NextResponse.json(result,{headers:cors(origin)});
