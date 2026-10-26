@@ -57,28 +57,6 @@ export function screenControlPoint(points){
  };
 }
 
-/**
- * Map a comfortable, central camera hand region to the four actual answer
- * rectangles. This is deliberately NOT a full-camera => full-viewport mapping:
- * the bottom row must be reachable while the wrist stays in the camera frame.
- * CSS can resize/move choices without requiring new gesture calibration.
- */
-export function answerCursorPoint(hand,rects){
- if(!hand||!Array.isArray(rects)||rects.length!==4 ||
-    !Number.isFinite(hand.cameraX)||!Number.isFinite(hand.cameraY))return null;
- const left=Math.min(...rects.map(r=>r.left)),right=Math.max(...rects.map(r=>r.right));
- const top=Math.min(...rects.map(r=>r.top)),bottom=Math.max(...rects.map(r=>r.bottom));
- if(![left,right,top,bottom].every(Number.isFinite)||right-left<80||bottom-top<80)return null;
- const clamp01=n=>Math.max(0,Math.min(1,n));
- // A natural camera motion between ~10% and ~42% of frame height traverses
- // BOTH answer rows. The lower 58% of the camera is never required.
- const x=clamp01((hand.cameraX-.12)/.76);
- const y=clamp01((hand.cameraY-.10)/.32);
- const insetX=Math.min(40,(right-left)*.08);
- const insetY=Math.min(28,(bottom-top)*.09);
- return {x:left+insetX+x*(right-left-2*insetX),
-         y:top+insetY+y*(bottom-top-2*insetY)};
-}
 export function nearestTrackMatching(existing,detections,maxDistance=.21){
  const candidates=[];
  existing.forEach((t,ti)=>detections.forEach((d,di)=>{
