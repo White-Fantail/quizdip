@@ -1,5 +1,7 @@
 // One finger selects A, two B, three C, four D.
-// Five fingers are a deliberate neutral pose between questions.
+// During play, players may think with a relaxed fist (0) or an open palm (5).
+// Either stable neutral pose arms a new vote; 1–4 fingers select an answer.
+// After every round, the prior 1–4 pose must return to neutral to avoid carryover.
 export const NEUTRAL_HOLD_MS=260;
 export const SELECT_ARM_MS=360;
 export const SELECT_COUNTDOWN_MS=1000;
@@ -21,15 +23,15 @@ export function fingerVote(previous,hand,now){
   delete s.missingSince;
  }
  const count=hand.count;
- if(count===5){
+ if(count===0||count===5){
   const since=s.neutralSince===null?now:s.neutralSince;
   const phase=now-since>=NEUTRAL_HOLD_MS?"ready":"neutral";
   return {state:{phase,neutralSince:since,choice:null,lastAt:now},chosen:null};
  }
- if(count===0||count<1||count>4)
+ if(count<1||count>4)
   return {state:{...neutral(),lastAt:now},chosen:null};
  if(s.phase==="neutral")
-  return {state:{...neutral(),lastAt:now},chosen:null}; // Show five first.
+  return {state:{...neutral(),lastAt:now},chosen:null}; // See fist (0) or open palm (5) first.
  if(s.choice!==count-1){
   return {state:{phase:"arming",choice:count-1,choiceSince:now,
    neutralSince:null,lastAt:now,progress:0,remainingMs:SELECT_COUNTDOWN_MS},chosen:null};
