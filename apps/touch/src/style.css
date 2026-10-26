@@ -168,3 +168,12 @@
  .stage.playing-stage .bottom-zone{margin-top:8px;gap:10px}
  .stage.playing-stage .camera-box{height:120px;min-height:120px;max-height:120px}
 }
+
+/* Some real QuizDip answer labels are much longer than demo answers. */
+.stage.playing-stage .choice{font-size:clamp(16px,2.15vw,29px);line-height:1.22}
+.stage.playing-stage .choice>span{
+ min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere
+}
+@media(max-width:680px){
+ .stage.playing-stage .choice{font-size:clamp(14px,3.9vw,19px);padding:6px;gap:7px}
+}
