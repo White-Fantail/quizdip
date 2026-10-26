@@ -9,7 +9,7 @@ type Lane = "GENERAL" | "KIDS";
 type Locale = "ko" | "en";
 type Answer = { canonical?:string;responseMode?:string;options?:string[] };
 type Clue = {type?:string;text?:string;mediaId?:string};
-type Question = {id:string;version:number;title:string;prompt:string;clue:string|null;mediaId:string|null;options:string[]};
+type Question = {id:string;version:number;title:string;prompt:string;clue:string|null;mediaId:string|null;options:string[];answer:Answer};
 type Entry = {quizId:string;revisionId:string};
 type Ticket = {v:1;lane:Lane;locale:Locale;seed:string;expires:number;entries:Entry[]};
 type Candidate = {quizId:string; revisionId:string; version:number; title:string;prompt:string;clues:unknown;promptMediaIds:unknown;answer:unknown};
@@ -112,17 +112,13 @@ export async function startTouchGame(lane:Lane,locale:Locale){
  const ticket:Ticket={v:1,lane,locale,seed,expires:Date.now()+60*60*1000,
    entries:selected.map(q=>({quizId:q.question.id,revisionId:q.revisionId}))};
  return {lane,locale,total:ROUND_COUNT,ticket:sign(ticket),
-   questions:selected.map((row,index)=>({...row.question,options:disclosedAnswerChoices(row.answer,seed+":"+index)}))};
-}
-export async function gradeTouchRound(token:string,index:number){
- const ticket=open(token),revision=await getCurrent(ticket,index);
- const answers=disclosedAnswerChoices(revision.answer,ticket.seed+":"+index);
- const a=revision.answer as Answer;
- if(answers.length!==4||!a?.canonical)throw new Error("Quiz choices changed");
- const normalize=(x:string)=>x.normalize("NFKC").trim().toLocaleLowerCase();
- const correctIndex=answers.findIndex(x=>normalize(x)===normalize(a.canonical!));
- if(correctIndex<0)throw new Error("Correct option unavailable");
- return {correctIndex};
+   questions:selected.map((row,index)=>({
+     ...row.question,
+     options:disclosedAnswerChoices(row.answer,seed+":"+index),
+     // Same authored canonical/aliases supplied by localRunBundle.
+     // Touch scoring happens entirely on the device after download.
+     answer:{canonical:row.answer.canonical,aliases:row.answer.aliases??[],responseMode:"multiple-choice"}
+   }))};
 }
 export async function touchImage(token:string,index:number){
  const ticket=open(token),revision=await getCurrent(ticket,index);
