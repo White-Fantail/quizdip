@@ -6,7 +6,7 @@ const main=readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
 const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
 const immersive=css.slice(css.lastIndexOf("/* Active rounds are a game surface"));
 const clock=css.slice(css.lastIndexOf("/* PARTY BOARD v4: four"),css.lastIndexOf("/* PARTY BOARD v4: never"));
-const fit=css.slice(css.lastIndexOf("/* PARTY BOARD v4: never"));
+const fit=css.slice(css.lastIndexOf("/* PARTY BOARD v4: never"),css.lastIndexOf("/* Live recognition lobby:"));
 
 test("game-only mode hides website chrome while lobby and results retain it",()=>{
  assert.match(main,/classList\.toggle\("play-session",game\.phase==="playing"\|\|game\.phase==="revealed"\)/);
