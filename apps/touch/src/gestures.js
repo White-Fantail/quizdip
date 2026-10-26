@@ -47,7 +47,37 @@ export function screenControlPoint(points){
  }:palm;
  const mirrored=screenPoint(source);
  const clamp01=n=>Math.max(0,Math.min(1,n));
- return {x:clamp01((mirrored.x-.10)/.80),y:clamp01((mirrored.y-.08)/.80)};
+ return {
+  x:clamp01((mirrored.x-.10)/.80),
+  y:clamp01((mirrored.y-.08)/.80),
+  // Preserve the original camera coordinate for the game's compact control
+  // surface. Reaching a choice should NEVER require dropping the whole hand
+  // below the camera's field of view.
+  cameraX:mirrored.x,cameraY:mirrored.y
+ };
+}
+
+/**
+ * Map a comfortable, central camera hand region to the four actual answer
+ * rectangles. This is deliberately NOT a full-camera => full-viewport mapping:
+ * the bottom row must be reachable while the wrist stays in the camera frame.
+ * CSS can resize/move choices without requiring new gesture calibration.
+ */
+export function answerCursorPoint(hand,rects){
+ if(!hand||!Array.isArray(rects)||rects.length!==4 ||
+    !Number.isFinite(hand.cameraX)||!Number.isFinite(hand.cameraY))return null;
+ const left=Math.min(...rects.map(r=>r.left)),right=Math.max(...rects.map(r=>r.right));
+ const top=Math.min(...rects.map(r=>r.top)),bottom=Math.max(...rects.map(r=>r.bottom));
+ if(![left,right,top,bottom].every(Number.isFinite)||right-left<80||bottom-top<80)return null;
+ const clamp01=n=>Math.max(0,Math.min(1,n));
+ // A natural camera motion between ~14% and ~58% of frame height traverses
+ // BOTH answer rows. The last 42% of camera space is not required.
+ const x=clamp01((hand.cameraX-.12)/.76);
+ const y=clamp01((hand.cameraY-.14)/.44);
+ const insetX=Math.min(40,(right-left)*.08);
+ const insetY=Math.min(28,(bottom-top)*.09);
+ return {x:left+insetX+x*(right-left-2*insetX),
+         y:top+insetY+y*(bottom-top-2*insetY)};
 }
 export function nearestTrackMatching(existing,detections,maxDistance=.21){
  const candidates=[];
