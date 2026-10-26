@@ -104,6 +104,7 @@ function render(force=false){
  top.classList.toggle("mode-view",!selectedLane);
  top.classList.toggle("finished-view",game.phase==="finished"&&!!selectedLane);
  document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished"&&!!selectedLane);
+ document.querySelector(".stage").classList.toggle("selection-stage",!selectedLane);
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(!selectedLane){
