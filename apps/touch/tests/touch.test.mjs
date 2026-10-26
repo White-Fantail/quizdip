@@ -337,12 +337,12 @@ test("both answer rows are reachable while keeping the whole hand above camera b
   {left:30,right:759,top:490,bottom:637},
   {left:777,right:1506,top:490,bottom:637}
  ];
- // Centered hands move just 30–40% of camera height; no 80–90% lowering.
+ // Centered fingertips move only in the top 10–42% of camera height.
  const samples=[
   {cameraX:.22,cameraY:.20,expected:0},
   {cameraX:.78,cameraY:.20,expected:1},
-  {cameraX:.22,cameraY:.52,expected:2},
-  {cameraX:.78,cameraY:.52,expected:3}
+  {cameraX:.22,cameraY:.34,expected:2},
+  {cameraX:.78,cameraY:.34,expected:3}
  ];
  for(const sample of samples){
   const cursor=answerCursorPoint(sample,boxes);
@@ -364,8 +364,8 @@ test("camera-to-answers projection follows responsive answer rectangles",()=>{
   {left:8,right:170,top:447,bottom:556},
   {left:178,right:340,top:447,bottom:556}
  ];
- assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.22,cameraY:.51},boxes)),boxes),2);
- assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.78,cameraY:.51},boxes)),boxes),3);
+ assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.22,cameraY:.34},boxes)),boxes),2);
+ assert.equal(answerAtPosition(...Object.values(answerCursorPoint({cameraX:.78,cameraY:.34},boxes)),boxes),3);
 });
 test("long text and question media are not clipped by the active play layout",()=>{
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
