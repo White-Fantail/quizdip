@@ -437,3 +437,77 @@
 @media(prefers-reduced-motion:reduce){
  .status-focus,.status-focus__ring,.lobby-hands-status{animation:none!important;transition:none!important}
 }
+
+/* Active rounds are a game surface, not a website. Hide the site chrome
+   while preserving the question progress, round timer, voting and scores.
+   This class is attached only for "playing" and "revealed": lobby and
+   final results retain their normal navigation and settings. */
+.app.play-session{
+ --play-gutter:clamp(8px,1vw,14px);
+ height:100dvh;min-height:0;padding:var(--play-gutter);
+ display:flex;flex-direction:column;overflow:hidden;
+}
+.app.play-session .topline,
+.app.play-session .foot{display:none}
+.app.play-session .stage.playing-stage{
+ flex:1 1 auto;width:100%;max-width:none;margin:0;
+ height:auto;min-height:0;display:grid;
+ grid-template-rows:minmax(0,1fr) clamp(110px,17dvh,165px);
+ gap:clamp(5px,.8dvh,10px);align-content:stretch
+}
+.app.play-session .stage.playing-stage .question-zone{
+ height:100%;min-height:0;
+ grid-template-rows:clamp(26px,3.8dvh,34px) minmax(0,1fr) clamp(280px,50dvh,520px);
+ gap:clamp(5px,.7dvh,9px);padding:0
+}
+.app.play-session .stage.playing-stage .question-head{
+ height:auto;min-height:0;gap:8px;
+}
+.app.play-session .stage.playing-stage .question-head .chip{
+ padding:5px 12px;border-radius:999px;font-size:clamp(11px,1vw,14px);
+ background:#232943b5;color:#cbd8f7
+}
+.app.play-session .stage.playing-stage .touch-question{
+ min-height:0;overflow-y:auto;overflow-x:hidden;
+ padding:clamp(3px,.5dvh,6px) clamp(4px,1vw,16px);
+ gap:clamp(4px,.65dvh,8px)
+}
+/* Language/source metadata is relevant in the lobby, but not to a player
+   deciding on an answer during a timed round. */
+.app.play-session .stage.playing-stage .question-source{display:none}
+.app.play-session .stage.playing-stage .touch-question .question{
+ font-size:clamp(21px,2.5vw,41px);line-height:1.13;
+}
+.app.play-session .stage.playing-stage .choices{
+ width:100%;height:100%;min-height:0
+}
+.app.play-session .stage.playing-stage .bottom-zone{
+ height:100%;min-height:0;margin:0;
+ border-top:1px solid #64739499;padding:5px 0 0
+}
+.app.play-session .stage.playing-stage .scoreboard{
+ height:100%;min-height:0;align-content:stretch
+}
+.app.play-session .stage.playing-stage .scoreboard .player{
+ height:100%;min-height:0
+}
+/* On small screens, allow vertical scroll rather than cutting off a
+   question, a choice, or the player status on a short viewport. */
+@media(max-width:780px){
+ .app.play-session{height:auto;min-height:100dvh;overflow:visible}
+ .app.play-session .stage.playing-stage{
+  flex:1 0 auto;height:auto;min-height:calc(100dvh - 2 * var(--play-gutter));
+  grid-template-rows:minmax(470px,1fr) clamp(110px,17dvh,155px)
+ }
+ .app.play-session .stage.playing-stage .question-zone{
+  min-height:470px;
+  grid-template-rows:28px minmax(92px,1fr) clamp(290px,46dvh,430px)
+ }
+ .app.play-session .stage.playing-stage .touch-question .question{
+  font-size:clamp(19px,4.7vw,31px)
+ }
+}
+@media(max-height:640px) and (min-width:781px){
+ .app.play-session{height:auto;min-height:100dvh;overflow:visible}
+ .app.play-session .stage.playing-stage{min-height:600px}
+}
