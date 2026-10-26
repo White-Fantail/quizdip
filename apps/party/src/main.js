@@ -296,7 +296,8 @@ function render(force=false){
 // readiness, celebration, countdown, and urgency without shifting the layout.
 function updateStatusFocus(now){
  const focus=el("statusFocus");if(!focus)return;
- const readyCount=game.players.filter(p=>readyPlayers.has(p.id)||game.answers.has(p.id)).length;
+ const readyCount=mouseTest?game.players.length:
+  game.players.filter(p=>readyPlayers.has(p.id)||game.answers.has(p.id)).length;
  if(game.phase==="playing"){
   if(readyCount===game.players.length&&game.players.length>0&&allReadyAt===null)allReadyAt=now;
   else if(readyCount<game.players.length)allReadyAt=null;
@@ -443,7 +444,7 @@ function frame(now){
    lastInference=completed;
    manageHands(tracker.observe(detections.landmarks,completed),completed);
   }catch(error){
-   lastInference=performance.now();cameraReady=false;seenHands=[];intents.clear();
+   lastInference=performance.now();cameraReady=false;seenHands=[];intents.clear();readyPlayers.clear();allReadyAt=null;
    showMessage(t("손 추적 오류: ","Tracking error: ")+String(error),true);
    landmarker.close();landmarker=null;refreshChoiceMarkers();
   }
@@ -451,7 +452,7 @@ function frame(now){
  const current=performance.now();
  // Stalled inference must never leave a cursor or a dwell countdown active.
  if(current-lastGoodFrame>Math.min(1600,Math.max(800,lastInferDuration*2.8+230))&&seenHands.length){
-  seenHands=[];intents.clear();
+  seenHands=[];intents.clear();readyPlayers.clear();allReadyAt=null;
   if(game.phase==="lobby")updateScores();
   if(game.phase==="playing"){refreshChoiceMarkers();updateStatusFocus(current);}
   
