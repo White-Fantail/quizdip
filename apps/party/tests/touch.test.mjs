@@ -381,26 +381,27 @@ test("invalid or missing hand never chooses, different players have independent 
  assert.equal(horizontalControl(one,null,700).choice,null);
  assert.equal(horizontalControl(null,{id:1,count:1,palmX:.22},700).ready,false);
 });
-test("a projected palm stays in the same fixed four-column answer row",()=>{
+test("answer numbers 1-4 occupy the same fixed 2-by-2 tile positions",()=>{
  const boxes=[
-  {left:30,right:387,top:350,bottom:620},
-  {left:402,right:759,top:350,bottom:620},
-  {left:774,right:1131,top:350,bottom:620},
-  {left:1146,right:1503,top:350,bottom:620}
+  {left:30,right:750,top:330,bottom:515}, // 1 upper-left
+  {left:764,right:1503,top:330,bottom:515}, // 2 upper-right
+  {left:30,right:750,top:529,bottom:714}, // 3 lower-left
+  {left:764,right:1503,top:529,bottom:714} // 4 lower-right
  ];
  for(let choice=0;choice<4;choice++){
   const centerX=(boxes[choice].left+boxes[choice].right)/2;
-  assert.equal(answerAtPosition(centerX,485,boxes),choice);
+  const centerY=(boxes[choice].top+boxes[choice].bottom)/2;
+  assert.equal(answerAtPosition(centerX,centerY,boxes),choice);
  }
 });
-test("quiz layout fixes all four choices to a stable single row",()=>{
+test("quiz layout fixes four choices to a stable 2-by-2 grid",()=>{
  const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
- const section=css.slice(css.lastIndexOf("/* Hand-friendly PARTY BOARD v2"));
- assert.match(section,/\.stage\.playing-stage \.question-zone\s*\{[^}]*grid-template-rows:auto minmax\(0,1fr\) clamp\(/s);
- assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)[^}]*grid-template-rows:minmax\(0,1fr\)/s);
- assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*overflow-y:auto/s);
+ const section=css.slice(css.lastIndexOf("/* Hand-friendly PARTY BOARD v3"));
+ assert.match(section,/\\.stage\\.playing-stage \\.question-zone\\s*\\{[^}]*grid-template-rows:auto minmax\\(0,1fr\\) clamp\\(/s);
+ assert.match(section,/\\.stage\\.playing-stage \\.choices\\s*\\{[^}]*grid-template-columns:repeat\\(2,minmax\\(0,1fr\\)\\)[^}]*grid-template-rows:repeat\\(2,minmax\\(0,1fr\\)\\)/s);
+ assert.match(section,/\\.stage\\.playing-stage \\.touch-question\\s*\\{[^}]*overflow-y:auto/s);
+ assert.doesNotMatch(section,/grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
 });
-
 test("players enrolled close to left/right camera edges can reach all four lanes",()=>{
  for(const center of [.11,.89]){
   let state=null;
