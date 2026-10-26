@@ -397,3 +397,26 @@ test("quiz layout fixes all four choices to a stable single row",()=>{
  assert.match(section,/\.stage\.playing-stage \.choices\s*\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)[^}]*grid-template-rows:minmax\(0,1fr\)/s);
  assert.match(section,/\.stage\.playing-stage \.touch-question\s*\{[^}]*overflow-y:auto/s);
 });
+
+test("players enrolled close to left/right camera edges can reach all four lanes",()=>{
+ for(const center of [.11,.89]){
+  let state=null;
+  for(let t=0;t<=480;t+=80){
+   state=horizontalControl(state,{id:1,count:1,palmX:center},t).state;
+  }
+  const low=center<.5?Math.max(.045,center-.025):.18;
+  const high=center>.5?Math.max(.045,.975-center):.18;
+  const samples=[
+   {dx:-low*.75,choice:0},
+   {dx:-low*.25,choice:1},
+   {dx:high*.25,choice:2},
+   {dx:high*.75,choice:3}
+  ];
+  for(const sample of samples){
+   const input=center+sample.dx;
+   assert.ok(input>0&&input<1);
+   assert.equal(horizontalControl(state,{id:1,count:1,palmX:input},1000).choice,sample.choice,
+    "camera edge "+center+" should still reach lane "+sample.choice);
+  }
+ }
+});
