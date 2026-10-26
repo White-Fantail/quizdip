@@ -12,7 +12,7 @@ Independent static-web game at the proposed touch.quizdip.com domain. The source
 - Node built-in test suite: node --test apps/touch/tests/*.test.mjs.
 
 ## Important constraints and next steps
-1. **Eight hands is a configuration target, not eight-people hardware validation.** Generic hand landmarker does not identify which person owns which hand. Each participant must use one hand; no guarantees after occlusion/crossing or leaving the frame. Measure real 2/4/6/8 player FPS and ID swap rate on a wide-angle camera. Investigate a registration-zone + motion rejoin protocol before advertising reliable 8-player support.
+1. **Eight hands is a configuration target, not eight-people hardware validation.** Generic hand landmarker does not identify which person owns which hand. Registered hand IDs now stay pinned across detector dropouts and attempt spatial re-association. Each participant must use one hand; no guarantees after occlusion/crossing or leaving the frame. Measure real 2/4/6/8 player FPS and ID swap rate on a wide-angle camera. Investigate a registration-zone + motion rejoin protocol before advertising reliable 8-player support.
 2. The app currently has **demonstration content and local-only scores**, NOT QuizDip live pack access or official leaderboard scores. QuizDip public quiz_get intentionally does not expose correct answers. Implement a first-party, server-authoritative Touch game session API (published quiz + locale + eligible four-choice options, server-side answer evaluation, pinned pack version), then replace the demonstration adapter. Never ship an answer key in an authenticated/public official scoring client.
 3. An independently deployed static frontend still needs explicit cross-origin access design when the QuizDip API is added; do not share Google/BETTER_AUTH secrets in the browser. Guest play first, secure account linking later.
 4. Browser needs HTTPS camera permission, model/WASM downloads, adequate lighting, framing for all participants. New device and mobile Safari QA remain necessary.
@@ -24,3 +24,11 @@ Independent static-web game at the proposed touch.quizdip.com domain. The source
 - True QuizDip published-pack game API with creator order, server-side score, safety filters and locale/version pinning.
 - Device calibration, mirrored camera alignment, 8-hand overlap load tests and accessibility fallbacks.
 - QuizDip main-site Touch entry link after the game is QA-ready.
+
+
+## Tracking/reconnection (2026-10-26)
+- Previously, any 1.1-second hand detection gap permanently discarded its track ID. A hand returning from a fist, quick motion or partial occlusion could receive a new unregistered ID and stop interacting. Fixed by pinning registered tracks until the user resets the game.
+- MediaPipe GPU acceleration is attempted, falling back to CPU on unsupported devices. Thresholds and inference cadence are tuned for varied hardware; the camera overlay shows inference latency (ms) and recognized hand count to help diagnose performance.
+- Association uses predicted motion, hand geometry and optional handedness. A registered hand can rejoin after a temporary loss near its prior position, preserving player score and slot. Hover/selection timers clear when the hand disappears.
+- Overlapping hands can genuinely be undetectable by a single camera. If reentry cannot be attributed safely to one player, the game does **not** guess and risk counting another player's vote. Ask players to separate hands and show palms near their prior positions. This remains a real-world testing requirement, especially at 6–8 hands.
+- We do not collect or transmit camera video; all inference and local demo scores remain on the device.
