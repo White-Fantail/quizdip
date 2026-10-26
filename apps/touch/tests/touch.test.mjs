@@ -160,7 +160,10 @@ test("folding P5 through a temporary four-finger pose does not switch to P4",()=
  wave(tracker,[[5,.42]],100);
  let hands=tracker.update([numberedPose(4,.42)],1150);
  assert.equal(hands[0]?.id,5);
- hands=tracker.update([numberedPose(4,.42)],1590);
+ // The camera still delivers frames as the fingers are slowly folded.
+ tracker.update([numberedPose(4,.42)],1280);
+ tracker.update([numberedPose(4,.42)],1410);
+ hands=tracker.update([numberedPose(4,.42)],1540);
  assert.equal(hands[0]?.id,5,"transient partial fold keeps P5");
  hands=tracker.update([numberedPose(0,.42)],1640);
  hands=tracker.update([numberedPose(0,.42)],1800);
