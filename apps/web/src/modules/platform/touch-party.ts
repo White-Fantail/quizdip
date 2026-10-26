@@ -7,7 +7,7 @@ import { previewUrl } from "./storage";
 const ROUND_COUNT = 10;
 type Lane = "GENERAL" | "KIDS";
 type Locale = "ko" | "en";
-type Answer = { canonical?:string;responseMode?:string;options?:string[] };
+type Answer = { canonical?:string;aliases?:string[];responseMode?:string;options?:string[] };
 type Clue = {type?:string;text?:string;mediaId?:string};
 type Question = {id:string;version:number;title:string;prompt:string;clue:string|null;mediaId:string|null;options:string[];answer:Answer};
 type Entry = {quizId:string;revisionId:string};
@@ -29,7 +29,7 @@ function open(token:string):Ticket{
    typeof data.seed!=="string")throw new Error("Expired or invalid game");
  return data;
 }
-export function parseTouchCandidate(row:Candidate):{question:Omit<Question,"options">;answer:Answer}|null {
+export function parseTouchCandidate(row:Candidate):{question:Omit<Question,"options"|"answer">;answer:Answer}|null {
  const a=row.answer as Answer;
  if(!a||a.responseMode!=="multiple-choice"||!Array.isArray(a.options)||a.options.length!==4||
    a.options.some(x=>typeof x!=="string"||!x.trim())||typeof a.canonical!=="string"||!a.canonical.trim())return null;
