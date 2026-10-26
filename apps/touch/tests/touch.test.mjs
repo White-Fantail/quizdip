@@ -218,6 +218,8 @@ test("answer arm is 0.4s and countdown lasts exactly 1.0s",()=>{
  result=dwellSelection(result.state,h,2,1400);
  assert.equal(result.state.phase,"countdown");
  assert.equal(result.state.remainingMs,1000);
+ result=dwellSelection(result.state,h,2,1900);
+ assert.equal(result.chosen,null);
  result=dwellSelection(result.state,h,2,2399);
  assert.equal(result.chosen,null);
  assert.equal(result.state.remainingMs,1);
