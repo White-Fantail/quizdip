@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint} from "../src/gestures.js";
+import {HandTracker} from "../src/tracker.js";
 import {freshGame,register,begin,submit,reveal,advance,DEMO_QUESTIONS,lobbyStartStatus} from "../src/game.js";
 function fingers(extended){
  const pts=Array.from({length:21},()=>({x:.5,y:.55}));pts[0]={x:.5,y:.9};
@@ -45,4 +46,51 @@ test("missing and unregistered hands block auto-start; starting with no players 
  assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"}],2000,1000).ready,false);
  assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"},{id:2,gesture:"fist"},{id:3,gesture:"fist"}],2000,1000).ready,false);
  assert.equal(lobbyStartStatus(g,[{id:1,gesture:"fist"},{id:2,gesture:"fist"}],2000,1000).ready,true);
+});
+
+function atX(points,x){
+ const dx=x-.5;
+ return points.map(p=>({x:p.x+dx,y:p.y}));
+}
+test("pinned hand rejoins with same ID after a fist and 1.5-second occlusion",()=>{
+ const tracker=new HandTracker();
+ const open=atX(fingers(true),.27),fist=atX(fingers(false),.27);
+ let hands=tracker.update([open],100);
+ const id=hands[0].id;
+ hands=tracker.update([open],240);assert.equal(hands[0].gesture,"open");
+ tracker.pin(id);
+ hands=tracker.update([fist],400);
+ hands=tracker.update([fist],530);assert.equal(hands[0].gesture,"fist");
+ tracker.update([],1100);
+ assert.equal(tracker.find(id)?.id,id,"pin preserves track");
+ hands=tracker.update([open],2050);
+ assert.equal(hands.length,1);
+ assert.equal(hands[0].id,id,"same hand reconnects without a second player");
+ assert.equal(tracker.tracks.filter(t=>t.id===id).length,1);
+});
+test("two pinned hands retain distinct IDs after brief occlusion and changed detection order",()=>{
+ const tracker=new HandTracker();
+ const a=atX(fingers(true),.22),b=atX(fingers(true),.78);
+ const first=tracker.update([a,b],100),aId=first[0].id,bId=first[1].id;
+ tracker.setPinnedIds([aId,bId]);
+ tracker.update([],300);
+ const recovered=tracker.update([atX(fingers(false),.79),atX(fingers(false),.21)],1550);
+ assert.deepEqual(recovered.map(x=>x.id),[bId,aId]);
+});
+test("a registered hand does not expire during a long gap while unregistered ghosts do",()=>{
+ const tracker=new HandTracker();
+ const initial=tracker.update([atX(fingers(true),.34),atX(fingers(true),.77)],0);
+ tracker.pin(initial[0].id);
+ tracker.update([],3000);
+ assert.equal(tracker.tracks.length,1);
+ assert.equal(tracker.find(initial[0].id)?.id,initial[0].id);
+});
+test("ambiguous overlapping hands do not inherit a possibly wrong registered ID",()=>{
+ const tracker=new HandTracker();
+ const first=tracker.update([atX(fingers(true),.3),atX(fingers(true),.7)],100);
+ tracker.setPinnedIds(first.map(x=>x.id));
+ tracker.update([],500);
+ const observations=tracker.update([atX(fingers(true),.5)],2600);
+ assert.ok(observations.every(x=>!first.some(old=>old.id===x.id)));
+ assert.equal(tracker.tracks.filter(t=>tracker.pinnedIds.has(t.id)).length,2);
 });
