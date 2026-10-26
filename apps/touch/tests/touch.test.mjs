@@ -5,7 +5,8 @@ import {replayDwell} from "../src/replay.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/selection.js";
 import {updateStartPads,START_HOLD_MS} from "../src/start-zones.js";
 import {HandTracker} from "../src/tracker.js";
-import {freshGame,register,begin,submit,reveal,advance,DEMO_QUESTIONS,ROUND_MS} from "../src/game.js";
+import {freshGame,setQuestions,register,begin,submit,reveal,advance,TOUCH_COUNT,ROUND_MS} from "../src/game.js";
+import {validateTouchSet,touchApiEndpoint} from "../src/source.js";
 function fingers(extended){
  const pts=Array.from({length:21},()=>({x:.5,y:.55}));pts[0]={x:.5,y:.9};
  for(const [i,tip,pip] of [[0,8,6],[1,12,10],[2,16,14],[3,20,18]]){
@@ -16,11 +17,24 @@ function fingers(extended){
 test("recognizes open hands and fists",()=>{assert.equal(handGesture(fingers(true)),"open");assert.equal(handGesture(fingers(false)),"fist");assert.ok(palmPoint(fingers(true)));});
 test("camera mirror and hit testing",()=>{assert.equal(screenPoint({x:.2,y:.8}).x,.8);assert.equal(answerAtPosition(50,80,[{left:0,top:0,right:100,bottom:100}]),0);});
 test("distinct tracks matched once",()=>{const m=nearestTrackMatching([{x:.1,y:.1},{x:.9,y:.9}],[{x:.88,y:.9},{x:.12,y:.13}]);assert.equal(m.get(0),1);assert.equal(m.get(1),0);});
-test("five fixed finger-number slots (1..5) and only one vote",()=>{
+const realQuestions=Array.from({length:TOUCH_COUNT},(_,i)=>({
+ id:"quiz-"+i,title:"Real question",prompt:"Which answer?",clue:null,mediaId:null,
+ version:1,options:["One","Two","Three","Four"]
+}));
+test("five fixed finger-number slots and only one vote after server grading",()=>{
  const game=freshGame();for(let id=1;id<=9;id++)register(game,id);assert.equal(game.players.length,5);
- assert.ok(begin(game,1000));assert.ok(submit(game,1,DEMO_QUESTIONS[0].answer,2000));
- assert.equal(submit(game,1,0,2001),false);assert.ok(game.players[0].score>100);
- reveal(game);for(let i=1;i<DEMO_QUESTIONS.length;i++){advance(game,3000+i);reveal(game);}
+ assert.equal(begin(game,1000),false,"No bundled fake questions may be played");
+ assert.ok(setQuestions(game,realQuestions));
+ assert.ok(begin(game,1000));assert.ok(submit(game,1,2,2000));
+ assert.equal(submit(game,1,0,2001),false);
+ assert.equal(game.players[0].score,0,"Answer must not be scored before server grading");
+ game.phase="grading";assert.ok(reveal(game,2));
+ assert.ok(game.players[0].score>100);
+ for(let i=1;i<TOUCH_COUNT;i++){
+  assert.ok(advance(game,3000+i));
+  game.phase="grading";
+  assert.ok(reveal(game,2));
+ }
  advance(game,9999);assert.equal(game.phase,"finished");
 });
 
@@ -56,7 +70,7 @@ test("wrong number, wrong zone and missing player cancel start automatically",()
  assert.equal(status.holds.size,0);
 });
 test("no unregistered extra finger pose can join already-started game",()=>{
- const g=freshGame();register(g,1);begin(g,100);
+ const g=freshGame();register(g,1);setQuestions(g,realQuestions);begin(g,100);
  assert.equal(register(g,2),false);
  assert.equal(g.endTime,100+ROUND_MS);
 });
@@ -275,4 +289,31 @@ test("replay cannot inherit another hand's countdown",()=>{
  assert.equal(changed.restart,false);
  assert.equal(changed.state.id,4);
  assert.equal(changed.state.phase,"arming");
+});
+
+test("only a complete ten-question QuizDip set can start",()=>{
+ const payload={ticket:"opaque",locale:"ko",lane:"GENERAL",questions:realQuestions};
+ assert.equal(validateTouchSet(payload),payload);
+ assert.throws(()=>validateTouchSet({...payload,questions:realQuestions.slice(0,8)}));
+ assert.throws(()=>validateTouchSet({...payload,questions:[
+  {...realQuestions[0],options:["Invalid"]},...realQuestions.slice(1)
+ ]}));
+});
+test("preview override accepts only trusted QuizDip hosts",()=>{
+ const dev="https://quizdip-xyz-nomadonghos-projects.vercel.app/api/touch";
+ assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent(dev)),dev);
+ assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent("https://evil.example/api/touch")),
+   "https://quizdip.com/api/touch");
+ assert.equal(touchApiEndpoint("?touchApi="+encodeURIComponent(dev+"?admin=1")),
+   "https://quizdip.com/api/touch");
+});
+test("round grading requires server-confirmed answer and cannot double-award",()=>{
+ const game=freshGame();setQuestions(game,realQuestions);register(game,2);begin(game,0);
+ submit(game,2,0,1000);game.phase="grading";
+ assert.equal(reveal(game,-1),false);
+ assert.equal(game.players[0].score,0);
+ assert.equal(reveal(game,1),true);
+ assert.equal(game.players[0].score,0);
+ assert.equal(reveal(game,1),false);
+ assert.equal(game.players[0].score,0);
 });
