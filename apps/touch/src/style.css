@@ -80,3 +80,35 @@
  .stage.results-stage .bottom-zone{grid-template-columns:1fr}
  .stage.results-stage .camera-box{height:100px;min-height:100px;max-height:100px}
 }
+
+/* QuizDip LIVE game modes: obvious large tap targets before camera enrollment. */
+.stage.selection-stage .bottom-zone{display:none}
+.question-zone.mode-view{height:auto;min-height:72dvh;justify-content:center;gap:clamp(18px,3vh,36px)}
+.mode-hero{margin:1vh auto 0}
+.mode-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(13px,2vw,26px);max-width:1000px;width:100%;margin:0 auto}
+.mode-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;text-align:center;min-height:250px;padding:30px 20px;color:#fff;border:3px solid #666aa6;border-radius:26px;background:linear-gradient(150deg,#2e315e,#1c2640);transition:transform .14s,border-color .14s,box-shadow .14s}
+.mode-card>span{font-size:clamp(50px,6.5vw,95px)}
+.mode-card strong{font-size:clamp(26px,3.2vw,42px);letter-spacing:-.03em}
+.mode-card small{font-size:clamp(13px,1.5vw,19px);color:#e1e8fb}
+.mode-card.kids{border-color:#7bf2d3;background:linear-gradient(150deg,#225d51,#223756)}
+.mode-card:hover,.mode-card:focus-visible{transform:translateY(-4px);border-color:#fff;box-shadow:0 0 0 5px #ffffff1f}
+.content-badge{font-weight:850!important;color:#92f5de!important}
+.loading-quiz{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;margin:10px auto 0;font-weight:750;color:#c6eddf}
+.question-zone:has(.touch-question){height:58dvh;min-height:390px}
+.touch-question{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 1 auto;max-height:35%;min-height:0;overflow:hidden;text-align:center}
+.touch-question .question{font-size:clamp(22px,3.25vw,43px);margin:2px auto 0;line-height:1.12;overflow:auto;min-height:0}
+.question-source{font-size:11px;letter-spacing:.08em;color:#a8bcec;font-weight:850}
+.question-clue{font-size:clamp(13px,1.5vw,19px);color:#bdf2df;margin:0 12px;max-width:1200px;overflow:auto}
+.question-media{max-height:110px;min-height:0;display:grid;place-items:center}
+.question-media img{display:block;max-width:min(45vw,360px);max-height:105px;object-fit:contain;border-radius:9px}
+.question-zone:has(.touch-question) .choices{flex:1;min-height:170px}
+@media(max-width:680px){
+ .mode-tiles{grid-template-columns:1fr;max-width:440px}
+ .mode-card{min-height:155px;padding:16px;gap:7px}
+ .mode-card>span{font-size:44px}
+ .question-zone:has(.touch-question){height:62dvh;min-height:420px}
+ .touch-question{max-height:31%}
+ .touch-question .question{font-size:clamp(19px,5vw,27px)}
+ .question-media{max-height:75px}
+ .question-media img{max-height:70px}
+}
