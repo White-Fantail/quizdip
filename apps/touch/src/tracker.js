@@ -37,8 +37,15 @@ export class HandTracker {
    // A held number owns a slot, regardless of where the hand reappeared.
    const unique=d.count>0&&!detections.some((other,j)=>j!==i&&other.count===d.count);
    if(!ambiguous&&unique&&countStable){
-    if(track.bound!==d.count){track.bound=d.count;track.fistSince=null;}
-    track.lastProofAt=now;track.blocked=false;
+    // A folded 5-finger pose passes through 4, 3, 2 and 1.
+    // Never transfer the slot on that transient intermediate count.
+    // A true number change requires an extended, stable hold long enough
+    // for deliberate recovery after hands have crossed.
+    const switching=track.bound!==null&&track.bound!==d.count;
+    if(!switching||now-track.countSince>=850){
+     if(track.bound!==d.count){track.bound=d.count;track.fistSince=null;}
+     track.lastProofAt=now;track.blocked=false;
+    }
    }
    if(track.bound!==null&&d.count!==0&&d.count!==track.bound&&now-track.lastProofAt>NOISE_GRACE_MS){
     track.bound=null;track.blocked=true;

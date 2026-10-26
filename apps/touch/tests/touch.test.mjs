@@ -154,3 +154,16 @@ test("loss of identity clears pending fold; reacquisition needs explicit re-arm"
  const r=foldSelection(state,hand(0,"fist"),2,600);
  assert.equal(r.chosen,null);
 });
+
+test("folding P5 through a temporary four-finger pose does not switch to P4",()=>{
+ const tracker=new HandTracker();tracker.setRegistered([4,5]);
+ wave(tracker,[[5,.42]],100);
+ let hands=tracker.update([numberedPose(4,.42)],1150);
+ assert.equal(hands[0]?.id,5);
+ hands=tracker.update([numberedPose(4,.42)],1590);
+ assert.equal(hands[0]?.id,5,"transient partial fold keeps P5");
+ hands=tracker.update([numberedPose(0,.42)],1640);
+ hands=tracker.update([numberedPose(0,.42)],1800);
+ assert.equal(hands[0]?.id,5);
+ assert.equal(hands[0]?.gesture,"fist");
+});
