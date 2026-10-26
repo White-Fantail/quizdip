@@ -3,28 +3,23 @@
 QuizDip Touch lives at `apps/touch` and is a separate Vercel project.
 Develop on **dev**; fast-forward **main** only after the user explicitly requests it.
 
-## Live game flow
+## Live game flow — camera seats and finger votes
 
-1. Select **Adult** or **Kids** in a large click/tap card before starting the camera.
-2. Touch requests 10 random published multiple-choice questions from QuizDip at `POST /api/touch`, with **four options each**. There are no bundled demo/fallback questions.
-3. Adult rounds use the current UI language (Korean/English). Kids rounds explicitly use **English Kids-approved** questions; Korean Kids has no available approved questions at the time of this change. No unapproved translation is substituted.
-4. Each player shows 1–5 raised fingers to register. Continue holding the same count during the game. To start, hold each assigned hand inside its own pad for 1.35 seconds.
-5. **Keep the entire hand/wrist and assigned finger count visible.** After a brief one-time palm-centre calibration, move the **palm horizontally only** to choose A/B/C/D in one fixed row. No vertical finger pointing, lowered wrist, or fist gesture is required. Hold for 0.4 seconds to arm and 1.0 second to confirm. The palm reference remains fixed for all 10 rounds, even if prompts contain long text or images. If needed, click **Recenter hands** to calibrate again.
-6. After everyone answers or the 30-second round timer expires, Touch grades each vote against the downloaded canonical answer entirely offline and displays the result. No network request happens at the scoring step.
-7. After all 10 questions, show ranked local results. A single numbered hand can hover over the replay zone for 1.4 seconds or the user can click/tap it, then Touch loads a **new** randomized set from QuizDip.
+1. Choose **Adult** or **Kids** before turning on the webcam. Touch downloads ten published four-option QuizDip questions. There are no bundled mock questions; Adult uses Korean/English and Kids uses English Kids-approved content.
+2. **Recognition phase**: Show 1–5 sufficiently separated hands to the camera. Hand tracking must remain stable for 800 ms; the UI shows the actual detected count. Click **Lock players** to freeze the count and create P1–P5 by left-to-right position in the mirrored preview. Finger count is **not** player identity.
+3. Camera lanes are partitioned by the midpoints between the detected palm centers; the on-screen player panel splits into exactly N equal-width seats. A hand moving into someone else's lane is not reassigned while its physical track survives. Ambiguous/overlapping hands cannot vote. After detection loss, recovering a hand requires a 250 ms fresh in-lane observation. Use **Rescan players** to change the count.
+4. Starting gesture remains undecided. For now **Start game** is an explicit, accessible button, enabled when every locked camera lane is visible and the ten questions have loaded. Fist and open-hand start are deliberately **not** used until real-camera testing establishes which is safer.
+5. In each round, show **five fingers for 260 ms to arm** (neutral). Then **1–4 fingers** selects answer 1–4 with a 360 ms stable pose and a 1-second per-player countdown. A different pose restarts that countdown. This re-arm step prevents the previous round's unchanged hand pose from automatically answering the next question. Players never have to move their hands to the answer tiles or camera bottom.
+6. Each seat displays recognized count, own countdown, confirmed answer, tracking status, and score; the answer tile shows colored player markers. Missing/ambiguous hands cannot vote; a loss beyond 350 ms discards an incomplete pose.
+7. After everyone votes or the 30-second question timer expires, grading uses the pinned downloaded canonical answers entirely **on-device**. Results show at the end of ten questions. The replay button starts a new set and reopens recognition; no hand movement is needed for replay.
 
-The server selects only active, published language revisions of active published quizzes. Kids requires Kids eligibility and approval, plus an original/legacy published localization. Image questions must reference READY/APPROVED images in R2. QuizDip question media URLs are signed only when each round is displayed. Unsupported clue types and fewer-than-four-option questions are skipped instead of quietly rewritten.
+## Data and limitations
 
-Touch uses an hour-limited, HMAC-authenticated ticket for the 10 pinned revisions. The initial response includes the authored correct answer as existing QuizDip local play bundles do; Touch grades on the device. The media ticket is used only to request approved image URLs, not to grade. No QuizDip play history or leaderboard record is written by these temporary local multiplayer scores.
+The server selects only active, published quiz language revisions; Kids content requires Kids eligibility and approval. QuizDip media URLs are signed per round, not bundled as permanent public URLs. Published canonical answers are downloaded with the local play bundle and graded in the browser. These temporary party scores do not write QuizDip play history or leaderboard records.
 
-## Camera movement and stable visual targets
+MediaPipe detects hand joints, **not permanent person IDs**. Assigned regions guard against common identity swaps, but two hands deliberately sharing a lane, extended occlusion, or crowded five-player camera views may require rescan. Test different devices and lighting before claiming robust five-player support. Video landmarks stay in the browser and are not uploaded.
 
-- Identity is proved with the number of raised fingers; **navigation is driven by the palm centre** (wrist + finger bases), never by the fingertip.
-- The start pads and replay zone retain their prior interaction model. During question play, the four choices are laid out horizontally on the same fixed-height row; the question/clue/media have a separate scrollable area if needed and cannot push the answer row down.
-- The initial valid palm position becomes player P1–P5's personal neutral x-axis reference after a 420 ms hold. Horizontal motion is measured relative to that reference, so differently positioned people are not required to share a camera centre. Near the camera edge, the movement span is reduced so A/D remain reachable.
-- A neutral hand does not vote. A finger-count mismatch or missing hand cannot vote, and moving through empty tile gaps cannot start the dwell timer. Existing per-player dwell countdown and local scoring remain intact.
-- The reference and smoothed *normalized* control position persist across the full 10-question game. They are cleared only by a new game, an explicit recenter, or a new audience selection; they are not changed when the screen question/image/choice text changes.
-- Real-camera, multi-person ergonomic validation remains necessary after production deployment; deterministic tests alone cannot guarantee MediaPipe tracking in poor light or with a cropped wrist.
+`GET /api/touch` is not used to grade each answer. The documented request path is the existing `POST /api/touch` loading and approved media flow.
 
 ## Vercel build quota protection
 
