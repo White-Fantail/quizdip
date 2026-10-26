@@ -21,8 +21,16 @@ export function submit(game,trackId,choice,now){
  game.answers.set(trackId,{choice,at:now,correct:false,points:0});
  return true;
 }
-export function reveal(game,correctIndex){
- if(game.phase!=="grading"||!Number.isInteger(correctIndex)||correctIndex<0||correctIndex>3)return false;
+// Identical to QuizDip local bundles: the published answer is part of the
+// downloaded question. No per-round network request or external grade event.
+export function reveal(game){
+ if(game.phase!=="playing")return false;
+ const question=game.questions[game.round];
+ const correct=question?.answer?.canonical;
+ if(typeof correct!=="string"||!correct.trim())return false;
+ const normalize=value=>String(value).normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase();
+ const correctIndex=question.options.findIndex(x=>normalize(x)===normalize(correct));
+ if(correctIndex<0||question.options.filter(x=>normalize(x)===normalize(correct)).length!==1)return false;
  game.correctIndex=correctIndex;
  for(const [id,answer] of game.answers){
   const p=game.players.find(player=>player.trackId===id);if(!p)continue;
