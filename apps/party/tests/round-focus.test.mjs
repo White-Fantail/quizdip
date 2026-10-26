@@ -1,30 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {roundFocusState,READY_CELEBRATION_MS} from "../src/round-focus.js";
+import {roundFocusState} from "../src/round-focus.js";
 
 const f=(overrides={})=>roundFocusState({
- phase:"playing",remainingMs:30000,totalMs:30000,playerCount:2,
- readyCount:0,allReadyAt:null,now:1000,...overrides
+ phase:"playing",remainingMs:30000,totalMs:30000,...overrides
 });
 const read=(name)=>readFileSync(new URL(name,import.meta.url),"utf8");
 
-test("unarmed players are explicitly prompted for open palms at the central clock",()=>{
- assert.equal(f().mode,"prepare");
- assert.equal(f({readyCount:1}).mode,"prepare");
- assert.equal(f({readyCount:1}).seconds,30);
- assert.equal(f({readyCount:1}).progress,1);
+test("countdown starts immediately, with no open-palm requirement during thinking",()=>{
+ assert.equal(f().mode,"timer");
+ assert.equal(f().seconds,30);
+ assert.equal(f().progress,1);
+ assert.equal(f({readyCount:0,playerCount:5,allReadyAt:null}).mode,"timer");
+ assert.equal(f({readyCount:5,playerCount:5,allReadyAt:0}).mode,"timer");
+ assert.equal(f({remainingMs:9000}).seconds,9);
 });
-test("everyone ready produces exactly one short, strong round celebration",()=>{
- assert.equal(f({readyCount:2,allReadyAt:1000}).mode,"ready");
- assert.equal(f({readyCount:2,allReadyAt:1000,now:1000+READY_CELEBRATION_MS-1}).mode,"ready");
- assert.equal(f({readyCount:2,allReadyAt:1000,now:1000+READY_CELEBRATION_MS}).mode,"timer");
- assert.equal(f({readyCount:1,allReadyAt:1000}).mode,"prepare");
- assert.equal(f({readyCount:2,allReadyAt:null}).mode,"timer");
-});
-test("deadline overrides readiness and ring percentage is bounded",()=>{
+test("deadline warnings stay visible independently of hand poses",()=>{
  assert.equal(f({remainingMs:5000}).mode,"warning");
- assert.equal(f({remainingMs:5001}).mode,"prepare");
+ assert.equal(f({remainingMs:5001}).mode,"timer");
  assert.equal(f({remainingMs:3000}).mode,"critical");
  assert.equal(f({remainingMs:1}).mode,"critical");
  assert.equal(f({remainingMs:0}).seconds,0);
@@ -32,7 +26,7 @@ test("deadline overrides readiness and ring percentage is bounded",()=>{
  assert.equal(f({remainingMs:90000}).progress,1);
  assert.equal(f({phase:"revealed",remainingMs:1000}).mode,"revealed");
 });
-test("fixed four-choice layout, per-round reset, accessible status, and clock only in center",()=>{
+test("fixed four-choice layout, accessible status, and always-on center clock",()=>{
  const main=read("../src/main.js");
  const css=read("../src/style.css");
  assert.match(main,/id="statusFocus"/);
