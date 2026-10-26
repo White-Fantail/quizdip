@@ -170,3 +170,14 @@ test("folding P5 through a temporary four-finger pose does not switch to P4",()=
  assert.equal(hands[0]?.id,5);
  assert.equal(hands[0]?.gesture,"fist");
 });
+
+test("one dropped inference during fist retains same number but never registers a ghost",()=>{
+ const tracker=new HandTracker();tracker.setRegistered([4]);
+ wave(tracker,[[4,.40]],100);
+ assert.equal(tracker.update([],1100).length,0);
+ assert.equal(tracker.candidates(1100).length,0,"lost hand cannot register another player");
+ const hand=tracker.update([numberedPose(0,.40)],1220);
+ assert.equal(hand[0]?.id,4,"one missed frame retains physical track");
+ const closed=tracker.update([numberedPose(0,.40)],1390);
+ assert.equal(closed[0]?.gesture,"fist");
+});

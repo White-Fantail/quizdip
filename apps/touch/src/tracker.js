@@ -8,9 +8,9 @@ const FIST_ID_GRACE_MS=1700;
 const NEAR_HAND_DISTANCE=.095;
 
 export class HandTracker {
- constructor(){this.tracks=[];this.nextId=1;this.registered=new Set();}
+ constructor(){this.tracks=[];this.current=[];this.nextId=1;this.registered=new Set();}
  setRegistered(ids){this.registered=new Set(ids);}
- reset(){this.tracks=[];this.nextId=1;this.registered.clear();}
+ reset(){this.tracks=[];this.current=[];this.nextId=1;this.registered.clear();}
  update(landmarks,now){
   const detections=(landmarks||[]).map(points=>({points,palm:palmPoint(points),count:fingerCount(points)}))
     .filter(d=>d.palm!==null&&d.count!==null).slice(0,MAX_PLAYERS);
@@ -68,7 +68,10 @@ export class HandTracker {
    // Guard against multiple hands claiming the same number.
    next.push(track);
   });
-  this.tracks=next;
+  // Preserve tracks for <=260ms if MediaPipe misses a frame while a fist forms.
+  // Old tracks are never emitted as visible: a long loss requires re-enrollment.
+  this.tracks=[...next,...candidates.filter(t=>!used.has(t.rawId)&&now-t.seen<=LOST_TRACK_MS)];
+  this.current=next;
   const claims=new Map();
   for(const track of next){
    if(track.bound===null||!this.registered.has(track.bound))continue;
@@ -81,9 +84,9 @@ export class HandTracker {
  }
  // Unregistered stable poses are used only for enrollment; never for answering.
  candidates(now,holdMs=PROOF_HOLD_MS){
-  return this.tracks.filter(track=>track.count>=1&&track.count<=MAX_PLAYERS&&
+  return this.current.filter(track=>track.count>=1&&track.count<=MAX_PLAYERS&&
     now-track.countSince>=holdMs&&
-    !track.blocked&&this.tracks.filter(other=>other.count===track.count).length===1)
+    !track.blocked&&this.current.filter(other=>other.count===track.count).length===1)
    .map(track=>({...screenPoint(track.palm),id:track.count,count:track.count}));
  }
 }

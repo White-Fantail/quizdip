@@ -9,7 +9,7 @@ const mouseTest=params.get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
 let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,lastInferDuration=0,backend="CPU",lastUiRefresh=0;
 let revealUntil=0,stageStamp="",cameraReady=false,lobbyFistSince=null,testFists=false,lastLobbyUi=0;
-const intents=new Map(),pointerNodes=new Map();
+const intents=new Map(),pointerNodes=new Map(),lastHandSeen=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div style="display:flex;gap:10px;align-items:center"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Your camera stays on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
@@ -57,7 +57,7 @@ function render(force=false){
    '<p>'+t("게임 중에는 번호 손가락을 펼친 채 보기로 이동한 다음, 그 안에서 주먹을 쥐어야 선택됩니다. 오래 머물거나 지나가기만 하면 선택되지 않습니다.",
    "Move your numbered fingers into a choice, then close into a fist INSIDE it. Hovering or passing through never selects.")+'</p></div>';
   el("enableCamera").onclick=()=>void startCamera();
-  el("resetPlayers").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lobbyFistSince=null;testFists=false;render(true);};
+  el("resetPlayers").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lastHandSeen.clear();lobbyFistSince=null;testFists=false;render(true);};
   if(mouseTest){
    el("testJoin").onclick=()=>{const n=[1,2,3,4,5].find(x=>!game.players.some(p=>p.id===x));if(n!==undefined)register(game,n);lobbyFistSince=null;render(true);};
    el("testFists").onclick=()=>{testFists=!testFists;lobbyFistSince=null;el("testFists").textContent=testFists?"✊ Release test fists":"✊ Hold test fists";};
@@ -78,7 +78,7 @@ function render(force=false){
   top.innerHTML='<div class="results"><span class="chip">QUIZDIP TOUCH · FINISHED</span><h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
    sorted.map((p,i)=>'<div class="player" style="--accent:'+colors[(p.id-1)%colors.length]+'">'+(i+1)+'. P'+p.id+' — '+p.score+' pts · '+p.correct+'/'+DEMO_QUESTIONS.length+'</div>').join("")+
    '<div class="actions"><button class="primary" id="restart">'+t("다시 플레이","Play again")+'</button></div></div>';
-  el("restart").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lobbyFistSince=null;testFists=false;render(true);};
+  el("restart").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lastHandSeen.clear();lobbyFistSince=null;testFists=false;render(true);};
  }
  updateHeader();updateScores();
 }
@@ -125,7 +125,11 @@ function manageHands(hands,now){
  seenHands=hands;
  // An interrupted gesture cannot complete an answer when the hand returns.
  const visibleIds=new Set(hands.map(h=>h.id));
- for(const id of intents.keys())if(!visibleIds.has(id))intents.delete(id);
+ for(const h of hands)lastHandSeen.set(h.id,now);
+ // A short inference dropout while closing fingers may keep the armed choice.
+ // Long gaps immediately disarm to avoid an accidental answer.
+ for(const id of intents.keys())
+  if(!visibleIds.has(id)&&now-(lastHandSeen.get(id)??-Infinity)>230)intents.delete(id);
  if(game.phase==="lobby"){
   let added=false;
   for(const h of tracker.candidates(now,780)){
