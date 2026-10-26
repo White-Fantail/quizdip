@@ -18,30 +18,31 @@ export function raisedLongFingers(points){
  }
  return raised;
 }
-// Distinguish 4 (thumb tucked) from 5 (thumb extended). The previous
-// 1.32 / 1.52 index-base ratios rejected genuine splayed thumbs, because
-// the thumb tip often advances only slightly farther than the IP joint.
+// Only index through pinky can select answers 1–4. A thumb that is
+// accidentally classified as extended must NEVER turn a fist into "1" or
+// an index-only pose into "2". We inspect the thumb solely to distinguish
+// four raised long fingers (answer 4) from an open five-finger palm (ready).
+//
+// Thumb extension needs separation toward the thumb SIDE of the palm.
+// A folded thumb lying across the knuckles can be straight and farther from
+// the wrist/index, so distance or straightness alone is not reliable.
 export function isThumbExtended(points){
- if(!palmPoint(points)||![2,3,4].every(i=>points[i]))return false;
- const tip=points[4],ip=points[3],base=points[2],wrist=points[0],index=points[5];
- const palmWidth=Math.max(.001,distance(points[5],points[17]));
- const awayFromIndex=distance(tip,index)-distance(ip,index);
- const awayFromWrist=distance(tip,wrist)-distance(ip,wrist);
- const reach=distance(tip,base);
- const linkLength=distance(base,ip)+distance(ip,tip);
- // Independent camera rotation / hand-size invariant evidence of splay.
- // On a rotated hand, the thumb tip can move up toward the index MCP
- // even as the thumb straightens. Require two independent extension cues,
- // rather than always insisting on a larger thumb-index distance.
- const splayed=awayFromIndex>palmWidth*.045;
- const reaching=awayFromWrist>palmWidth*.06;
- const straight=linkLength>0&&reach/linkLength>.88;
- return (splayed&&reaching)||(splayed&&straight)||(reaching&&straight);
+ if(!palmPoint(points)||![3,4,5,17].every(i=>points[i]))return false;
+ const index=points[5],pinky=points[17],ip=points[3],tip=points[4];
+ const axis={x:index.x-pinky.x,y:index.y-pinky.y};
+ const width=Math.hypot(axis.x,axis.y);
+ if(width<.001)return false;
+ const along=(p)=>((p.x-index.x)*axis.x+(p.y-index.y)*axis.y)/(width*width);
+ const tipOutside=along(tip);
+ const thumbExtension=tipOutside-along(ip);
+ // With the camera rotated or mirrored, the knuckle axis rotates/mirrors
+ // with the hand. Both tests remain invariant to scale and orientation.
+ return tipOutside>.23 && thumbExtension>.10;
 }
 export function fingerCount(points){
  const raised=raisedLongFingers(points);
  if(raised===null)return null;
- return raised+(isThumbExtended(points)?1:0);
+ return raised===4&&isThumbExtended(points)?5:raised;
 }
 export function handGesture(points){
  const n=fingerCount(points);
