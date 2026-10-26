@@ -3,14 +3,16 @@ import {answerAtPosition} from "./gestures.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "./selection.js";
 import {updateStartPads,START_HOLD_MS} from "./start-zones.js";
 import {replayDwell} from "./replay.js";
-import {DEMO_QUESTIONS,freshGame,register,begin,submit,reveal,advance,ROUND_MS} from "./game.js";
+import {TOUCH_COUNT,freshGame,setQuestions,register,begin,submit,reveal,advance,ROUND_MS} from "./game.js";
+import {touchRequest,validateTouchSet} from "./source.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const mouseTest=new URLSearchParams(location.search).get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
 let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,lastInferDuration=0,backend="CPU";
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
-let startHolds=new Map(),restartIntent=null;
+let startHolds=new Map(),restartIntent=null,selectedLane=null,gameTicket=null,loadedLocale=null;
+let loading=false,loadError="",loadRevision=0,gradeInFlight=false,gradeRetryAt=0;
 const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
@@ -23,13 +25,45 @@ const playerIDs=()=>game.players.map(p=>p.id);
 const ownHand=h=>h&&h.count===h.id&&h.gesture==="open"&&game.players.some(p=>p.id===h.id);
 const color=id=>colors[(id-1)%colors.length];
 const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const questionLocale=()=>selectedLane==="KIDS"?"en":locale;
+async function loadTenQuestions(){
+ const revision=++loadRevision;
+ loading=true;loadError="";gameTicket=null;game.questions=[];render(true);
+ try{
+  const data=validateTouchSet(await touchRequest("start",{lane:selectedLane,locale:questionLocale()}));
+  if(revision!==loadRevision)return;
+  if(data.locale!==questionLocale()||data.lane!==selectedLane||!setQuestions(game,data.questions))
+   throw Error("QuizDip returned a different game");
+  gameTicket=data.ticket;loadedLocale=data.locale;
+  el("messages").textContent="";
+ }catch(error){
+  if(revision!==loadRevision)return;
+  loadError=String(error instanceof Error?error.message:error);
+  showMessage(t("문제를 불러오지 못했어요: ","Could not load quiz questions: ")+loadError,true);
+ }finally{
+  if(revision===loadRevision){loading=false;render(true);}
+ }
+}
+function selectLane(lane){
+ if(lane!=="GENERAL"&&lane!=="KIDS")return;
+ selectedLane=lane;
+ resetGame();
+}
+function changeLane(){
+ loadRevision++;gameTicket=null;selectedLane=null;loadedLocale=null;
+ game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;
+ cleanPlayUI();drawHands([]);el("messages").textContent="";render(true);
+}
 function cleanPlayUI(){
  intents.clear();answeredPositions.clear();
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
 }
 function resetGame(){
- game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;cleanPlayUI();drawHands([]);render(true);
+ loadRevision++;game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;
+ gradeInFlight=false;gradeRetryAt=0;gameTicket=null;cleanPlayUI();drawHands([]);render(true);
+ if(selectedLane)void loadTenQuestions();
 }
 function updateHeader(){
  el("status").textContent=cameraReady?t("● 카메라 연결됨","● CAMERA READY"):t("카메라 연결 전","CAMERA OFF");
@@ -37,7 +71,8 @@ function updateHeader(){
   ?t("번호 확인 "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend,
      "Confirmed "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend)
   :t("카메라 영상은 기기 밖으로 전송되지 않습니다","Camera video stays on this device");
- el("footer").textContent=game.phase==="finished"
+ el("footer").textContent=!selectedLane?t("어른용 또는 어린이용을 선택하세요.","Choose Adult or Kids to play."):
+  game.phase==="finished"
   ?t("마우스/터치로 다시 시작하거나, 손가락을 펼친 손 하나만 재시작 영역에 머물러 주세요.",
     "Click or tap replay, or hold just one numbered hand on the replay zone.")
   :t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손끝을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
@@ -62,21 +97,38 @@ function updateScores(){
  }).join("")||'<p class="waiting-players">'+t("손가락 1~5개를 펼쳐 참가자를 등록하세요.","Show 1–5 raised fingers to join.")+'</p>';
 }
 function render(force=false){
- const stamp=game.phase+":"+game.round+":"+locale+":"+game.players.map(p=>p.id).join("-");
+ const stamp=String(selectedLane)+":"+loading+":"+loadError+":"+game.phase+":"+game.round+":"+locale+":"+game.players.map(p=>p.id).join("-");
  if(!force&&stamp===stageStamp)return;
  stageStamp=stamp;
  const top=el("top");top.classList.toggle("lobby-view",game.phase==="lobby");
- top.classList.toggle("finished-view",game.phase==="finished");
- document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished");
+ top.classList.toggle("mode-view",!selectedLane);
+ top.classList.toggle("finished-view",game.phase==="finished"&&!!selectedLane);
+ document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished"&&!!selectedLane);
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
- if(game.phase==="lobby"){
+ if(!selectedLane){
+  top.innerHTML='<div class="hero mode-hero"><span class="chip">QUIZDIP · TOUCH</span><h1>'+
+   t("어떤 게임을 할까요?","Choose a game!")+'</h1><p>'+t("QuizDip의 실제 공개 문제를 무작위로 10개씩 풀어요.","10 random questions from the real QuizDip!")+'</p></div>'+
+   '<div class="mode-tiles"><button id="adultMode" class="mode-card adult"><span>🧠</span><strong>'+
+   t("어른용 게임","Adult game")+'</strong><small>'+t("전체 공개 퀴즈에서 랜덤 10문제","10 questions from published quizzes")+
+   '</small></button><button id="kidsMode" class="mode-card kids"><span>🦕</span><strong>'+
+   t("어린이용 게임","Kids game")+'</strong><small>'+
+   t("Kids 승인 문제 10개 · 현재 영어 콘텐츠","10 Kids-approved questions · English content")+
+   '</small></button></div>';
+  el("adultMode").onclick=()=>selectLane("GENERAL");
+  el("kidsMode").onclick=()=>selectLane("KIDS");
+ }else if(game.phase==="lobby"){
   top.innerHTML='<div class="hero lobby-hero"><span class="chip">PARTY TRIVIA · '+MAX_PLAYERS+' PLAYERS</span><h1>'+t("손가락 번호로 플레이!","Play with finger numbers!")+'</h1><p>'+
   t("P1~P5는 손가락 1~5개로 등록해요. 모두 등록한 후, 각자 자신의 시작 구역에 손을 올려 1.35초 유지하세요.",
     "Register as P1–P5 with 1–5 fingers. Once everyone joins, hold your numbered hand inside YOUR start zone for 1.35 seconds.")+
+  '</p><p class="content-badge">'+(selectedLane==="KIDS"
+    ?t("🦕 어린이용 · 영어로 된 Kids 승인 문제","🦕 Kids · approved English questions")
+    :t("🧠 어른용 · "+(questionLocale()==="ko"?"한국어":"English")+" 10문제",
+       "🧠 Adult · "+(questionLocale()==="ko"?"Korean":"English")+" · 10 questions"))+
   '</p></div><div class="lobby-control"><span class="chip">'+t("등록된 플레이어","Registered")+': '+game.players.length+'/5</span>'+
   '<div class="actions"><button class="primary" id="enableCamera" '+(cameraReady?'disabled':'')+'>'+t(cameraReady?"카메라 연결됨":"카메라 시작",cameraReady?"Camera ready":"Start camera")+'</button>'+
   '<button class="secondary" id="resetPlayers">'+t("플레이어 초기화","Reset players")+'</button>'+
+  '<button class="secondary" id="changeMode">'+t("게임 종류 변경","Change mode")+'</button>'+
   (mouseTest?'<button class="secondary" id="testJoin">+ Test player</button><button class="secondary" id="testReady">Start (test only)</button>':'')+
   '</div></div><div class="start-zone-heading"><strong>'+t("각 플레이어의 시작 구역","Individual start zones")+'</strong><span>'+t("서로 다른 구역이므로 손이 겹치지 않아요","Separate lanes prevent hands overlapping")+'</span></div>'+
   '<div class="start-pads">'+[1,2,3,4,5].map(id=>{
@@ -88,6 +140,7 @@ function render(force=false){
   '</p>';
   el("enableCamera").onclick=()=>void startCamera();
   el("resetPlayers").onclick=resetGame;
+  el("changeMode").onclick=changeLane;
   if(mouseTest){
    el("testJoin").onclick=()=>{
     const n=[1,2,3,4,5].find(x=>!game.players.some(p=>p.id===x));
@@ -95,15 +148,28 @@ function render(force=false){
    };
    el("testReady").onclick=()=>{if(begin(game,performance.now())){cleanPlayUI();render(true);}};
   }
+  top.insertAdjacentHTML("beforeend",'<div class="loading-quiz" role="status">'+
+   (loading?t("QuizDip에서 10문제를 불러오는 중…","Loading 10 questions from QuizDip…")
+    :loadError?t("문제 로딩 실패. 아래 재시도를 누르세요.","Could not load questions. Try again.")
+    :t("✓ 실제 퀴즈 10문제 준비 완료","✓ 10 QuizDip questions ready"))+
+   (loadError?'<button class="primary" id="retryLoad">'+t("다시 불러오기","Retry loading")+'</button>':"")+
+   '</div>');
+  if(el("retryLoad"))el("retryLoad").onclick=()=>void loadTenQuestions();
   refreshPads({holds:startHolds,insideCount:0,readyCount:0,total:game.players.length,start:false});
- }else if(game.phase==="playing"||game.phase==="revealed"){
-  const q=DEMO_QUESTIONS[game.round],answers=locale==="ko"?q.optionsKo:q.options;
-  top.innerHTML='<div class="question-head"><span class="chip">'+t("문제","QUESTION")+' '+(game.round+1)+' / '+DEMO_QUESTIONS.length+
-    '</span><span class="chip" id="countdown">'+Math.round(ROUND_MS/1000)+'s</span><span class="chip" id="answerCount">'+
+ }else if(["playing","grading","revealed"].includes(game.phase)){
+  const q=game.questions[game.round],answers=q.options;
+  top.innerHTML='<div class="question-head"><span class="chip">'+t("문제","QUESTION")+' '+(game.round+1)+' / '+TOUCH_COUNT+
+    '</span><span class="chip" id="countdown">'+(game.phase==="grading"?t("채점 중","Grading"):Math.round(ROUND_MS/1000)+"s")+'</span><span class="chip" id="answerCount">'+
     game.answers.size+' / '+game.players.length+' '+t("응답","VOTED")+'</span></div>'+
-    '<h1 class="question">'+(locale==="ko"?q.ko:q.question)+'</h1><div class="choices">'+answers.map((answer,i)=>
-    '<div class="choice '+(game.phase==="revealed"&&i===q.answer?'correct':'')+'" data-answer="'+i+'"><b>'+
-    String.fromCharCode(65+i)+'</b><span>'+answer+'</span><div class="vote" data-vote="'+i+'"></div></div>').join('')+'</div>';
+    '<div class="touch-question"><span class="question-source">'+
+    (selectedLane==="KIDS"?"KIDS":"GENERAL")+' · '+(loadedLocale||questionLocale()).toUpperCase()+
+    ' · QuizDip</span><h1 class="question">'+escapeHtml(q.prompt)+'</h1>'+
+    (q.clue?'<p class="question-clue">'+escapeHtml(q.clue)+'</p>':"")+
+    (q.mediaId?'<div class="question-media"><img id="roundImage" alt="QuizDip question clue" /></div>':"")+
+    '</div><div class="choices">'+answers.map((answer,i)=>
+    '<div class="choice '+(game.phase==="revealed"&&i===game.correctIndex?'correct':'')+'" data-answer="'+i+'"><b>'+
+    String.fromCharCode(65+i)+'</b><span>'+escapeHtml(answer)+'</span><div class="vote" data-vote="'+i+'"></div></div>').join('')+'</div>';
+  if(q.mediaId)void showRoundImage(game.round,gameTicket);
   // Mouse-only simulation; ordinary camera mode cannot click a choice.
   if(mouseTest)for(const node of options()){
    node.classList.add("test-clickable");
@@ -126,7 +192,7 @@ function render(force=false){
    '<h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
    '<div class="result-winner" style="--accent:'+color(winner.id)+'"><span>🥇 P'+winner.id+'</span><strong>'+winner.score+' pts</strong><small>'+t("최고 점수","Top score")+'</small></div>'+
    '<div class="result-standings">'+sorted.map((p,i)=>
-    '<div class="result-row" style="--accent:'+color(p.id)+'"><span>'+(i+1)+'. P'+p.id+'</span><strong>'+p.score+' pts</strong><small>'+p.correct+' / '+DEMO_QUESTIONS.length+' '+t("정답","correct")+'</small></div>'
+    '<div class="result-row" style="--accent:'+color(p.id)+'"><span>'+(i+1)+'. P'+p.id+'</span><strong>'+p.score+' pts</strong><small>'+p.correct+' / '+TOUCH_COUNT+' '+t("정답","correct")+'</small></div>'
    ).join('')+'</div>'+
    '<button type="button" id="restartZone" class="restart-zone" style="--replay-progress:0%">'+
     '<span class="restart-ring">↻</span><span class="restart-copy"><strong>'+t("다시 플레이","Play again")+'</strong>'+
@@ -168,7 +234,7 @@ function updateVotes(){
   if(!label)continue;
   const voted=[...game.answers.entries()].filter(([_,v])=>v.choice===choice);
   label.innerHTML=voted.map(([id])=>'<span class="voter-badge" style="--accent:'+color(id)+'">P'+id+' ✓</span>').join("");
-  if(game.phase==="revealed"&&choice!==DEMO_QUESTIONS[game.round].answer&&voted.length)node.classList.add("wrong");
+  if(game.phase==="revealed"&&choice!==game.correctIndex&&voted.length)node.classList.add("wrong");
  }
 }
 function drawHands(hands){
@@ -220,6 +286,13 @@ function refreshChoiceMarkers(){
  }
  for(const [id,marker] of choiceMarkers)if(!active.has(id)){marker.remove();choiceMarkers.delete(id);}
 }
+async function showRoundImage(index,ticket){
+ const img=el("roundImage");if(!img||!ticket)return;
+ try{
+  const {url}=await touchRequest("image",{ticket,index});
+  if(gameTicket===ticket&&game.round===index&&el("roundImage")===img&&typeof url==="string")img.src=url;
+ }catch{if(el("roundImage")===img)img.alt=t("이미지를 불러올 수 없습니다","Image unavailable");}
+}
 function restartInputs(now){
  const zone=el("restartZone");
  if(!zone)return;
@@ -260,7 +333,7 @@ function touchInputs(hands,now){
 }
 function manageHands(hands,now){
  seenHands=hands;lastGoodFrame=now;
- if(game.phase==="lobby"){
+ if(game.phase==="lobby"&&selectedLane){
   let added=false;
   for(const candidate of tracker.candidates(now,780)){
    if(candidate.palmY<.42)continue;
@@ -276,7 +349,7 @@ function manageHands(hands,now){
   },now);
   startHolds=status.holds;
   refreshPads(status);
-  if(status.start&&begin(game,now)){cleanPlayUI();startHolds.clear();render(true);}
+  if(status.start&&!loading&&!!gameTicket&&begin(game,now)){cleanPlayUI();startHolds.clear();render(true);}
  }else if(game.phase==="finished"){
   const replayHands=restartInputs(now);
   drawHands(game.phase==="finished"?replayHands:[]);
@@ -284,15 +357,36 @@ function manageHands(hands,now){
  }else touchInputs(hands,now);
  drawHands(hands);
 }
+async function gradeRound(){
+ if(game.phase!=="grading"||gradeInFlight||!gameTicket)return;
+ gradeInFlight=true;
+ const index=game.round,ticket=gameTicket;
+ try{
+  const response=await touchRequest("grade",{ticket,index});
+  if(game.phase!=="grading"||gameTicket!==ticket||game.round!==index)return;
+  if(!reveal(game,response.correctIndex))throw Error("Invalid scoring response");
+  revealUntil=performance.now()+3400;
+  render(true);
+  const q=game.questions[index];
+  showMessage(t("정답은 ","Correct answer: ")+q.options[game.correctIndex]+"!");
+ }catch(error){
+  if(game.phase==="grading"&&gameTicket===ticket){
+   gradeRetryAt=performance.now()+4000;
+   showMessage(t("QuizDip 채점 연결이 끊어졌습니다. 자동으로 다시 시도합니다. ",
+     "QuizDip scoring is unavailable; retrying automatically. ")+String(error),true);
+  }
+ }finally{gradeInFlight=false;}
+}
 function gameClock(now){
  if(game.phase==="playing"){
   const remaining=Math.max(0,Math.ceil((game.endTime-now)/1000));
   const countdown=el("countdown");if(countdown)countdown.textContent=remaining+"s";
   if(now>=game.endTime||game.answers.size===game.players.length){
-   reveal(game);revealUntil=now+3400;intents.clear();render(true);
-   const answer=DEMO_QUESTIONS[game.round],i=answer.answer;
-   showMessage(t("정답은 "+answer.optionsKo[i]+"!", "Correct answer: "+answer.options[i]+"!"));
+   game.phase="grading";intents.clear();cleanPlayUI();render(true);gradeRetryAt=now;
+   void gradeRound();
   }
+ }else if(game.phase==="grading"&&!gradeInFlight&&now>=gradeRetryAt){
+  gradeRetryAt=now+4000;void gradeRound();
  }else if(game.phase==="revealed"&&now>=revealUntil){
   advance(game,now);cleanPlayUI();render(true);el("messages").textContent="";
  }
@@ -354,7 +448,7 @@ function cleanup(){
  landmarker?.close();landmarker=null;cameraReady=false;
 }
 addEventListener("pagehide",cleanup);
-el("locale").addEventListener("change",event=>{locale=event.target.value;render(true);});
+el("locale").addEventListener("change",event=>{locale=event.target.value;if(selectedLane&&game.phase==="lobby"&&selectedLane==="GENERAL")void loadTenQuestions();render(true);});
 render(true);
 frameHandle=requestAnimationFrame(frame);
 if(mouseTest)showMessage("Development test mode: join players and use Start (test only), then click answers.");
