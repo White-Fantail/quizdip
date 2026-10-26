@@ -603,3 +603,113 @@
   min-height:540px;grid-template-rows:30px minmax(105px,1fr) 385px
  }
 }
+
+/* Live recognition lobby: fit both the entire webcam and registration
+   instructions into a normal desktop viewport. The video uses "contain",
+   never cropping hands from the camera feed. */
+.app.lobby-session{
+ height:100dvh;min-height:0;overflow:hidden;
+ padding:clamp(8px,1.35dvh,14px) clamp(12px,2vw,26px);
+ display:flex;flex-direction:column;
+}
+.app.lobby-session .topline{flex:0 0 auto;min-height:32px}
+.app.lobby-session .stage.lobby-stage{
+ width:100%;max-width:1560px;margin:clamp(4px,.8dvh,8px) auto 0;
+ min-height:0;flex:1 1 auto;display:flex;flex-direction:column;
+ justify-content:space-between;gap:clamp(6px,.8dvh,10px)
+}
+.app.lobby-session .stage.lobby-stage .question-zone.lobby-view{
+ height:auto;min-height:0;flex:0 1 auto;justify-content:flex-start;
+ gap:clamp(5px,.8dvh,9px);padding:0;
+}
+.app.lobby-session .lobby-hero{margin:0 auto;max-width:100%}
+.app.lobby-session .lobby-hero>.chip{
+ display:inline-block;padding:4px 10px;font-size:11px
+}
+.app.lobby-session .lobby-hero h1{
+ font-size:clamp(24px,3vw,38px);line-height:1.08;margin:4px auto
+}
+.app.lobby-session .lobby-hero p{
+ font-size:clamp(12px,1.1vw,16px);line-height:1.3;margin:2px auto
+}
+.app.lobby-session .lobby-control{gap:8px}
+.app.lobby-session .lobby-control .actions{margin:0;gap:6px}
+.app.lobby-session .lobby-control .actions button{
+ padding:7px 11px;font-size:clamp(11px,.9vw,13px)
+}
+.app.lobby-session .ready-status{
+ margin:0;font-size:clamp(11px,1vw,14px);line-height:1.2
+}
+.app.lobby-session .lobby-hands-status{
+ width:min(100%,700px);margin:0 auto;padding:8px 14px;gap:5px;
+ border-radius:15px
+}
+.app.lobby-session .lobby-hands-status strong{
+ font-size:clamp(18px,1.9vw,26px);line-height:1.2
+}
+.app.lobby-session .lobby-hands-track{
+ height:11px;width:100%
+}
+.app.lobby-session .loading-quiz{
+ margin:0 auto;gap:8px;font-size:clamp(11px,.95vw,13px)
+}
+.app.lobby-session .stage.lobby-stage .bottom-zone{
+ display:grid;flex:0 0 auto;
+ height:clamp(180px,31dvh,255px);min-height:0;max-height:255px;
+ grid-template-columns:minmax(290px,min(36vw,470px)) minmax(0,1fr);
+ gap:clamp(10px,1.2vw,18px);align-items:stretch;
+ margin:0;padding:clamp(5px,.7dvh,9px) 0 0;
+ border-top:1px dashed #7380a6
+}
+.app.lobby-session .stage.lobby-stage .camera-box{
+ box-sizing:border-box;position:relative;
+ width:100%;height:100%;min-height:0;max-height:none;
+ aspect-ratio:auto;overflow:hidden;
+}
+.app.lobby-session .stage.lobby-stage .camera-box video{
+ object-fit:contain
+}
+.app.lobby-session .stage.lobby-stage .scoreboard{
+ height:100%;min-height:0;align-content:stretch;
+ grid-template-columns:repeat(var(--player-count,1),minmax(0,1fr))
+}
+.app.lobby-session .stage.lobby-stage .scoreboard .player{
+ min-height:0;padding:7px 4px
+}
+.app.lobby-session .stage.lobby-stage .camera-label{
+ font-size:11px;padding:3px 8px
+}
+.app.lobby-session .foot{display:none}
+/* Very short desktop windows get a scroll fallback rather than clipped hands
+   or controls. Normal laptop screens fit the lobby without page scrolling. */
+@media(max-height:625px) and (min-width:781px){
+ .app.lobby-session{height:auto;min-height:100dvh;overflow:visible}
+ .app.lobby-session .stage.lobby-stage{
+  min-height:520px;justify-content:flex-start
+ }
+ .app.lobby-session .stage.lobby-stage .bottom-zone{
+  height:190px;min-height:190px
+ }
+}
+@media(max-width:780px){
+ .app.lobby-session{
+  height:auto;min-height:100dvh;overflow:visible
+ }
+ .app.lobby-session .stage.lobby-stage{
+  min-height:0;flex:1 0 auto;justify-content:flex-start;gap:10px
+ }
+ .app.lobby-session .stage.lobby-stage .question-zone.lobby-view{
+  min-height:0
+ }
+ .app.lobby-session .lobby-control{justify-content:center}
+ .app.lobby-session .stage.lobby-stage .bottom-zone{
+  flex:0 0 auto;max-height:none;height:auto;min-height:0;
+  grid-template-columns:minmax(0,1fr);gap:9px
+ }
+ .app.lobby-session .stage.lobby-stage .camera-box{
+  height:clamp(180px,31dvh,245px);min-height:180px
+ }
+ .app.lobby-session .stage.lobby-stage .scoreboard{
+  min-height:66px
+ }
+}
