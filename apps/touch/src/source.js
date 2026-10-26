@@ -20,6 +20,9 @@ export async function touchRequest(action,payload={},endpoint=touchApiEndpoint(l
  if(!response.ok)throw new Error(typeof data.error==="string"?data.error:"QuizDip request failed");
  return data;
 }
+export function normalizeAnswer(value){
+ return String(value??"").normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase();
+}
 export function validateTouchSet(payload){
  if(!payload||typeof payload.ticket!=="string"||typeof payload.locale!=="string"||
    !Array.isArray(payload.questions)||payload.questions.length!==10||
@@ -27,7 +30,9 @@ export function validateTouchSet(payload){
      typeof q.prompt==="string"&&q.prompt.length>0&&Array.isArray(q.options)&&q.options.length===4&&
      q.options.every(x=>typeof x==="string"&&x.length>0)&&
      (q.mediaId===null||typeof q.mediaId==="string")&&
-     (q.clue===null||typeof q.clue==="string")))
+     (q.clue===null||typeof q.clue==="string")&&
+     q.answer&&typeof q.answer.canonical==="string"&&q.answer.canonical.trim()&&
+     q.options.filter(x=>normalizeAnswer(x)===normalizeAnswer(q.answer.canonical)).length===1))
   throw new Error("Incomplete or invalid ten-question game");
  return payload;
 }
