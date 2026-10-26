@@ -70,10 +70,10 @@ export function answerCursorPoint(hand,rects){
  const top=Math.min(...rects.map(r=>r.top)),bottom=Math.max(...rects.map(r=>r.bottom));
  if(![left,right,top,bottom].every(Number.isFinite)||right-left<80||bottom-top<80)return null;
  const clamp01=n=>Math.max(0,Math.min(1,n));
- // A natural camera motion between ~14% and ~58% of frame height traverses
- // BOTH answer rows. The last 42% of camera space is not required.
+ // A natural camera motion between ~10% and ~42% of frame height traverses
+ // BOTH answer rows. The lower 58% of the camera is never required.
  const x=clamp01((hand.cameraX-.12)/.76);
- const y=clamp01((hand.cameraY-.14)/.44);
+ const y=clamp01((hand.cameraY-.10)/.32);
  const insetX=Math.min(40,(right-left)*.08);
  const insetY=Math.min(28,(bottom-top)*.09);
  return {x:left+insetX+x*(right-left-2*insetX),
