@@ -79,7 +79,7 @@ export class HandTracker {
   }
   return next.filter(track=>track.bound!==null&&this.registered.has(track.bound)&&
     !track.blocked&&claims.get(track.bound)===1)
-    .map(track=>({...screenControlPoint(track.points),id:track.bound,count:track.count,
+    .map(track=>({...screenControlPoint(track.points),palmX:screenPoint(track.palm).x,id:track.bound,count:track.count,
       gesture:track.gesture,gestureSince:track.gestureSince,seen:now}));
  }
  // Unregistered stable poses are used only for enrollment; never for answering.
