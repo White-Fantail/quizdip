@@ -33,9 +33,16 @@ export function horizontalControl(previous,hand,now){
  // A fixed neutral position is invariant across questions, view dimensions,
  // language changes and answers with or without media.
  const delta=hand.palmX-s.anchor;
- const position=clamp(.5+delta/(CONTROL_HALF_SPAN*2),.02,.98);
+ // P1/P5 may have joined from pads near the camera's left/right edge.
+ // Compress movement on that side instead of requiring the palm to move
+ // outside the frame to reach A or D.
+ const availableLeft=Math.max(.045,Math.min(CONTROL_HALF_SPAN,s.anchor-.025));
+ const availableRight=Math.max(.045,Math.min(CONTROL_HALF_SPAN,.975-s.anchor));
+ const available=delta<0?availableLeft:availableRight;
+ const position=clamp(.5+delta/(available*2),.02,.98);
  let choice=null;
- if(Math.abs(delta)>NEUTRAL_DEAD_ZONE){
+ const deadZone=Math.min(NEUTRAL_DEAD_ZONE,available*.12);
+ if(Math.abs(delta)>deadZone){
   choice=Math.min(3,Math.floor(position*4));
  }
  return {state:{...s,lastAt:now},ready:true,position,choice};
