@@ -54,3 +54,11 @@ The product is **QuizDip Party** at `https://party.quizdip.com` and the Vercel p
 - To relax or reset between votes, hold a **closed fist (0)** or **open palm (5)** briefly. Each round's vote state resets so unchanged 1–4 fingers carried over from a previous answer are never automatically submitted. Once a player shows 1–4 fingers, that player's existing short hold and 1-second countdown selects the answer.
 - The scoreboard distinguishes resting/ready, voting, tracking loss, and confirmed votes without repeatedly requesting open palms. A missing hand cannot cast a new vote. The camera/video stays local to the browser. The countdown and score calculation are unchanged.
 - Screen readers announce a warning stage instead of reading every timer tick; strong animations respect `prefers-reduced-motion`. Validate with `node --test apps/party/tests/*.test.mjs`, followed by on-device camera testing.
+
+## Fullscreen play surface, non-overlapping choices (2026-10-27)
+
+When the phase is **playing** or **revealed**, the website header, camera status, language dropdown, source label, and footer disappear. The player still sees question number, answer counts, published prompt/clue/media, four answer cards, the timer, and every participant's current score/vote status. Lobby and results retain their normal controls.
+
+On desktop, answers 1 and 3 are to the left and 2 and 4 to the right of a **reserved, non-overlapping center column** for the clock (top: 1/2; bottom: 3/4). On narrower displays the timer uses its **own middle row** between the top and bottom answer pairs. The timer is in normal grid layout, never absolutely positioned over an answer.
+
+Gameplay grows vertically and the page scrolls when the viewport is too short, preventing the bottom answer pair or player scores from being clipped by fixed 100dvh/overflow-hidden positioning. The prompt itself can scroll within its panel when unusually long, without displacing the answer positions. Static layout checks are in `apps/party/tests/game-screen.test.mjs`; test on real devices and zoom levels as well.
