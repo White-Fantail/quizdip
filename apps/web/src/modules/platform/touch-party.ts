@@ -82,7 +82,7 @@ export async function startTouchGame(lane:Lane,locale:Locale){
   const revision=loc.revisions.find(r=>r.version===loc.publishedVersion);
   if(revision)candidates.push({...revision,quizId:quiz.id,revisionId:revision.id});
  }
- const selected:{question:Omit<Question,"options">;answer:Answer;revisionId:string}[]=[];
+ const selected:{question:Omit<Question,"options"|"answer">;answer:Answer;revisionId:string}[]=[];
  const checkedMedia=new Map<string,boolean>();
  for(const row of shuffled(candidates)){
   const parsed=parseTouchCandidate(row);if(!parsed)continue;
