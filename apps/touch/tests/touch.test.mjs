@@ -166,7 +166,7 @@ test("lost number pose, closed fist, missing hand or camera pause DISARMS select
  assert.equal(dwellSelection(state,{id:4,count:3,gesture:"open"},2,1100).state,null);
  assert.equal(dwellSelection(state,{id:4,count:0,gesture:"fist"},2,1100).state,null);
  assert.equal(dwellSelection(state,null,null,1100).state,null);
- const paused=dwellSelection(state,hand(4),2,1600);
+ const paused=dwellSelection(state,hand(4),2,1850);
  assert.equal(paused.state.phase,"arming");
  assert.equal(paused.chosen,null);
 });
