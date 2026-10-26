@@ -30,6 +30,25 @@ export function handGesture(points){
 export function screenPoint(palm,mirror=true){
  return {x:Math.max(0,Math.min(1,mirror?1-palm.x:palm.x)),y:Math.max(0,Math.min(1,palm.y))};
 }
+// The control cursor follows the visibly extended fingertips rather than the palm.
+// This is separate from palm-based physical-track matching (which must remain stable).
+// Camera space is mirrored to match the local preview. The active camera region is
+// expanded to the whole screen, so top-row answers need less physical reach.
+export function screenControlPoint(points){
+ const palm=palmPoint(points);
+ if(!palm)return null;
+ const wrist=points[0],tips=[];
+ for(const [tip,pip] of [[8,6],[12,10],[16,14],[20,18]]){
+  if(distance(points[tip],wrist)>distance(points[pip],wrist)*1.16)tips.push(points[tip]);
+ }
+ const source=tips.length?{
+  x:tips.reduce((sum,p)=>sum+p.x,0)/tips.length,
+  y:tips.reduce((sum,p)=>sum+p.y,0)/tips.length
+ }:palm;
+ const mirrored=screenPoint(source);
+ const clamp01=n=>Math.max(0,Math.min(1,n));
+ return {x:clamp01((mirrored.x-.10)/.80),y:clamp01((mirrored.y-.08)/.80)};
+}
 export function nearestTrackMatching(existing,detections,maxDistance=.21){
  const candidates=[];
  existing.forEach((t,ti)=>detections.forEach((d,di)=>{

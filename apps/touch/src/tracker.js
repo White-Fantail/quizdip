@@ -1,4 +1,4 @@
-import {fingerCount,palmPoint,screenPoint,distance,nearestTrackMatching} from "./gestures.js";
+import {fingerCount,palmPoint,screenPoint,screenControlPoint,distance,nearestTrackMatching} from "./gestures.js";
 export const MAX_PLAYERS=5;
 const LOST_TRACK_MS=260;          // After overlap we demand a fresh finger-count proof.
 const PROOF_HOLD_MS=340;          // Stable number is stronger than spatial identity.
@@ -32,7 +32,7 @@ export class HandTracker {
    const ambiguous=nearby||previousNearby;
    if(ambiguous){track.bound=null;track.lastProofAt=-Infinity;track.blocked=true;}
    if(d.count!==track.count){track.count=d.count;track.countSince=now;}
-   track.palm=d.palm;track.seen=now;
+   track.palm=d.palm;track.points=d.points;track.seen=now;
    const countStable=now-track.countSince>=PROOF_HOLD_MS;
    // A held number owns a slot, regardless of where the hand reappeared.
    const unique=d.count>0&&!detections.some((other,j)=>j!==i&&other.count===d.count);
@@ -79,7 +79,7 @@ export class HandTracker {
   }
   return next.filter(track=>track.bound!==null&&this.registered.has(track.bound)&&
     !track.blocked&&claims.get(track.bound)===1)
-    .map(track=>({...screenPoint(track.palm),id:track.bound,count:track.count,
+    .map(track=>({...screenControlPoint(track.points),id:track.bound,count:track.count,
       gesture:track.gesture,gestureSince:track.gestureSince,seen:now}));
  }
  // Unregistered stable poses are used only for enrollment; never for answering.
@@ -87,6 +87,6 @@ export class HandTracker {
   return this.current.filter(track=>track.count>=1&&track.count<=MAX_PLAYERS&&
     now-track.countSince>=holdMs&&
     !track.blocked&&this.current.filter(other=>other.count===track.count).length===1)
-   .map(track=>({...screenPoint(track.palm),id:track.count,count:track.count}));
+   .map(track=>({...screenControlPoint(track.points),palmY:screenPoint(track.palm).y,id:track.count,count:track.count}));
  }
 }

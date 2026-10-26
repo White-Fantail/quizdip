@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint,fingerCount} from "../src/gestures.js";
+import {palmPoint,handGesture,nearestTrackMatching,answerAtPosition,screenPoint,screenControlPoint,fingerCount} from "../src/gestures.js";
+import {replayDwell} from "../src/replay.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "../src/selection.js";
 import {updateStartPads,START_HOLD_MS} from "../src/start-zones.js";
 import {HandTracker} from "../src/tracker.js";
@@ -238,4 +239,40 @@ test("moving to another answer during 1-second countdown cancels previous answer
  r=dwellSelection(r.state,h,1,1299);
  assert.equal(r.chosen,null);
  assert.equal(r.state.phase,"arming");
+});
+
+// Regression: the screen cursor tracks raised fingertips, not the lower palm.
+test("finger-tip target mirrors correctly and expands top-screen reach",()=>{
+ const p=numberedPose(1,.5),point=screenControlPoint(p);
+ assert.ok(point);
+ const tip=p[8],expectedX=Math.max(0,Math.min(1,((1-tip.x)-.10)/.80));
+ assert.ok(Math.abs(point.x-expectedX)<1e-9);
+ assert.ok(point.y<screenPoint(palmPoint(p)).y-.3,"top choices reachable without lifting the entire palm");
+ assert.ok(Math.abs(screenControlPoint(fingers(true)).x-.5)<.1);
+ assert.equal(screenControlPoint([]),null);
+});
+test("replay needs exactly one held hand, never every previous player",()=>{
+ const rect={left:300,right:700,top:200,bottom:550};
+ const inside={id:3,count:3,x:500,y:350},outside={id:1,count:1,x:100,y:350};
+ let state=null,step;
+ for(let t=0;t<=1400;t+=100){
+  step=replayDwell(state,[inside],rect,t);
+  if(t<1400)assert.equal(step.restart,false);
+  state=step.state;
+ }
+ assert.equal(step.restart,true);
+ assert.equal(step.state,null);
+ assert.equal(replayDwell(null,[outside],rect,0).restart,false);
+ let lost=replayDwell(null,[inside],rect,100).state;
+ lost=replayDwell(lost,[],rect,200).state;
+ assert.equal(lost,null,"losing the hand cancels the hover");
+});
+test("replay cannot inherit another hand's countdown",()=>{
+ const rect={left:0,top:0,right:800,bottom:800};
+ let state=null;
+ for(let t=0;t<=800;t+=100)state=replayDwell(state,[{id:2,count:2,x:400,y:400}],rect,t).state;
+ const changed=replayDwell(state,[{id:4,count:4,x:400,y:400}],rect,900);
+ assert.equal(changed.restart,false);
+ assert.equal(changed.state.id,4);
+ assert.equal(changed.state.phase,"arming");
 });

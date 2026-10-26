@@ -2,6 +2,7 @@ import {HandTracker,MAX_PLAYERS} from "./tracker.js";
 import {answerAtPosition} from "./gestures.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "./selection.js";
 import {updateStartPads,START_HOLD_MS} from "./start-zones.js";
+import {replayDwell} from "./replay.js";
 import {DEMO_QUESTIONS,freshGame,register,begin,submit,reveal,advance,ROUND_MS} from "./game.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
@@ -9,7 +10,7 @@ const mouseTest=new URLSearchParams(location.search).get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
 let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,lastInferDuration=0,backend="CPU";
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
-let startHolds=new Map();
+let startHolds=new Map(),restartIntent=null;
 const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
@@ -28,7 +29,7 @@ function cleanPlayUI(){
  choiceMarkers.clear();
 }
 function resetGame(){
- game=freshGame();tracker.reset();seenHands=[];startHolds.clear();cleanPlayUI();render(true);
+ game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;cleanPlayUI();drawHands([]);render(true);
 }
 function updateHeader(){
  el("status").textContent=cameraReady?t("● 카메라 연결됨","● CAMERA READY"):t("카메라 연결 전","CAMERA OFF");
@@ -36,8 +37,11 @@ function updateHeader(){
   ?t("번호 확인 "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend,
      "Confirmed "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend)
   :t("카메라 영상은 기기 밖으로 전송되지 않습니다","Camera video stays on this device");
- el("footer").textContent=t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
- "Keep your numbered fingers extended. Hold still in your own start zone or an answer to select. No fist needed.");
+ el("footer").textContent=game.phase==="finished"
+  ?t("마우스/터치로 다시 시작하거나, 손가락을 펼친 손 하나만 재시작 영역에 머물러 주세요.",
+    "Click or tap replay, or hold just one numbered hand on the replay zone.")
+  :t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손끝을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
+    "Keep your numbered fingers extended. Hold your fingertips in a start zone or answer to select. No fist needed.");
 }
 function showMessage(message,warning=false){
  const note=el("messages");
@@ -47,6 +51,7 @@ function showMessage(message,warning=false){
  div.textContent=message;note.append(div);
 }
 function updateScores(){
+ if(game.phase==="finished"){el("scores").innerHTML="";return;}
  el("scores").innerHTML=game.players.map(p=>{
   const hand=seenHands.find(h=>h.id===p.id&&h.count===p.id);
   const detected=!!hand||(mouseTest&&!cameraReady);
@@ -61,6 +66,8 @@ function render(force=false){
  if(!force&&stamp===stageStamp)return;
  stageStamp=stamp;
  const top=el("top");top.classList.toggle("lobby-view",game.phase==="lobby");
+ top.classList.toggle("finished-view",game.phase==="finished");
+ document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished");
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(game.phase==="lobby"){
@@ -112,11 +119,20 @@ function render(force=false){
   }
   updateVotes();refreshChoiceMarkers();
  }else{
+  restartIntent=null;
   const sorted=[...game.players].sort((a,b)=>b.score-a.score);
-  top.innerHTML='<div class="results"><span class="chip">QUIZDIP TOUCH · FINISHED</span><h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
-   sorted.map((p,i)=>'<div class="player" style="--accent:'+color(p.id)+'">'+(i+1)+'. P'+p.id+' — '+p.score+' pts · '+p.correct+'/'+DEMO_QUESTIONS.length+'</div>').join('')+
-   '<div class="actions"><button class="primary" id="restart">'+t("다시 플레이","Play again")+'</button></div></div>';
-  el("restart").onclick=resetGame;
+  const winner=sorted[0];
+  top.innerHTML='<div class="results"><span class="chip">QUIZDIP TOUCH · FINISHED</span>'+
+   '<h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
+   '<div class="result-winner" style="--accent:'+color(winner.id)+'"><span>🥇 P'+winner.id+'</span><strong>'+winner.score+' pts</strong><small>'+t("최고 점수","Top score")+'</small></div>'+
+   '<div class="result-standings">'+sorted.map((p,i)=>
+    '<div class="result-row" style="--accent:'+color(p.id)+'"><span>'+(i+1)+'. P'+p.id+'</span><strong>'+p.score+' pts</strong><small>'+p.correct+' / '+DEMO_QUESTIONS.length+' '+t("정답","correct")+'</small></div>'
+   ).join('')+'</div>'+
+   '<button type="button" id="restartZone" class="restart-zone" style="--replay-progress:0%">'+
+    '<span class="restart-ring">↻</span><span class="restart-copy"><strong>'+t("다시 플레이","Play again")+'</strong>'+
+    '<small id="restartHint">'+t("클릭하거나, 손가락을 펼친 손 하나를 여기에 1.4초 머물러 주세요",
+      "Click, or hold one numbered hand here for 1.4 seconds")+'</small></span></button></div>';
+  el("restartZone").onclick=resetGame;
  }
  updateHeader();updateScores();
 }
@@ -159,7 +175,7 @@ function drawHands(hands){
  const active=new Set();
  for(const hand of hands){
   const player=game.players.find(p=>p.id===hand.id);
-  if(!player||hand.count!==player.id)continue;
+  if((game.phase!=="finished"&&!player)||hand.count!==hand.id)continue;
   active.add(hand.id);
   let node=pointerNodes.get(hand.id);
   if(!node){node=document.createElement("div");node.className="cursor";el("pointers").append(node);pointerNodes.set(hand.id,node);}
@@ -204,6 +220,26 @@ function refreshChoiceMarkers(){
  }
  for(const [id,marker] of choiceMarkers)if(!active.has(id)){marker.remove();choiceMarkers.delete(id);}
 }
+function restartInputs(now){
+ const zone=el("restartZone");
+ if(!zone)return;
+ const bounds=zone.getBoundingClientRect();
+ const candidates=tracker.candidates(now,300);
+ const result=replayDwell(restartIntent,candidates.map(h=>({...h,x:h.x*innerWidth,y:h.y*innerHeight})),bounds,now);
+ restartIntent=result.state;
+ const progress=Math.round((restartIntent?.progress||0)*100);
+ zone.style.setProperty("--replay-progress",progress+"%");
+ zone.classList.toggle("is-holding",!!restartIntent);
+ const hint=el("restartHint");
+ if(hint)hint.textContent=restartIntent?.phase==="countdown"
+  ?t("재시작까지 "+(restartIntent.remainingMs/1000).toFixed(1)+"초",
+     "Restarting in "+(restartIntent.remainingMs/1000).toFixed(1)+"s")
+  :restartIntent?t("그대로 유지하세요…","Keep holding…")
+  :t("클릭하거나, 손가락을 펼친 손 하나를 여기에 1.4초 머물러 주세요",
+     "Click, or hold one numbered hand here for 1.4 seconds");
+ if(result.restart)resetGame();
+ return candidates;
+}
 function touchInputs(hands,now){
  if(game.phase!=="playing")return;
  const positions=rects();
@@ -227,7 +263,7 @@ function manageHands(hands,now){
  if(game.phase==="lobby"){
   let added=false;
   for(const candidate of tracker.candidates(now,780)){
-   if(candidate.y<.42)continue;
+   if(candidate.palmY<.42)continue;
    added=register(game,candidate.id)||added;
   }
   if(added){tracker.setRegistered(playerIDs());startHolds.clear();render(true);}
@@ -241,6 +277,10 @@ function manageHands(hands,now){
   startHolds=status.holds;
   refreshPads(status);
   if(status.start&&begin(game,now)){cleanPlayUI();startHolds.clear();render(true);}
+ }else if(game.phase==="finished"){
+  const replayHands=restartInputs(now);
+  drawHands(game.phase==="finished"?replayHands:[]);
+  return;
  }else touchInputs(hands,now);
  drawHands(hands);
 }
@@ -279,6 +319,7 @@ function frame(now){
   seenHands=[];startHolds.clear();intents.clear();drawHands([]);
   if(game.phase==="lobby")refreshPads({holds:startHolds,insideCount:0,readyCount:0,total:game.players.length,start:false});
   if(game.phase==="playing")refreshChoiceMarkers();
+  if(game.phase==="finished"){restartIntent=null;const zone=el("restartZone");if(zone){zone.classList.remove("is-holding");zone.style.setProperty("--replay-progress","0%");}}
  }
  gameClock(current);
  if(current-lastUiRefresh>=300){updateScores();updateHeader();lastUiRefresh=current;}
