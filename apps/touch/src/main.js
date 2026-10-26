@@ -1,5 +1,5 @@
 import {HandTracker,MAX_PLAYERS} from "./tracker.js";
-import {answerAtPosition} from "./gestures.js";
+import {answerAtPosition,answerCursorPoint} from "./gestures.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "./selection.js";
 import {updateStartPads,START_HOLD_MS} from "./start-zones.js";
 import {replayDwell} from "./replay.js";
@@ -13,7 +13,7 @@ let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
 let startHolds=new Map(),restartIntent=null,selectedLane=null,gameTicket=null,loadedLocale=null;
 let loading=false,loadError="",loadRevision=0;
-const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map();
+const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map(),smoothedAnswers=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
@@ -56,7 +56,7 @@ function changeLane(){
  cleanPlayUI();drawHands([]);el("messages").textContent="";render(true);
 }
 function cleanPlayUI(){
- intents.clear();answeredPositions.clear();
+ intents.clear();answeredPositions.clear();smoothedAnswers.clear();
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
 }
@@ -75,8 +75,11 @@ function updateHeader(){
   game.phase==="finished"
   ?t("마우스/터치로 다시 시작하거나, 손가락을 펼친 손 하나만 재시작 영역에 머물러 주세요.",
     "Click or tap replay, or hold just one numbered hand on the replay zone.")
-  :t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손끝을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
-    "Keep your numbered fingers extended. Hold your fingertips in a start zone or answer to select. No fist needed.");
+  :game.phase==="playing"||game.phase==="revealed"
+   ?t("손을 카메라 중앙에 둔 채 손끝을 조금만 움직여 네 보기를 선택하세요. 손목을 아래로 내릴 필요가 없어요.",
+      "Keep your full hand visible in the camera center. Small fingertip movements reach all four answers.")
+   :t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손끝을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
+     "Keep your numbered fingers extended. Hold your fingertips in a start zone or answer to select. No fist needed.");
 }
 function showMessage(message,warning=false){
  const note=el("messages");
@@ -105,6 +108,7 @@ function render(force=false){
  top.classList.toggle("finished-view",game.phase==="finished"&&!!selectedLane);
  document.querySelector(".stage").classList.toggle("results-stage",game.phase==="finished"&&!!selectedLane);
  document.querySelector(".stage").classList.toggle("selection-stage",!selectedLane);
+ document.querySelector(".stage").classList.toggle("playing-stage",game.phase==="playing"||game.phase==="revealed");
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
  if(!selectedLane){
@@ -314,6 +318,27 @@ function restartInputs(now){
  if(result.restart)resetGame();
  return candidates;
 }
+// Preserve a full hand and wrist inside the video: when answering, use the
+// four answer rectangles as the pointer's control surface, not the full screen.
+// Light smoothing avoids a tracked fingertip trembling across the row divider.
+function answerHands(hands){
+ const boxes=rects();
+ if(boxes.length!==4){smoothedAnswers.clear();return hands;}
+ const visible=new Set();
+ const result=hands.map(hand=>{
+  const target=answerCursorPoint(hand,boxes);
+  if(!target)return hand;
+  visible.add(hand.id);
+  const prev=smoothedAnswers.get(hand.id);
+  const alpha=prev?.count===hand.count?.38:1;
+  const x=prev?prev.x+(target.x-prev.x)*alpha:target.x;
+  const y=prev?prev.y+(target.y-prev.y)*alpha:target.y;
+  smoothedAnswers.set(hand.id,{x,y,count:hand.count});
+  return {...hand,x:x/innerWidth,y:y/innerHeight};
+ });
+ for(const id of smoothedAnswers.keys())if(!visible.has(id))smoothedAnswers.delete(id);
+ return result;
+}
 function touchInputs(hands,now){
  if(game.phase!=="playing")return;
  const positions=rects();
@@ -333,7 +358,10 @@ function touchInputs(hands,now){
  refreshChoiceMarkers();
 }
 function manageHands(hands,now){
- seenHands=hands;lastGoodFrame=now;
+ // Only playing/reveal uses answer-space coordinates. Lobby start pads and
+ // the independent replay button preserve their own original mapping.
+ const controls=game.phase==="playing"||game.phase==="revealed"?answerHands(hands):hands;
+ seenHands=controls;lastGoodFrame=now;
  if(game.phase==="lobby"&&selectedLane){
   let added=false;
   for(const candidate of tracker.candidates(now,780)){
@@ -343,7 +371,7 @@ function manageHands(hands,now){
   if(added){tracker.setRegistered(playerIDs());startHolds.clear();render(true);}
   const visiblePads=[...document.querySelectorAll("[data-start]")];
   const pads=new Map(visiblePads.map(node=>[Number(node.dataset.start),node.getBoundingClientRect()]));
-  const status=updateStartPads(startHolds,playerIDs(),hands,(id,hand)=>{
+  const status=updateStartPads(startHolds,playerIDs(),controls,(id,hand)=>{
    const box=pads.get(id);if(!box)return false;
    const x=hand.x*innerWidth,y=hand.y*innerHeight;
    return x>=box.left&&x<=box.right&&y>=box.top&&y<=box.bottom;
@@ -355,8 +383,8 @@ function manageHands(hands,now){
   const replayHands=restartInputs(now);
   drawHands(game.phase==="finished"?replayHands:[]);
   return;
- }else touchInputs(hands,now);
- drawHands(hands);
+ }else touchInputs(controls,now);
+ drawHands(controls);
 }
 function gameClock(now){
  if(game.phase==="playing"){
