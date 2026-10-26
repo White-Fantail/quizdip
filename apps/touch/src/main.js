@@ -1,8 +1,9 @@
 import {HandTracker,MAX_PLAYERS} from "./tracker.js";
 import {answerAtPosition} from "./gestures.js";
+import {foldSelection} from "./selection.js";
 import {DEMO_QUESTIONS,freshGame,register,begin,submit,reveal,advance,lobbyStartStatus} from "./game.js";
 
-const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80","#b9a9fc","#b3f48b","#ff909f"];
+const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const params=new URLSearchParams(location.search);
 const mouseTest=params.get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
@@ -18,23 +19,23 @@ const positionIndex=()=>Array.from(document.querySelectorAll("[data-answer]")).m
 function updateHeader(){
  el("status").textContent=cameraReady?t("● 카메라 연결됨","● CAMERA READY"):t("카메라 연결 전","CAMERA OFF");
  el("cameraLabel").textContent=cameraReady
-   ?t("감지 "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend,
-      "Seen "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend)
+   ?t("번호 확인 "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend,
+      "Identified "+seenHands.length+"/"+game.players.length+" · "+Math.round(lastInferDuration)+"ms · "+backend)
    :t("카메라 영상은 기기 밖으로 전송되지 않습니다","Camera video stays on this device");
- el("footer").textContent=t("손이 잠시 가려져도 등록은 유지됩니다. 원래 자리에서 다시 손을 펼쳐 주세요. 완전히 겹친 손은 카메라로 구분할 수 없습니다.",
-"Registered players survive brief hand loss. Show your hand near its old spot to reconnect; fully occluded hands cannot be distinguished.");
+ el("footer").textContent=t("손이 겹쳐 번호가 사라지면 자신의 번호만큼 손가락을 다시 펴주세요. 보기 안에서 손가락을 접어야 선택됩니다.",
+"After overlap, show your numbered fingers again. Fold your fingers INSIDE an answer to select; passing through never selects.");
 }
 function showMessage(message,warning=false){
  el("messages").innerHTML='<div class="notice" style="margin:12px 0;'+(warning?'border-color:#eeb493;':'')+'">'+message+'</div>';
 }
 function updateScores(){
  el("scores").innerHTML=game.players.map(p=>{
-  const hand=seenHands.find(h=>h.id===p.trackId);
-  const detected=!!hand||(mouseTest&&p.trackId<0);
+  const hand=seenHands.find(h=>h.id===p.id);
+  const detected=!!hand||(mouseTest&&!cameraReady);
   const label=game.phase==="lobby"&&hand
-   ?(hand.gesture==="fist"?t("✊ 준비됨","✊ Ready"):hand.gesture==="open"?t("✋ 등록 유지","✋ Registered"):t("손 인식 중","Tracking"))
-   :(detected?t("인식 중","Tracking"):t("재연결 대기 · 원래 위치에서 손을 펼쳐주세요","Reconnecting · show hand near original spot"));
-  return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+colors[(p.id-1)%colors.length]+'"><b>P'+p.id+'</b><b>'+p.score+'</b><em>'+label+'</em></div>';
+   ?(hand.gesture==="fist"?t("✊ 준비됨","✊ Ready"):hand.count===p.id?t("손가락 "+p.id+"개 확인","Finger "+p.id+" confirmed"):t("번호 포즈 유지","Hold your number"))
+   :(detected?t("인식 중","Tracking"):t("손가락 "+p.id+"개를 다시 보여주세요","Show "+p.id+" fingers again"));
+  return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+colors[(p.id-1)%colors.length]+'"><b>P'+p.id+' · ✋'+p.id+'</b><b>'+p.score+'</b><em>'+label+'</em></div>';
  }).join("")||'<p style="grid-column:1/-1;color:#b8c8e4">'+t("손을 펼치고 카메라를 향해 주세요.","Show an open palm to the camera.")+'</p>';
 }
 function render(force=false){
@@ -43,22 +44,22 @@ function render(force=false){
  stageStamp=stamp;
  const top=el("top");
  if(game.phase==="lobby"){
-  top.innerHTML='<div class="hero"><span class="chip">PARTY TRIVIA · '+MAX_PLAYERS+' PLAYERS</span><h1>'+t("손을 들어 정답을 맞혀라!","Your hands are the controllers!")+'</h1><p>'+t("한 사람당 한 손을 손가락까지 쫙 펼쳐 등록하세요. 문제가 시작되면 화면 아래에서 손을 위의 정답 카드로 올려주세요.",
-   "Register with one fully open hand per person. Move your hand from the lower area into an answer card.")+'</p></div>'+
-   '<div class="hero"><strong>'+t("참가자","Players")+': <span id="playerCount">'+game.players.length+'</span>/8</strong>'+
+  top.innerHTML='<div class="hero"><span class="chip">PARTY TRIVIA · '+MAX_PLAYERS+' PLAYERS</span><h1>'+t("손을 들어 정답을 맞혀라!","Your hands are the controllers!")+'</h1><p>'+t("손가락 개수로 번호를 정하세요: 1개=P1, 2개=P2, 3개=P3, 4개=P4, 5개=P5. 같은 번호를 보여주면 겹친 뒤에도 다시 연결됩니다.",
+   "Hold 1–5 fingers to claim P1–P5. Show that same number after overlapping to reconnect.")+'</p></div>'+
+   '<div class="hero"><strong>'+t("참가자","Players")+': <span id="playerCount">'+game.players.length+'</span>/5</strong>'+
    '<div class="actions"><button class="primary" id="enableCamera">'+t("카메라 시작","Start camera")+'</button>'+
    '<button class="secondary" id="resetPlayers">'+t("플레이어 초기화","Reset players")+'</button>'+
    (mouseTest?'<button class="secondary" id="testJoin">+ Test player</button><button class="secondary" id="testFists">'+(testFists?"✊ Release test fists":"✊ Hold test fists")+'</button>':'')+'</div>'+
-   '<p class="start-instructions">'+t("✋ 손을 펴면 참가 등록이 유지돼요. 모두 ✊ 주먹을 쥐고 1초간 유지하면 자동 시작!",
-   "✋ Keep hands open to stay registered. When EVERY player holds ✊ fists for 1 second, the game starts!")+'</p>'+
+   '<p class="start-instructions">'+t("번호 손가락을 0.8초간 보여주고, 전원이 ✊ 주먹을 1초간 유지하면 자동 시작!",
+   "Hold your numbered fingers for 0.8 seconds, then everyone holds ✊ fists for 1 second to start!")+'</p>'+
    '<div class="start-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="'+t("전체 주먹 준비","All fists ready")+'"><div id="startProgressFill"></div></div>'+
    '<p id="readyStatus" aria-live="off">'+t("모두 등록한 뒤 함께 주먹을 쥐세요.","Register everyone, then make fists together.")+'</p>'+
-   '<p>'+t("게임 중에는 보기 안에 손을 0.7초 유지하거나 주먹을 쥐면 선택됩니다.",
-   "During the game, dwell in an answer for 0.7 seconds or close your fist to choose.")+'</p></div>';
+   '<p>'+t("게임 중에는 번호 손가락을 펼친 채 보기로 이동한 다음, 그 안에서 주먹을 쥐어야 선택됩니다. 오래 머물거나 지나가기만 하면 선택되지 않습니다.",
+   "Move your numbered fingers into a choice, then close into a fist INSIDE it. Hovering or passing through never selects.")+'</p></div>';
   el("enableCamera").onclick=()=>void startCamera();
   el("resetPlayers").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lobbyFistSince=null;testFists=false;render(true);};
   if(mouseTest){
-   el("testJoin").onclick=()=>{register(game,-(game.players.length+1));lobbyFistSince=null;render(true);};
+   el("testJoin").onclick=()=>{const n=[1,2,3,4,5].find(x=>!game.players.some(p=>p.id===x));if(n!==undefined)register(game,n);lobbyFistSince=null;render(true);};
    el("testFists").onclick=()=>{testFists=!testFists;lobbyFistSince=null;el("testFists").textContent=testFists?"✊ Release test fists":"✊ Hold test fists";};
   }
  }else if(game.phase==="playing"||game.phase==="revealed"){
@@ -69,7 +70,7 @@ function render(force=false){
      '<b>'+String.fromCharCode(65+i)+'</b><span>'+o+'</span><span class="vote" data-vote="'+i+'"></span></button>').join("")+'</div>';
   for(const b of document.querySelectorAll("[data-answer]"))b.onclick=()=>{
    if(!mouseTest||game.phase!=="playing")return;
-   submit(game,game.players[0]?.trackId,Number(b.dataset.answer),performance.now());updateVotes();
+   submit(game,game.players[0]?.id,Number(b.dataset.answer),performance.now());updateVotes();
   };
   updateVotes();
  }else{
@@ -87,7 +88,7 @@ function updateVotes(){
  cards.forEach((b,i)=>{
   const voters=[...game.answers.entries()].filter(([_,v])=>v.choice===i);
   const badge=b.querySelector("[data-vote]");if(badge)badge.textContent=voters.map(([id])=>{
-   const p=game.players.find(x=>x.trackId===id);return p?"P"+p.id:"?";
+   const p=game.players.find(x=>x.id===id);return p?"P"+p.id:"?";
   }).join(" ");
   if(game.phase==="revealed"&&i!==DEMO_QUESTIONS[game.round].answer&&voters.length)b.classList.add("wrong");
  });
@@ -95,7 +96,7 @@ function updateVotes(){
 function drawHands(hands){
  const active=new Set();
  for(const h of hands){
-  const player=game.players.find(p=>p.trackId===h.id);
+  const player=game.players.find(p=>p.id===h.id);
   if(!player)continue;
   active.add(h.id);
   let node=pointerNodes.get(h.id);
@@ -111,36 +112,26 @@ function touchInputs(hands,now){
  if(game.phase!=="playing")return;
  const rects=positionIndex();
  for(const h of hands){
-  if(!game.players.some(p=>p.trackId===h.id)||game.answers.has(h.id))continue;
+  if(!game.players.some(p=>p.id===h.id)||game.answers.has(h.id))continue;
   const selected=answerAtPosition(h.x*innerWidth,h.y*innerHeight,rects);
-  const state=intents.get(h.id)||{selected:null,since:now,fistSince:0};
-  if(selected!==state.selected){state.selected=selected;state.since=now;state.fistSince=0;}
-  if(selected!==null){
-   if(h.gesture==="fist"){if(!state.fistSince)state.fistSince=now;}else state.fistSince=0;
-   const hover=now-state.since>=700;
-   const fist=state.fistSince>0&&now-state.fistSince>=160;
-   if(hover||fist){
-    if(submit(game,h.id,selected,now)){updateVotes();showMessage(t("P"+game.players.find(p=>p.trackId===h.id).id+" 선택 완료","Player answer locked"));}
-   }
+  const result=foldSelection(intents.get(h.id),h,selected,now);
+  intents.set(h.id,result.state);
+  if(result.chosen!==null&&submit(game,h.id,result.chosen,now)){
+   updateVotes();showMessage(t("P"+h.id+" 선택 완료 ✊","P"+h.id+" answer confirmed ✊"));
   }
-  intents.set(h.id,state);
  }
 }
 function manageHands(hands,now){
  seenHands=hands;
- // On any detection gap, clear stale selection dwell/fist timers.
+ // An interrupted gesture cannot complete an answer when the hand returns.
  const visibleIds=new Set(hands.map(h=>h.id));
  for(const id of intents.keys())if(!visibleIds.has(id))intents.delete(id);
- tracker.setPinnedIds(game.players.map(p=>p.trackId));
  if(game.phase==="lobby"){
   let added=false;
-  for(const h of hands){
-   if(h.gesture==="open"&&now-h.gestureSince>=700&&h.y>=.42){
-    const didRegister=register(game,h.id);if(didRegister)tracker.pin(h.id);
-    added=didRegister||added;
-   }
+  for(const h of tracker.candidates(now,780)){
+   if(h.y>=.42)added=register(game,h.id)||added;
   }
-  if(added){lobbyFistSince=null;render(true);}
+  if(added){tracker.setRegistered(game.players.map(p=>p.id));lobbyFistSince=null;render(true);}
  }else touchInputs(hands,now);
  drawHands(hands);
 }
@@ -148,7 +139,7 @@ function updateLobbyStart(now){
  if(game.phase!=="lobby")return;
  // Only recent camera observations may count toward readiness. Simulation is dev-only.
  const hands=mouseTest&&testFists
-  ?game.players.map(p=>({id:p.trackId,gesture:"fist"}))
+  ?game.players.map(p=>({id:p.id,gesture:"fist"}))
   :(cameraReady&&now-lastInference<Math.min(1100,Math.max(550,lastInferDuration*2.2+120))?seenHands:[]);
  const status=lobbyStartStatus(game,hands,now,lobbyFistSince);
  lobbyFistSince=status.since;
@@ -159,9 +150,9 @@ function updateLobbyStart(now){
  if(bar)bar.setAttribute("aria-valuenow",String(progress));
  const statusEl=el("readyStatus");
  if(statusEl)statusEl.textContent=status.total===0
-   ?t("손가락을 쫙 펴서 참가자를 등록하세요.","Show open hands to register players.")
+   ?t("손가락을 1~5개 펴서 0.8초 유지하면 해당 번호로 등록돼요.","Show 1–5 fingers for 0.8 seconds to register your number.")
    :status.visible!==status.total
-     ?t("인식 중인 참가자: "+status.visible+"/"+status.total+" — 모든 손이 보여야 시작해요.","Visible hands: "+status.visible+"/"+status.total+" — all must be visible.")
+     ?t("번호 확인된 참가자: "+status.visible+"/"+status.total+" — 모든 손이 보여야 시작해요.","Confirmed hands: "+status.visible+"/"+status.total+" — all must be visible.")
      :status.fists!==status.total
        ?t("주먹 준비: "+status.fists+"/"+status.total+" — 펼친 손도 등록은 유지돼요.","Fists ready: "+status.fists+"/"+status.total+" — open hands remain registered.")
        :t("모두 준비! 주먹을 유지하세요 · "+progress+"%","Everyone ready! Hold fists · "+progress+"%");
@@ -191,8 +182,8 @@ function frame(now){
    const completed=performance.now();
    lastInferDuration=lastInferDuration*.7+(completed-started)*.3;
    lastInference=completed;
-   tracker.setPinnedIds(game.players.map(p=>p.trackId));
-   manageHands(tracker.update(detections.landmarks,completed,detections.handednesses),completed);
+   tracker.setRegistered(game.players.map(p=>p.id));
+   manageHands(tracker.update(detections.landmarks,completed),completed);
   }catch(e){
    lastInference=performance.now();
    showMessage(t("손 추적 오류: ","Tracking error: ")+String(e),true);

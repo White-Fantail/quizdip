@@ -10,8 +10,9 @@ export const DEMO_QUESTIONS=[
 ];
 export function freshGame(){return {phase:"lobby",players:[],round:0,answers:new Map(),endTime:0,startedAt:0};}
 export function register(game,trackId){
- if(game.phase!=="lobby"||game.players.length>=8||game.players.some(p=>p.trackId===trackId))return false;
- game.players.push({id:game.players.length+1,trackId,score:0,correct:0});return true;
+ if(game.phase!=="lobby"||!Number.isInteger(trackId)||trackId<1||trackId>5||game.players.length>=5||
+    game.players.some(p=>p.id===trackId))return false;
+ game.players.push({id:trackId,trackId,score:0,correct:0});return true;
 }
 export function begin(game,now){
  if(game.phase!=="lobby"||game.players.length===0)return false;
