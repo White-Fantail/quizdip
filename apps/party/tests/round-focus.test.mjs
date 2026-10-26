@@ -38,21 +38,19 @@ test("fixed four-choice layout, accessible status, and always-on center clock",(
  assert.match(main,/roundFocusState\(\{/);
  assert.doesNotMatch(main,/id="countdown"/);
  assert.match(css,/\.stage\.playing-stage \.choices\{position:relative;isolation:isolate\}/);
- assert.match(css,/\.status-focus\{[^}]*position:absolute/s);
+ assert.match(css,/\.app\.play-session \.stage\.playing-stage \.choices \.status-focus\{[\s\S]*?position:relative;left:auto;top:auto;transform:none/);
  assert.match(css,/\.status-focus\[data-mode="critical"\]/);
  assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
 });
 
-test("central timer stays between 2x2 choices on narrow screens",()=>{
+test("center clock has a dedicated grid location at desktop and phone widths",()=>{
  const css=read("../src/style.css");
  const main=read("../src/main.js");
- const section=css.slice(css.lastIndexOf("/* Hand-friendly PARTY BOARD v3"));
- assert.match(section,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
- assert.match(section,/grid-template-rows:repeat\(2,minmax\(0,1fr\)\)/);
- assert.match(css,/\.status-focus\{[^}]*left:50%;top:50%/s);
- assert.match(css,/@media\(max-width:780px\)\{[\s\S]*?\.stage\.playing-stage \.choices \.status-focus\{[\s\S]*?left:50%;top:50%;transform:translate\(-50%,-50%\)/);
- assert.match(css,/\.choices \.choice:nth-child\(odd\)/);
- assert.match(css,/\.choices \.choice:nth-child\(even\)/);
- assert.doesNotMatch(css,/top:5px;transform:translate\(-50%,0\)/);
+ const clock=css.slice(css.lastIndexOf("/* PARTY BOARD v4: four"),css.lastIndexOf("/* PARTY BOARD v4: never"));
+ assert.match(clock,/grid-template-columns:minmax\(0,1fr\) clamp\(158px,12vw,205px\) minmax\(0,1fr\)/);
+ assert.match(clock,/grid-column:2;grid-row:1 \/ span 2/);
+ assert.match(clock,/@media\(max-width:780px\)/);
+ assert.match(clock,/grid-column:1 \/ -1;grid-row:2/);
+ assert.doesNotMatch(clock,/position:absolute/);
  assert.match(main,/answers\.map\(\(answer,i\)=>/);
 });
