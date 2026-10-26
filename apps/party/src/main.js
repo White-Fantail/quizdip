@@ -12,8 +12,7 @@ let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
 let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
-let allReadyAt=null,lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
-const readyPlayers=new Set();
+let lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>PARTY</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
@@ -53,7 +52,7 @@ function changeLane(){
  cleanPlayUI();el("messages").textContent="";render(true);
 }
 function cleanPlayUI(){
- intents.clear();answeredPositions.clear();readyPlayers.clear();allReadyAt=null;lastFocusAnnouncement="";
+ intents.clear();answeredPositions.clear();lastFocusAnnouncement="";
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
 }
@@ -69,8 +68,8 @@ function confirmPlayers(){
  recognitionPhase="locked";lobbyHold=null;render(true);
 }
 function startRecognizedGame(){
- // The player count was verified before lock. A hand may leave the frame
- // briefly to press Start; the first round still requires neutral pose.
+ // Registration happens in the lobby. During rounds, resting with a fist is fine.
+ // A fist (0) or open palm (5) is a neutral pose before choosing 1–4.
  if(loading||!gameTicket||!game.players.length||(!mouseTest&&!cameraReady))return;
  if(begin(game,performance.now())){cleanPlayUI();render(true);}
 }
@@ -96,8 +95,8 @@ function updateHeader(){
  el("footer").textContent=!selectedLane?t("어른용 또는 어린이용을 선택하세요.","Choose Adult or Kids to play."):
   game.phase==="finished"?t("다시 플레이를 눌러 새 게임을 시작하세요.","Tap Play again for a new game."):
   game.phase==="playing"||game.phase==="revealed"
-   ?t("각자 자리에서 손가락 5개로 준비, 1~4개로 정답 선택. 손 이동은 필요 없어요.",
-      "Stay in your lane. Show five fingers to get ready; show 1–4 to vote. No reaching.")
+   ?t("주먹을 쥐고 편하게 생각하세요. 답을 알면 같은 자리에서 손가락 1~4개로 선택하세요.",
+      "Relax with a fist while thinking. When ready, show 1–4 fingers in your lane to vote.")
    :recognitionPhase==="scanning"
     ?t("최대 다섯 손을 펼쳐 그대로 유지하면 인원이 자동 확정됩니다. 손가락 개수는 플레이어 번호가 아니에요.",
        "Hold up to five open hands steady to lock players automatically. Finger count is not player ID.")
@@ -124,13 +123,13 @@ function updateScores(){
   const detected=!!hand||(mouseTest&&!cameraReady);
   const vote=game.phase==="playing"?intents.get(id):null;
   const answer=game.answers.get(id);
-  const phase=answer?t("확정 ✓","VOTED ✓"):!detected?t("손을 다시 보여주세요","Hand not detected"):
-   vote?.phase==="neutral"?t("손가락 5개로 준비","Show five fingers"):
-   vote?.phase==="ready"?t("1~4개로 정답 선택","Show 1–4 fingers"):
+  const phase=answer?t("확정 ✓","VOTED ✓"):!detected?t("선택할 때 주먹부터 보여주세요","Show a fist when ready to vote"):
+   vote?.phase==="neutral"?t("주먹으로 잠시 대기","Hold a fist briefly"):
+   vote?.phase==="ready"?t("생각하다가 1~4개로 선택","Think, then show 1–4"):
    vote?.phase==="arming"?t("손가락 확인 중","Reading fingers"):
    vote?.phase==="countdown"?Math.max(0,vote.remainingMs/1000).toFixed(1)+"s":
    game.phase==="revealed"?t("정답 확인","Revealed"):
-   game.phase==="lobby"?t("손 인식 완료","Hand confirmed"):t("손가락 5개로 준비","Show five fingers");
+   game.phase==="lobby"?t("손 인식 완료","Hand confirmed"):t("주먹으로 쉬었다가 선택","Rest with a fist, then vote");
   const count=answer?String(answer.choice+1):hand?.count>=1&&hand?.count<=4?String(hand.count):
    hand?.count===5?"5":hand?.count===0?"✊":"—";
   const progress=answer?100:vote?.phase==="countdown"?Math.round(vote.progress*100):0;
@@ -255,8 +254,8 @@ function render(force=false){
     '</div><div class="choices">'+answers.map((answer,i)=>
     '<div class="choice '+(game.phase==="revealed"&&i===game.correctIndex?'correct':'')+'" data-answer="'+i+'"><b>'+
     (i+1)+'</b><span>'+escapeHtml(answer)+'</span><div class="vote" data-vote="'+i+'"></div></div>').join('')+
-    '<div id="statusFocus" class="status-focus" data-mode="prepare" aria-label="'+t("라운드 상태","Round status")+'">'+
-    '<div class="status-focus__ring" aria-hidden="true"><strong id="focusValue">✋</strong></div>'+
+    '<div id="statusFocus" class="status-focus" data-mode="timer" aria-label="'+t("라운드 상태","Round status")+'">'+
+    '<div class="status-focus__ring" aria-hidden="true"><strong id="focusValue">30</strong></div>'+
     '<strong id="focusHeadline" class="status-focus__headline"></strong>'+
     '<span id="focusDetail" class="status-focus__detail"></span>'+
     '<small id="focusTime" class="status-focus__time"></small>'+
@@ -300,35 +299,23 @@ function updateStatusFocus(now){
  // but a freshly rendered round station is always initialized immediately.
  if(focus===lastFocusElement&&now-lastFocusRefresh<90)return;
  lastFocusElement=focus;lastFocusRefresh=now;
- const readyCount=mouseTest?game.players.length:
-  game.players.filter(p=>readyPlayers.has(p.id)||game.answers.has(p.id)).length;
- if(game.phase==="playing"){
-  if(readyCount===game.players.length&&game.players.length>0&&allReadyAt===null)allReadyAt=now;
-  else if(readyCount<game.players.length)allReadyAt=null;
- }
- const state=roundFocusState({phase:game.phase,remainingMs:game.endTime-now,
-  totalMs:ROUND_MS,readyCount,playerCount:game.players.length,allReadyAt,now});
+ const state=roundFocusState({phase:game.phase,remainingMs:game.endTime-now,totalMs:ROUND_MS});
  const words={
-  prepare:[t("손바닥을 펴세요!","Show five fingers!"),
-   t(readyCount+" / "+game.players.length+"명 준비 완료","Ready: "+readyCount+" / "+game.players.length)],
-  ready:[t("모두 준비 완료!","Everyone ready!"),
-   t("이제 손가락 1~4개로 선택","Now vote with 1–4 fingers")],
-  timer:[t("남은 시간","Time remaining"),t("손가락 1~4개로 선택","Vote with 1–4 fingers")],
-  warning:[t("서두르세요!","Hurry up!"),t("지금 정답을 선택하세요","Choose an answer now")],
-  critical:[t("지금 선택!","Choose NOW!"),t("시간이 거의 끝났어요","Time is almost up")],
-  revealed:[t("정답 공개!","Answer revealed!"),t("다음 문제를 준비하세요","Get ready for the next round")]
+  timer:[t("남은 시간","Time remaining"),t("주먹을 쥐고 생각하다가 1~4개로 선택","Think with a relaxed fist; show 1–4 to vote")],
+  warning:[t("서두르세요!","Hurry up!"),t("답을 알면 손가락 1~4개를 펴세요","Show 1–4 fingers to choose")],
+  critical:[t("지금 선택!","Choose NOW!"),t("손가락 1~4개로 정답 선택","Vote with 1–4 fingers")],
+  revealed:[t("정답 공개!","Answer revealed!"),t("편하게 손을 쉬고 다음 문제를 기다리세요","Relax your hand for the next round")]
  };
  const [headline,detail]=words[state.mode]??words.timer;
  focus.dataset.mode=state.mode;
  focus.style.setProperty("--time-progress",Math.round(state.progress*100)+"%");
- const numeral=state.mode==="prepare"?"✋":
-  state.mode==="ready"||state.mode==="revealed"?"✓":String(state.seconds);
+ const numeral=state.mode==="revealed"?"✓":String(state.seconds);
  if(el("focusValue").textContent!==numeral)el("focusValue").textContent=numeral;
  if(el("focusHeadline").textContent!==headline)el("focusHeadline").textContent=headline;
  if(el("focusDetail").textContent!==detail)el("focusDetail").textContent=detail;
  const timeLabel=state.mode==="revealed"?"":t("남은 "+state.seconds+"초",state.seconds+"s left");
  if(el("focusTime").textContent!==timeLabel)el("focusTime").textContent=timeLabel;
- const announcement=state.mode==="prepare"?state.mode+":"+readyCount:state.mode;
+ const announcement=state.mode;
  if(announcement!==lastFocusAnnouncement){
   lastFocusAnnouncement=announcement;
   el("focusAnnouncer").textContent=headline+" "+detail;
@@ -394,8 +381,6 @@ function touchInputs(hands,now){
   const decision=fingerVote(intents.get(player.id),hand,now);
   if(decision.state)intents.set(player.id,decision.state);
   else intents.delete(player.id);
-  if(["ready","arming","countdown"].includes(decision.state?.phase))readyPlayers.add(player.id);
-  else if(decision.state?.phase==="neutral"&&(!hand||hand.count!==5))readyPlayers.delete(player.id);
   if(decision.chosen!==null&&submit(game,player.id,decision.chosen,now)){
    answeredPositions.set(player.id,{choice:decision.chosen});
    updateVotes();
@@ -448,7 +433,7 @@ function frame(now){
    lastInference=completed;
    manageHands(tracker.observe(detections.landmarks,completed),completed);
   }catch(error){
-   lastInference=performance.now();cameraReady=false;seenHands=[];intents.clear();readyPlayers.clear();allReadyAt=null;
+   lastInference=performance.now();cameraReady=false;seenHands=[];intents.clear();
    showMessage(t("손 추적 오류: ","Tracking error: ")+String(error),true);
    landmarker.close();landmarker=null;refreshChoiceMarkers();
   }
@@ -456,7 +441,7 @@ function frame(now){
  const current=performance.now();
  // Stalled inference must never leave a cursor or a dwell countdown active.
  if(current-lastGoodFrame>Math.min(1600,Math.max(800,lastInferDuration*2.8+230))&&seenHands.length){
-  seenHands=[];intents.clear();readyPlayers.clear();allReadyAt=null;
+  seenHands=[];intents.clear();
   if(game.phase==="lobby")updateScores();
   if(game.phase==="playing"){refreshChoiceMarkers();updateStatusFocus(current);}
   
