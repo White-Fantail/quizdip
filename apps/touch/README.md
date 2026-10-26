@@ -1,24 +1,34 @@
-# QuizDip Touch — stable-fingers party quiz (up to 5 players)
+# QuizDip Touch — Live party quiz (1–5 players)
 
-QuizDip Touch lives in White-Fantail/quizdip at apps/touch, deployed as a separate Vercel project. Develop on dev; merge main with fast-forward only when requested.
+QuizDip Touch lives at `apps/touch` and is a separate Vercel project.
+Develop on **dev**; fast-forward **main** only after the user explicitly requests it.
 
-## Controls (no fists required)
-- Register by showing 1–5 fingers for approximately 0.8 seconds; fixed finger count is your player number (P1–P5). Keep that same number throughout the game. After overlap, show the number again.
-- **Start:** Each registered player moves their numbered hand into their own horizontally separated, color-coded start pad and holds it for 1.35 seconds. All active player pads must be ready simultaneously to start. Moving away, changing count or losing tracking resets the affected pad. No fist or group overlap.
-- **Answer:** Move your visible raised fingertips (not your palm) over a choice for 0.4 seconds to arm, then a further 1.0 second while the circular countdown appears at that player's position (1.4 seconds total). The colored countdown pin shows the player number and remaining seconds, then changes to 'P2 ✓'. A colored badge remains on the choice. Every player has an independent countdown and may vote once.
-- Exiting the choice, changing number, disappearing or camera stall cancels the pending countdown. Hovering briefly or crossing a card never votes.
-- **Replay:** The result screen has a large central replay zone. Click/tap at any time, or hold **one** stable 1–5-finger hand over it for 0.4+1.0 seconds. Previous players do not all need to be present; a freshly numbered hand also works.
-- Cursor uses a mirror-corrected, calibrated *raised-fingertip centroid* (10% horizontal, 8–88% vertical camera margins) for more accurate positioning and easier top-row reach. Palm positions are still used to maintain physical tracking.
-- Finished results use a responsive dedicated layout; standings, replay, and camera no longer overlap.
-- Each round lasts 30 seconds.
+## Live game flow
 
-## Implementation
-- The lobby displays five spaced start pads to reduce hand overlap; camera and scoreboard remain below the question or pads.
-- Per-player color, number and progress ring distinguish countdowns, including simultaneous selection of the same option. No need to distinguish by color alone.
-- gestures.js and tracker.js identify only raised-finger counts, not biological identities. Overlapping hands or bad lighting may still cause temporary loss; the game refuses mismatched counts rather than assigning someone else's points.
-- start-zones.js is the pure start-pad state machine; selection.js is the pure two-stage dwell state machine; main.js renders colored progress pins and per-choice confirmation markers.
-- Test using node --test apps/touch/tests/*.test.mjs and node --check apps/touch/src/*.js.
-- Camera uses MediaPipe locally; no video upload. Browser camera permission still requires a click. The mouse-only test mode is /?test=1.
+1. Select **Adult** or **Kids** in a large click/tap card before starting the camera.
+2. Touch requests 10 random published multiple-choice questions from QuizDip at `POST /api/touch`, with **four options each**. There are no bundled demo/fallback questions.
+3. Adult rounds use the current UI language (Korean/English). Kids rounds explicitly use **English Kids-approved** questions; Korean Kids has no available approved questions at the time of this change. No unapproved translation is substituted.
+4. Each player shows 1–5 raised fingers to register. Continue holding the same count during the game. To start, hold each assigned hand inside its own pad for 1.35 seconds.
+5. Move the centroid of the raised fingertips over a choice. Stay for 0.4 seconds to arm plus 1.0 second countdown to select; do not form a fist.
+6. At all responses or after the 30-second round timer, Touch calls QuizDip server grading, then displays the correct answer and awards local points. A temporary grading outage retries, never fabricates a correct answer.
+7. After all 10 questions, show ranked local results. A single numbered hand can hover over the replay zone for 1.4 seconds or the user can click/tap it, then Touch loads a **new** randomized set from QuizDip.
 
-## Remaining limitations
-The app uses eight bundled example questions and local-only scores; QuizDip published pack/API connection is future work. Five-person real-camera validation has not yet been performed. Keep raised fingers clearly separated from other hands.
+The server selects only active, published language revisions of active published quizzes. Kids requires Kids eligibility and approval, plus an original/legacy published localization. Image questions must reference READY/APPROVED images in R2. QuizDip question media URLs are signed only when each round is displayed. Unsupported clue types and fewer-than-four-option questions are skipped instead of quietly rewritten.
+
+Touch uses an hour-limited, HMAC-authenticated ticket for the 10 pinned revisions. The initial response does **not** expose the correct choice. The server grades each round after submission; the URL never includes the answer key. No QuizDip play history or leaderboard record is written by these temporary local multiplayer scores.
+
+## Deployment
+
+- **QuizDip web backend**: `apps/web/app/api/touch/route.ts`. Production base is `https://quizdip.com/api/touch`; the endpoint must be deployed before the Touch UI can load real questions.
+- **QuizDip Touch**: `apps/touch`. Preview testing can set `?touchApi=https%3A%2F%2Fquizdip-...-nomadonghos-projects.vercel.app%2Fapi%2Ftouch` to an authorized QuizDip preview API. Cross-origin preview deployments protected by Vercel Authentication may block browser requests; avoid weakening deployment protection for testing.
+- Touch CORS only permits QuizDip Touch-owned origins, and no credentials are used. Set `PLAY_RUN_SECRET` on the web backend (existing QuizDip server secret). Never copy it into the Touch public client.
+- If the web route has not reached production, the Touch preview displays a clear loading error rather than returning mock questions.
+
+## Verification
+
+- `node --check apps/touch/src/*.js`
+- `node --test apps/touch/tests/*.test.mjs`
+- Root CI: `npm run test`, `npm run typecheck`, `npm run build`.
+- Real-world validation must include cross-origin fetch, Korean adult, English adult, English Kids, image-first clues, camera multiplayer, revoked/withdrawn questions, temporary offline grading, and missing language.
+
+The image and text handling is deliberately a one-clue presentation: full progressive clue navigation is not currently included in Touch.
