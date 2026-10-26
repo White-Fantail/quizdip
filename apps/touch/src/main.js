@@ -179,4 +179,5 @@ function cleanup(){
 addEventListener("pagehide",cleanup);
 el("locale").addEventListener("change",event=>{locale=event.target.value;render(true);});
 render(true);
+frameHandle=requestAnimationFrame(frame);
 if(mouseTest)showMessage("Development test mode: use Test player then click choices.");
