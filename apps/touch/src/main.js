@@ -1,13 +1,13 @@
 import {HandTracker,MAX_PLAYERS} from "./tracker.js";
 import {answerAtPosition} from "./gestures.js";
-import {DEMO_QUESTIONS,freshGame,register,begin,submit,reveal,advance} from "./game.js";
+import {DEMO_QUESTIONS,freshGame,register,begin,submit,reveal,advance,lobbyStartStatus} from "./game.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80","#b9a9fc","#b3f48b","#ff909f"];
 const params=new URLSearchParams(location.search);
 const mouseTest=params.get("test")==="1";
 let locale="ko",game=freshGame(),tracker=new HandTracker();
 let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0;
-let revealUntil=0,stageStamp="",cameraReady=false;
+let revealUntil=0,stageStamp="",cameraReady=false,lobbyFistSince=null,testFists=false,lastLobbyUi=0;
 const intents=new Map(),pointerNodes=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div style="display:flex;gap:10px;align-items:center"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Your camera stays on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
@@ -26,8 +26,12 @@ function showMessage(message,warning=false){
 }
 function updateScores(){
  el("scores").innerHTML=game.players.map(p=>{
-  const detected=seenHands.some(h=>h.id===p.trackId);
-  return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+colors[(p.id-1)%colors.length]+'"><b>P'+p.id+'</b><b>'+p.score+'</b><em>'+ (detected?t("인식 중","Tracking"):t("대기/끊김","Waiting/Lost"))+'</em></div>';
+  const hand=seenHands.find(h=>h.id===p.trackId);
+  const detected=!!hand||(mouseTest&&p.trackId<0);
+  const label=game.phase==="lobby"&&hand
+   ?(hand.gesture==="fist"?t("✊ 준비됨","✊ Ready"):hand.gesture==="open"?t("✋ 등록 유지","✋ Registered"):t("손 인식 중","Tracking"))
+   :(detected?t("인식 중","Tracking"):t("대기/끊김","Waiting/Lost"));
+  return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+colors[(p.id-1)%colors.length]+'"><b>P'+p.id+'</b><b>'+p.score+'</b><em>'+label+'</em></div>';
  }).join("")||'<p style="grid-column:1/-1;color:#b8c8e4">'+t("손을 펼치고 카메라를 향해 주세요.","Show an open palm to the camera.")+'</p>';
 }
 function render(force=false){
@@ -40,15 +44,20 @@ function render(force=false){
    "Register with one fully open hand per person. Move your hand from the lower area into an answer card.")+'</p></div>'+
    '<div class="hero"><strong>'+t("참가자","Players")+': <span id="playerCount">'+game.players.length+'</span>/8</strong>'+
    '<div class="actions"><button class="primary" id="enableCamera">'+t("카메라 시작","Start camera")+'</button>'+
-   '<button class="primary" id="startGame" '+(!game.players.length?'disabled':'')+'>'+t("게임 시작","Start game")+'</button>'+
    '<button class="secondary" id="resetPlayers">'+t("플레이어 초기화","Reset players")+'</button>'+
-   (mouseTest?'<button class="secondary" id="testJoin">+ Test player</button>':'')+'</div>'+
-   '<p>'+t("보기 안에서 손을 0.7초 유지하거나 주먹을 쥐면 선택됩니다.",
-   "Dwell in an answer for 0.7 seconds or close your fist to choose.")+'</p></div>';
+   (mouseTest?'<button class="secondary" id="testJoin">+ Test player</button><button class="secondary" id="testFists">'+(testFists?"✊ Release test fists":"✊ Hold test fists")+'</button>':'')+'</div>'+
+   '<p class="start-instructions">'+t("✋ 손을 펴면 참가 등록이 유지돼요. 모두 ✊ 주먹을 쥐고 1초간 유지하면 자동 시작!",
+   "✋ Keep hands open to stay registered. When EVERY player holds ✊ fists for 1 second, the game starts!")+'</p>'+
+   '<div class="start-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="'+t("전체 주먹 준비","All fists ready")+'"><div id="startProgressFill"></div></div>'+
+   '<p id="readyStatus" aria-live="off">'+t("모두 등록한 뒤 함께 주먹을 쥐세요.","Register everyone, then make fists together.")+'</p>'+
+   '<p>'+t("게임 중에는 보기 안에 손을 0.7초 유지하거나 주먹을 쥐면 선택됩니다.",
+   "During the game, dwell in an answer for 0.7 seconds or close your fist to choose.")+'</p></div>';
   el("enableCamera").onclick=()=>void startCamera();
-  el("startGame").onclick=()=>{if(begin(game,performance.now())){intents.clear();render(true);}};
-  el("resetPlayers").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();render(true);};
-  if(mouseTest)el("testJoin").onclick=()=>{register(game,-(game.players.length+1));render(true);};
+  el("resetPlayers").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lobbyFistSince=null;testFists=false;render(true);};
+  if(mouseTest){
+   el("testJoin").onclick=()=>{register(game,-(game.players.length+1));lobbyFistSince=null;render(true);};
+   el("testFists").onclick=()=>{testFists=!testFists;lobbyFistSince=null;el("testFists").textContent=testFists?"✊ Release test fists":"✊ Hold test fists";};
+  }
  }else if(game.phase==="playing"||game.phase==="revealed"){
   const q=DEMO_QUESTIONS[game.round],options=locale==="ko"?q.optionsKo:q.options;
   top.innerHTML='<div class="question-head"><span class="chip">'+t("문제","QUESTION")+' '+(game.round+1)+' / '+DEMO_QUESTIONS.length+'</span><span class="chip" id="countdown">20s</span><span class="chip">'+game.answers.size+' / '+game.players.length+' '+t("응답","VOTED")+'</span></div>'+
@@ -65,7 +74,7 @@ function render(force=false){
   top.innerHTML='<div class="results"><span class="chip">QUIZDIP TOUCH · FINISHED</span><h2>🏆 '+t("최종 결과","Final results")+'</h2>'+
    sorted.map((p,i)=>'<div class="player" style="--accent:'+colors[(p.id-1)%colors.length]+'">'+(i+1)+'. P'+p.id+' — '+p.score+' pts · '+p.correct+'/'+DEMO_QUESTIONS.length+'</div>').join("")+
    '<div class="actions"><button class="primary" id="restart">'+t("다시 플레이","Play again")+'</button></div></div>';
-  el("restart").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();render(true);};
+  el("restart").onclick=()=>{game=freshGame();tracker.reset();seenHands=[];intents.clear();lobbyFistSince=null;testFists=false;render(true);};
  }
  updateHeader();updateScores();
 }
@@ -121,11 +130,37 @@ function manageHands(hands,now){
   for(const h of hands){
    if(h.gesture==="open"&&now-h.gestureSince>=700&&h.y>=.42){added=register(game,h.id)||added;}
   }
-  if(added)render(true);
+  if(added){lobbyFistSince=null;render(true);}
  }else touchInputs(hands,now);
  drawHands(hands);
 }
+function updateLobbyStart(now){
+ if(game.phase!=="lobby")return;
+ // Only recent camera observations may count toward readiness. Simulation is dev-only.
+ const hands=mouseTest&&testFists
+  ?game.players.map(p=>({id:p.trackId,gesture:"fist"}))
+  :(cameraReady&&now-lastInference<350?seenHands:[]);
+ const status=lobbyStartStatus(game,hands,now,lobbyFistSince);
+ lobbyFistSince=status.since;
+ const progress=Math.min(100,Math.round(status.elapsed/1000*100));
+ const fill=el("startProgressFill");
+ if(fill)fill.style.width=progress+"%";
+ const bar=document.querySelector(".start-progress");
+ if(bar)bar.setAttribute("aria-valuenow",String(progress));
+ const statusEl=el("readyStatus");
+ if(statusEl)statusEl.textContent=status.total===0
+   ?t("손가락을 쫙 펴서 참가자를 등록하세요.","Show open hands to register players.")
+   :status.visible!==status.total
+     ?t("인식 중인 참가자: "+status.visible+"/"+status.total+" — 모든 손이 보여야 시작해요.","Visible hands: "+status.visible+"/"+status.total+" — all must be visible.")
+     :status.fists!==status.total
+       ?t("주먹 준비: "+status.fists+"/"+status.total+" — 펼친 손도 등록은 유지돼요.","Fists ready: "+status.fists+"/"+status.total+" — open hands remain registered.")
+       :t("모두 준비! 주먹을 유지하세요 · "+progress+"%","Everyone ready! Hold fists · "+progress+"%");
+ if(status.ready && begin(game,now)){
+  lobbyFistSince=null;testFists=false;intents.clear();el("messages").textContent="";render(true);
+ }else if(now-lastLobbyUi>=260){updateScores();lastLobbyUi=now;}
+}
 function gameClock(now){
+ if(game.phase==="lobby")updateLobbyStart(now);
  if(game.phase==="playing"){
   const sec=Math.max(0,Math.ceil((game.endTime-now)/1000));
   const countdown=el("countdown");if(countdown)countdown.textContent=sec+"s";
@@ -143,7 +178,7 @@ function frame(now){
   try{
    const detections=landmarker.detectForVideo(video,now);
    manageHands(tracker.update(detections.landmarks,now),now);
-  }catch(e){showMessage(t("손 추적 오류: ","Tracking error: ")+String(e),true);landmarker.close();landmarker=null;}
+  }catch(e){showMessage(t("손 추적 오류: ","Tracking error: ")+String(e),true);landmarker.close();landmarker=null;cameraReady=false;lobbyFistSince=null;seenHands=[];}
   lastInference=now;
  }
  gameClock(now);
@@ -164,7 +199,7 @@ async function startCamera(){
    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",delegate:"CPU"},
    runningMode:"VIDEO",numHands:MAX_PLAYERS,minHandDetectionConfidence:.52,minHandPresenceConfidence:.48,minTrackingConfidence:.45
   });
-  videoStream=stream;cameraReady=true;el("messages").textContent="";render(true);
+  videoStream=stream;cameraReady=true;el("messages").textContent="";lobbyFistSince=null;render(true);
   cancelAnimationFrame(frameHandle);frameHandle=requestAnimationFrame(frame);
  }catch(e){
   stream?.getTracks().forEach(t=>t.stop());video.srcObject=null;
@@ -174,7 +209,7 @@ async function startCamera(){
 }
 function cleanup(){
  cancelAnimationFrame(frameHandle);videoStream?.getTracks().forEach(t=>t.stop());
- landmarker?.close();landmarker=null;cameraReady=false;
+ landmarker?.close();landmarker=null;cameraReady=false;lobbyFistSince=null;
 }
 addEventListener("pagehide",cleanup);
 el("locale").addEventListener("change",event=>{locale=event.target.value;render(true);});

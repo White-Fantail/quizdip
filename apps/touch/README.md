@@ -4,10 +4,11 @@ Independent static-web game at the proposed touch.quizdip.com domain. The source
 
 ## Implemented
 - MediaPipe Hand Landmarker, configured for **up to eight hands**. Camera and landmarks are processed entirely in the browser; only model/WASM files download from Google Storage/jsDelivr.
-- Lobby registration by holding a fully open hand in the lower camera field for 0.7 seconds. One hand = one local guest player; body/face recognition is deliberately not used.
+- Lobby registration by holding a fully open hand in the lower camera field for 0.7 seconds. One hand = one local guest player; body/face recognition is deliberately not used. **Registered open hands stay registered.**
+- **No game-start button:** once every registered hand is visibly making a fist continuously for 1 second, the round begins automatically. Any opened, lost, unregistered extra hand cancels the pending start countdown. Camera permission still requires a user click.
 - Upper-half question and 2×2 options, lower camera preview. Palm moves up from the lower field to a choice. Choose by holding inside the choice for 0.7s **or closing into a fist for 0.16s**.
 - Prevent double vote per player/round, 20-second question clock, reveal screen, speed bonus, eight locally bundled demonstration questions (EN/KO), and results.
-- Optional development mouse simulation: /?test=1.
+- Optional development mouse simulation: /?test=1, including simulated fist readiness.
 - Node built-in test suite: node --test apps/touch/tests/*.test.mjs.
 
 ## Important constraints and next steps
