@@ -330,7 +330,7 @@ function answerHands(hands){
   if(!target)return hand;
   visible.add(hand.id);
   const prev=smoothedAnswers.get(hand.id);
-  const alpha=prev?.count===hand.count?.38:1;
+  const alpha=prev&&prev.count===hand.count ? 0.38 : 1;
   const x=prev?prev.x+(target.x-prev.x)*alpha:target.x;
   const y=prev?prev.y+(target.y-prev.y)*alpha:target.y;
   smoothedAnswers.set(hand.id,{x,y,count:hand.count});
