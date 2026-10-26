@@ -32,8 +32,9 @@ test("fixed four-choice layout, accessible status, and always-on center clock",(
  assert.match(main,/id="statusFocus"/);
  assert.match(main,/id="focusAnnouncer"/);
  assert.match(main,/aria-live="polite"/);
- assert.match(main,/readyPlayers\.clear\(\);allReadyAt=null/);
- assert.match(main,/readyPlayers\.add\(player\.id\)/);
+ assert.doesNotMatch(main,/readyPlayers|allReadyAt/);
+ assert.doesNotMatch(main,/손바닥을 펴세요!|Show five fingers!/);
+ assert.match(main,/주먹을 쥐고 생각하다가 1~4개로 선택/);
  assert.match(main,/roundFocusState\(\{/);
  assert.doesNotMatch(main,/id="countdown"/);
  assert.match(css,/\.stage\.playing-stage \.choices\{position:relative;isolation:isolate\}/);
