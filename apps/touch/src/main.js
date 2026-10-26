@@ -1,5 +1,6 @@
 import {HandTracker,MAX_PLAYERS} from "./tracker.js";
-import {answerAtPosition,answerCursorPoint} from "./gestures.js";
+import {answerAtPosition} from "./gestures.js";
+import {horizontalControl} from "./horizontal-controls.js";
 import {dwellSelection,SELECT_ARM_MS,SELECT_COUNTDOWN_MS} from "./selection.js";
 import {updateStartPads,START_HOLD_MS} from "./start-zones.js";
 import {replayDwell} from "./replay.js";
@@ -13,7 +14,9 @@ let videoStream=null,landmarker=null,frameHandle=0,seenHands=[],lastInference=0,
 let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=0;
 let startHolds=new Map(),restartIntent=null,selectedLane=null,gameTicket=null,loadedLocale=null;
 let loading=false,loadError="",loadRevision=0;
-const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map(),smoothedAnswers=new Map();
+const intents=new Map(),answeredPositions=new Map(),pointerNodes=new Map(),choiceMarkers=new Map();
+// Each neutral hand position persists through all 10 questions.
+const palmControls=new Map(),smoothedAnswers=new Map();
 const root=document.getElementById("app");
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>TOUCH</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
@@ -53,16 +56,16 @@ function selectLane(lane){
 function changeLane(){
  loadRevision++;gameTicket=null;selectedLane=null;loadedLocale=null;
  game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;
- cleanPlayUI();drawHands([]);el("messages").textContent="";render(true);
+ palmControls.clear();smoothedAnswers.clear();cleanPlayUI();drawHands([]);el("messages").textContent="";render(true);
 }
 function cleanPlayUI(){
- intents.clear();answeredPositions.clear();smoothedAnswers.clear();
+ intents.clear();answeredPositions.clear();
  for(const marker of choiceMarkers.values())marker.remove();
  choiceMarkers.clear();
 }
 function resetGame(){
  loadRevision++;game=freshGame();tracker.reset();seenHands=[];startHolds.clear();restartIntent=null;
- gameTicket=null;cleanPlayUI();drawHands([]);render(true);
+ palmControls.clear();smoothedAnswers.clear();gameTicket=null;cleanPlayUI();drawHands([]);render(true);
  if(selectedLane)void loadTenQuestions();
 }
 function updateHeader(){
@@ -76,8 +79,8 @@ function updateHeader(){
   ?t("마우스/터치로 다시 시작하거나, 손가락을 펼친 손 하나만 재시작 영역에 머물러 주세요.",
     "Click or tap replay, or hold just one numbered hand on the replay zone.")
   :game.phase==="playing"||game.phase==="revealed"
-   ?t("손을 카메라 중앙에 둔 채 손끝을 조금만 움직여 네 보기를 선택하세요. 손목을 아래로 내릴 필요가 없어요.",
-      "Keep your full hand visible in the camera center. Small fingertip movements reach all four answers.")
+   ?t("손가락 개수를 유지하고 손바닥을 좌우로만 조금 움직이세요: 왼쪽부터 A · B · C · D. 위아래 이동은 필요 없어요.",
+      "Keep the same finger count. Move your PALM only left and right: A · B · C · D. No up/down movement needed.")
    :t("손가락 1~5개를 계속 유지하세요. 시작 구역과 정답 보기 안에 손끝을 머물러 선택합니다. 주먹을 쥘 필요가 없습니다.",
      "Keep your numbered fingers extended. Hold your fingertips in a start zone or answer to select. No fist needed.");
 }
@@ -93,11 +96,20 @@ function updateScores(){
  el("scores").innerHTML=game.players.map(p=>{
   const hand=seenHands.find(h=>h.id===p.id&&h.count===p.id);
   const detected=!!hand||(mouseTest&&!cameraReady);
-  const label=game.phase==="lobby"&&startHolds.get(p.id)?.ready?t("시작 준비 완료","Ready to start")
+  const label=(game.phase==="playing"||game.phase==="revealed")&&!palmControls.get(p.id)?.ready&&detected
+   ?t("손을 잠깐 그대로 유지해 중앙 설정","Hold still briefly to center")
+   :game.phase==="lobby"&&startHolds.get(p.id)?.ready?t("시작 준비 완료","Ready to start")
    :detected?t("손가락 "+p.id+"개 인식 중",""+p.id+" fingers tracked")
    :t("손가락 "+p.id+"개를 다시 보여주세요","Show "+p.id+" fingers again");
   return '<div class="player '+(cameraReady&&!detected?'offline':'')+'" style="--accent:'+color(p.id)+'"><b>P'+p.id+' · ✋'+p.id+'</b><b>'+p.score+'</b><em>'+label+'</em></div>';
  }).join("")||'<p class="waiting-players">'+t("손가락 1~5개를 펼쳐 참가자를 등록하세요.","Show 1–5 raised fingers to join.")+'</p>';
+ if(game.phase==="playing"||game.phase==="revealed"){
+  el("scores").insertAdjacentHTML("beforeend",'<button type="button" id="recenterControls" class="recenter-controls">'+
+   t("⊕ 손 위치 다시 맞추기","⊕ Recenter hands")+'</button>');
+  el("recenterControls").onclick=()=>{
+   palmControls.clear();smoothedAnswers.clear();intents.clear();refreshChoiceMarkers();
+  };
+ }
 }
 function render(force=false){
  const stamp=String(selectedLane)+":"+loading+":"+loadError+":"+game.phase+":"+game.round+":"+locale+":"+game.players.map(p=>p.id).join("-");
@@ -247,6 +259,7 @@ function drawHands(hands){
  for(const hand of hands){
   const player=game.players.find(p=>p.id===hand.id);
   if((game.phase!=="finished"&&!player)||hand.count!==hand.id)continue;
+  if((game.phase==="playing"||game.phase==="revealed")&&!hand.controlReady)continue;
   active.add(hand.id);
   let node=pointerNodes.get(hand.id);
   if(!node){node=document.createElement("div");node.className="cursor";el("pointers").append(node);pointerNodes.set(hand.id,node);}
@@ -318,26 +331,24 @@ function restartInputs(now){
  if(result.restart)resetGame();
  return candidates;
 }
-// Preserve a full hand and wrist inside the video: when answering, use the
-// four answer rectangles as the pointer's control surface, not the full screen.
-// Light smoothing avoids a tracked fingertip trembling across the row divider.
-function answerHands(hands){
- const boxes=rects();
- if(boxes.length!==4){smoothedAnswers.clear();return hands;}
- const visible=new Set();
- const result=hands.map(hand=>{
-  const target=answerCursorPoint(hand,boxes);
-  if(!target)return hand;
-  visible.add(hand.id);
-  const prev=smoothedAnswers.get(hand.id);
-  const alpha=prev&&prev.count===hand.count ? 0.38 : 1;
-  const x=prev?prev.x+(target.x-prev.x)*alpha:target.x;
-  const y=prev?prev.y+(target.y-prev.y)*alpha:target.y;
-  smoothedAnswers.set(hand.id,{x,y,count:hand.count});
-  return {...hand,x:x/innerWidth,y:y/innerHeight};
+// A one-time palm anchor survives long prompts, images and question changes.
+// Map only horizontal hand movement; never require lowering the wrist.
+function answerHands(hands,now){
+ const board=document.querySelector(".choices");
+ if(!board)return hands.map(h=>({...h,controlReady:false}));
+ const area=board.getBoundingClientRect();
+ if(!area.width||!area.height)return hands.map(h=>({...h,controlReady:false}));
+ return hands.map(hand=>{
+  const result=horizontalControl(palmControls.get(hand.id),hand,now);
+  if(result.state)palmControls.set(hand.id,result.state);
+  if(!result.ready)return {...hand,controlReady:false};
+  const previous=smoothedAnswers.get(hand.id);
+  const position=previous===undefined?result.position:previous*.65+result.position*.35;
+  smoothedAnswers.set(hand.id,position);
+  const x=area.left+position*area.width,y=area.top+area.height*.5;
+  return {...hand,x:x/innerWidth,y:y/innerHeight,
+   controlReady:true,controlChoice:result.choice};
  });
- for(const id of smoothedAnswers.keys())if(!visible.has(id))smoothedAnswers.delete(id);
- return result;
 }
 function touchInputs(hands,now){
  if(game.phase!=="playing")return;
@@ -346,7 +357,9 @@ function touchInputs(hands,now){
  for(const id of intents.keys())if(!seen.has(id))intents.delete(id);
  for(const hand of hands){
   if(!game.players.some(p=>p.id===hand.id)||game.answers.has(hand.id))continue;
-  const choice=answerAtPosition(hand.x*innerWidth,hand.y*innerHeight,positions);
+  // Neutral center and the gaps between buttons cannot trigger a vote.
+  const choice=hand.controlReady&&hand.controlChoice!==null
+   ?answerAtPosition(hand.x*innerWidth,hand.y*innerHeight,positions):null;
   const decision=dwellSelection(intents.get(hand.id),hand,choice,now);
   if(decision.state)intents.set(hand.id,decision.state);
   else intents.delete(hand.id);
@@ -360,7 +373,7 @@ function touchInputs(hands,now){
 function manageHands(hands,now){
  // Only playing/reveal uses answer-space coordinates. Lobby start pads and
  // the independent replay button preserve their own original mapping.
- const controls=game.phase==="playing"||game.phase==="revealed"?answerHands(hands):hands;
+ const controls=game.phase==="playing"||game.phase==="revealed"?answerHands(hands,now):hands;
  seenHands=controls;lastGoodFrame=now;
  if(game.phase==="lobby"&&selectedLane){
   let added=false;
