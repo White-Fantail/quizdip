@@ -28,30 +28,30 @@ test("five fixed finger-number slots (1..5) and only one vote",()=>{
 const openHand=(id,x=id/10,y=.55)=>({id,count:id,gesture:"open",x,y});
 const personalPad=(id,hand)=>hand.x===id/10;
 test("each player starts only by holding their OWN separated start zone",()=>{
- let status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],100,personalPad);
+ let status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],personalPad,100);
  assert.equal(status.start,false);
  assert.equal(status.insideCount,2);
- status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],100+START_HOLD_MS-1,personalPad);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],personalPad,100+START_HOLD_MS-1);
  assert.equal(status.start,false);
- status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],100+START_HOLD_MS,personalPad);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],personalPad,100+START_HOLD_MS);
  // A missing camera frame over 320ms invalidates old accumulated time.
  assert.equal(status.start,false);
  let now=100+START_HOLD_MS;
- status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],now,personalPad);
- for(let i=0;i<15;i++){now+=100;status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],now,personalPad);}
+ status=updateStartPads(null,[1,2],[openHand(1),openHand(2)],personalPad,now);
+ for(let i=0;i<15;i++){now+=100;status=updateStartPads(status.holds,[1,2],[openHand(1),openHand(2)],personalPad,now);}
  assert.equal(status.start,true);
  assert.equal(status.readyCount,2);
 });
 test("wrong number, wrong zone and missing player cancel start automatically",()=>{
- let status=updateStartPads(null,[1,2],[openHand(1),openHand(2,.9)],100,personalPad);
+ let status=updateStartPads(null,[1,2],[openHand(1),openHand(2,.9)],personalPad,100);
  assert.equal(status.insideCount,1);
  assert.equal(status.start,false);
- status=updateStartPads(status.holds,[1,2],[openHand(1),{...openHand(2),count:1}],300,personalPad);
+ status=updateStartPads(status.holds,[1,2],[openHand(1),{...openHand(2),count:1}],personalPad,300);
  assert.equal(status.insideCount,1);
- status=updateStartPads(status.holds,[1,2],[openHand(1)],350,personalPad);
+ status=updateStartPads(status.holds,[1,2],[openHand(1)],personalPad,350);
  assert.equal(status.readyCount,0);
  assert.equal(status.start,false);
- status=updateStartPads(status.holds,[1,2],[],400,personalPad);
+ status=updateStartPads(status.holds,[1,2],[],personalPad,400);
  assert.equal(status.holds.size,0);
 });
 test("no unregistered extra finger pose can join already-started game",()=>{
