@@ -177,3 +177,97 @@
 @media(max-width:680px){
  .stage.playing-stage .choice{font-size:clamp(14px,3.9vw,19px);padding:6px;gap:7px}
 }
+
+/* Hand-friendly PARTY BOARD v2
+ * The answers stay in the SAME screen row on every round. Previously the
+ * question/first-clue/image content pushed the grid down and the DOM-based
+ * pointer moved even while the player's hand stayed perfectly still.
+ * Reserve a fixed answer row; only the descriptive question panel scrolls
+ * (in the rare case text + media truly exceed the available space).
+ */
+.stage.playing-stage{
+ height:calc(100dvh - 124px);min-height:580px;display:grid;
+ grid-template-rows:minmax(0,1fr) clamp(130px,18dvh,185px);
+ gap:8px;align-content:stretch
+}
+.stage.playing-stage .question-zone{
+ height:100%;min-height:0;display:grid;justify-content:stretch;
+ grid-template-rows:auto minmax(0,1fr) clamp(218px,29dvh,290px);
+ gap:9px;padding:0
+}
+.stage.playing-stage .question-head{height:38px;min-height:38px}
+.stage.playing-stage .touch-question{
+ height:100%;min-height:0;max-height:none;width:100%;
+ padding:2px 12px 8px;overflow-y:auto;overflow-x:hidden;
+ display:flex;justify-content:flex-start;gap:7px;
+ scrollbar-color:#657095 transparent;scrollbar-width:thin
+}
+.stage.playing-stage .touch-question .question{
+ font-size:clamp(20px,2.35vw,36px);line-height:1.19;max-height:none;
+ flex:0 0 auto;overflow:visible;text-wrap:balance
+}
+.stage.playing-stage .question-clue{flex:0 0 auto;line-height:1.32}
+.stage.playing-stage .question-media{flex:0 0 auto}
+.stage.playing-stage .question-media img{max-height:clamp(80px,13dvh,135px)}
+.stage.playing-stage .choices{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ grid-template-rows:minmax(0,1fr);gap:clamp(6px,1vw,13px);
+ width:100%;height:100%;min-height:0;align-self:stretch
+}
+.stage.playing-stage .choice{
+ flex-direction:column;min-height:0;font-size:clamp(15px,1.85vw,26px);
+ line-height:1.2;padding:16px 9px 26px;gap:9px
+}
+.stage.playing-stage .choice b{
+ display:block;flex:0 0 auto;font-size:clamp(23px,3vw,40px);
+ color:#96f3dc;opacity:1
+}
+.stage.playing-stage .choice>span{
+ flex:0 1 auto;max-width:100%;min-height:0;max-height:100%;
+ overflow-y:auto;white-space:normal;overflow-wrap:anywhere
+}
+.stage.playing-stage .bottom-zone{
+ height:100%;min-height:0;margin:0;padding:9px 0;
+ display:grid;grid-template-columns:minmax(230px,420px) minmax(0,1fr);
+ gap:15px;align-items:stretch
+}
+.stage.playing-stage .camera-box{
+ height:100%;min-height:0;max-height:none
+}
+.stage.playing-stage .scoreboard{
+ display:flex;flex-wrap:wrap;align-items:flex-start;
+ align-content:flex-start;gap:8px
+}
+.stage.playing-stage .scoreboard .player{
+ flex:0 1 145px;min-width:112px;padding:6px 8px
+}
+.stage.playing-stage .scoreboard .player b{font-size:17px}
+.stage.playing-stage .scoreboard .player em{font-size:11px}
+.recenter-controls{
+ border:1px solid #82f6d3;border-radius:10px;
+ background:#284b47;color:#e7fffa;
+ padding:9px 12px;white-space:nowrap;font-size:12px;font-weight:800
+}
+.recenter-controls:hover,.recenter-controls:focus-visible{background:#31665d}
+@media(max-width:780px){
+ .stage.playing-stage{height:auto;min-height:calc(100dvh - 110px);
+  grid-template-rows:minmax(420px,1fr) 140px}
+ .stage.playing-stage .question-zone{
+  height:100%;min-height:420px;
+  grid-template-rows:auto minmax(0,1fr) minmax(205px,27dvh)
+ }
+ .stage.playing-stage .choice{
+  padding:8px 3px 22px;gap:5px;
+  font-size:clamp(11px,2.7vw,16px);border-radius:11px
+ }
+ .stage.playing-stage .choice b{font-size:clamp(18px,4vw,27px)}
+ .stage.playing-stage .bottom-zone{grid-template-columns:minmax(140px,1fr) minmax(0,1fr)}
+ .stage.playing-stage .camera-box{height:100%;min-height:0}
+ .stage.playing-stage .scoreboard .player{min-width:90px;flex-basis:115px}
+}
+@media(max-width:430px){
+ .stage.playing-stage .bottom-zone{grid-template-columns:1fr 1fr;gap:5px}
+ .stage.playing-stage .camera-label{font-size:10px}
+ .stage.playing-stage .scoreboard .player{flex:1 1 88px}
+ .recenter-controls{padding:6px;font-size:10px}
+}
