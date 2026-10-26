@@ -562,3 +562,44 @@
   padding:8px 6px 28px;gap:clamp(3px,.7dvh,7px)
  }
 }
+
+/* PARTY BOARD v4: never clip the last answer row or the player HUD.
+   Let short browser viewports scroll the page instead of hiding content. */
+.app.play-session{
+ height:auto;min-height:100dvh;overflow:visible
+}
+.app.play-session .stage.playing-stage{
+ height:auto;min-height:max(680px,calc(100dvh - 2 * var(--play-gutter)));
+ grid-template-rows:minmax(505px,1fr) clamp(112px,17dvh,160px);
+}
+.app.play-session .stage.playing-stage .question-zone{
+ height:100%;min-height:505px;
+ grid-template-rows:clamp(27px,3.8dvh,34px) minmax(95px,1fr) clamp(340px,49dvh,500px);
+}
+.app.play-session .stage.playing-stage .choices .choice{
+ min-height:0;padding:10px 12px 25px;gap:5px
+}
+.app.play-session .stage.playing-stage .choices .choice>span{
+ min-height:0;max-height:100%;overflow-y:auto;scrollbar-width:thin
+}
+@media(max-width:780px){
+ .app.play-session .stage.playing-stage{
+  min-height:max(790px,calc(100dvh - 2 * var(--play-gutter)));
+  grid-template-rows:minmax(645px,1fr) clamp(110px,17dvh,155px)
+ }
+ .app.play-session .stage.playing-stage .question-zone{
+  height:100%;min-height:645px;
+  grid-template-rows:28px minmax(120px,1fr) clamp(465px,55dvh,555px)
+ }
+ .app.play-session .stage.playing-stage .choices .choice{
+  padding:7px 5px 22px
+ }
+}
+@media(max-height:700px) and (min-width:781px){
+ .app.play-session .stage.playing-stage{
+  min-height:680px;grid-template-rows:minmax(540px,1fr) 130px
+ }
+ .app.play-session .stage.playing-stage .question-zone{
+  min-height:540px;grid-template-rows:30px minmax(105px,1fr) 385px
+ }
+}
