@@ -15,6 +15,17 @@ let loading=false,loadError="",loadRevision=0;
 let lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
+ // Safari's visible viewport changes as its bottom toolbar appears/disappears.
+ // Fit the active round to the pixels the player can actually see.
+ function syncVisibleViewport(){
+  const height=window.visualViewport?.height??window.innerHeight;
+  if(Number.isFinite(height)&&height>0)
+   document.documentElement.style.setProperty("--party-visible-height",Math.round(height)+"px");
+ }
+ syncVisibleViewport();
+ addEventListener("resize",syncVisibleViewport);
+ addEventListener("orientationchange",syncVisibleViewport);
+ window.visualViewport?.addEventListener("resize",syncVisibleViewport);
 root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>PARTY</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
 const video=el("camera");

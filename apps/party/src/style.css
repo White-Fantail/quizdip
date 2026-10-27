@@ -438,169 +438,206 @@
  .status-focus,.status-focus__ring,.lobby-hands-status{animation:none!important;transition:none!important}
 }
 
-/* Active rounds are a game surface, not a website. Hide the site chrome
-   while preserving the question progress, round timer, voting and scores.
-   This class is attached only for "playing" and "revealed": lobby and
-   final results retain their normal navigation and settings. */
+/* The game board is measured against the actual visible browser viewport.
+   No minimum pixel height: phone landscape must fit without page scrolling. */
 .app.play-session{
- --play-gutter:clamp(8px,1vw,14px);
- height:100dvh;min-height:0;padding:var(--play-gutter);
+ --play-gutter:clamp(4px,.8dvh,10px);
+ height:var(--party-visible-height,100dvh);min-height:0;
+ padding:max(var(--play-gutter),env(safe-area-inset-top))
+         max(var(--play-gutter),env(safe-area-inset-right))
+         max(var(--play-gutter),env(safe-area-inset-bottom))
+         max(var(--play-gutter),env(safe-area-inset-left));
  display:flex;flex-direction:column;overflow:hidden;
 }
 .app.play-session .topline,
 .app.play-session .foot{display:none}
 .app.play-session .stage.playing-stage{
  flex:1 1 auto;width:100%;max-width:none;margin:0;
- height:auto;min-height:0;display:grid;
- grid-template-rows:minmax(0,1fr) clamp(110px,17dvh,165px);
- gap:clamp(5px,.8dvh,10px);align-content:stretch
+ height:100%;min-height:0;display:grid;
+ grid-template-rows:minmax(0,1fr) clamp(70px,14dvh,122px);
+ gap:clamp(3px,.7dvh,9px);align-content:stretch;
 }
 .app.play-session .stage.playing-stage .question-zone{
- height:100%;min-height:0;
- grid-template-rows:clamp(26px,3.8dvh,34px) minmax(0,1fr) clamp(280px,50dvh,520px);
- gap:clamp(5px,.7dvh,9px);padding:0
+ height:100%;min-height:0;display:grid;justify-content:stretch;
+ grid-template-rows:clamp(24px,4dvh,34px) minmax(0,1fr) minmax(0,52%);
+ gap:clamp(3px,.6dvh,8px);padding:0;
 }
 .app.play-session .stage.playing-stage .question-head{
  height:auto;min-height:0;gap:8px;
 }
 .app.play-session .stage.playing-stage .question-head .chip{
- padding:5px 12px;border-radius:999px;font-size:clamp(11px,1vw,14px);
- background:#232943b5;color:#cbd8f7
+ padding:4px 10px;border-radius:999px;font-size:clamp(10px,1vw,14px);
+ background:#232943b5;color:#cbd8f7;
 }
 .app.play-session .stage.playing-stage .touch-question{
- min-height:0;overflow-y:auto;overflow-x:hidden;
- padding:clamp(3px,.5dvh,6px) clamp(4px,1vw,16px);
- gap:clamp(4px,.65dvh,8px)
+ flex:initial;height:100%;min-height:0;max-height:none;
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ padding:2px clamp(4px,1vw,14px);gap:clamp(2px,.5dvh,6px);
 }
-/* Language/source metadata is relevant in the lobby, but not to a player
-   deciding on an answer during a timed round. */
 .app.play-session .stage.playing-stage .question-source{display:none}
 .app.play-session .stage.playing-stage .touch-question .question{
- font-size:clamp(21px,2.5vw,41px);line-height:1.13;
+ font-size:clamp(19px,2.5vw,39px);line-height:1.13;
+}
+.app.play-session .stage.playing-stage .question-media img{
+ max-height:min(17dvh,132px);
 }
 .app.play-session .stage.playing-stage .choices{
- width:100%;height:100%;min-height:0
-}
-.app.play-session .stage.playing-stage .bottom-zone{
- height:100%;min-height:0;margin:0;
- border-top:1px solid #64739499;padding:5px 0 0
-}
-.app.play-session .stage.playing-stage .scoreboard{
- height:100%;min-height:0;align-content:stretch
-}
-.app.play-session .stage.playing-stage .scoreboard .player{
- height:100%;min-height:0
-}
-/* On small screens, allow vertical scroll rather than cutting off a
-   question, a choice, or the player status on a short viewport. */
-@media(max-width:780px){
- .app.play-session{height:auto;min-height:100dvh;overflow:visible}
- .app.play-session .stage.playing-stage{
-  flex:1 0 auto;height:auto;min-height:calc(100dvh - 2 * var(--play-gutter));
-  grid-template-rows:minmax(470px,1fr) clamp(110px,17dvh,155px)
- }
- .app.play-session .stage.playing-stage .question-zone{
-  min-height:470px;
-  grid-template-rows:28px minmax(92px,1fr) clamp(290px,46dvh,430px)
- }
- .app.play-session .stage.playing-stage .touch-question .question{
-  font-size:clamp(19px,4.7vw,31px)
- }
-}
-@media(max-height:640px) and (min-width:781px){
- .app.play-session{height:auto;min-height:100dvh;overflow:visible}
- .app.play-session .stage.playing-stage{min-height:600px}
-}
-
-/* PARTY BOARD v4: four answer cells plus a dedicated center clock slot.
-   These later, more specific rules supersede the old overlapping overlay. */
-.app.play-session .stage.playing-stage .choices{
- display:grid;
- grid-template-columns:minmax(0,1fr) clamp(158px,12vw,205px) minmax(0,1fr);
+ position:relative;isolation:isolate;flex:none;
+ width:100%;height:100%;min-height:0;display:grid;
+ grid-template-columns:minmax(0,1fr) clamp(125px,12vw,185px) minmax(0,1fr);
  grid-template-rows:repeat(2,minmax(0,1fr));
- gap:clamp(6px,.9vw,12px);
+ gap:clamp(4px,.9vw,11px);
 }
 .app.play-session .stage.playing-stage .choices .choice:nth-child(1){grid-column:1;grid-row:1}
 .app.play-session .stage.playing-stage .choices .choice:nth-child(2){grid-column:3;grid-row:1}
 .app.play-session .stage.playing-stage .choices .choice:nth-child(3){grid-column:1;grid-row:2}
 .app.play-session .stage.playing-stage .choices .choice:nth-child(4){grid-column:3;grid-row:2}
+.app.play-session .stage.playing-stage .choices .choice{
+ min-height:0;padding:6px 8px 18px;gap:4px;
+}
+.app.play-session .stage.playing-stage .choices .choice>span{
+ min-height:0;max-height:100%;overflow-y:auto;scrollbar-width:thin;
+}
 .app.play-session .stage.playing-stage .choices .status-focus{
  position:relative;left:auto;top:auto;transform:none;
  grid-column:2;grid-row:1 / span 2;
  justify-self:center;align-self:center;
- width:100%;max-width:188px;max-height:100%;
- min-height:clamp(150px,21dvh,200px);
+ width:100%;max-width:175px;max-height:100%;min-height:0;
 }
-@media(max-width:780px){
+.app.play-session .stage.playing-stage .bottom-zone{
+ height:100%;min-height:0;margin:0;
+ border-top:1px solid #64739499;padding:3px 0 0;
+}
+.app.play-session .stage.playing-stage .scoreboard{
+ height:100%;min-height:0;align-content:stretch;
+}
+.app.play-session .stage.playing-stage .scoreboard .player{
+ height:100%;min-height:0;
+}
+/* Narrow portrait screens keep a dedicated middle timer row. */
+@media(max-width:780px) and (orientation:portrait){
+ .app.play-session .stage.playing-stage{
+  grid-template-rows:minmax(0,1fr) clamp(76px,13dvh,110px);
+ }
+ .app.play-session .stage.playing-stage .question-zone{
+  grid-template-rows:clamp(24px,4dvh,32px) minmax(0,1fr) minmax(0,59%);
+ }
+ .app.play-session .stage.playing-stage .touch-question .question{
+  font-size:clamp(19px,4.7vw,31px);
+ }
  .app.play-session .stage.playing-stage .choices{
   grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-template-rows:minmax(134px,1fr) minmax(106px,auto) minmax(134px,1fr);
-  gap:clamp(5px,1.2vw,9px)
+  grid-template-rows:minmax(0,1fr) clamp(72px,10dvh,104px) minmax(0,1fr);
+  gap:clamp(4px,1.2vw,9px);
  }
  .app.play-session .stage.playing-stage .choices .choice:nth-child(1){grid-column:1;grid-row:1}
  .app.play-session .stage.playing-stage .choices .choice:nth-child(2){grid-column:2;grid-row:1}
  .app.play-session .stage.playing-stage .choices .choice:nth-child(3){grid-column:1;grid-row:3}
  .app.play-session .stage.playing-stage .choices .choice:nth-child(4){grid-column:2;grid-row:3}
  .app.play-session .stage.playing-stage .choices .status-focus{
-  position:relative;left:auto;top:auto;transform:none;
   grid-column:1 / -1;grid-row:2;align-self:center;justify-self:center;
-  width:min(100%,340px);max-width:340px;min-height:106px;
-  padding:7px 11px;border-radius:18px;
-  display:grid;grid-template-columns:70px minmax(0,1fr);
-  grid-template-rows:auto auto auto;gap:1px 10px;
-  text-align:left;align-content:center
+  width:min(100%,310px);max-width:310px;height:100%;min-height:0;
+  padding:5px 9px;border-radius:18px;
+  display:grid;grid-template-columns:58px minmax(0,1fr);
+  grid-template-rows:auto auto auto;gap:1px 9px;text-align:left;align-content:center;
  }
  .app.play-session .stage.playing-stage .status-focus__ring{
-  grid-column:1;grid-row:1 / span 3;width:68px
+  grid-column:1;grid-row:1 / span 3;width:56px;
  }
- .app.play-session .stage.playing-stage .status-focus__ring strong{font-size:38px}
- .app.play-session .stage.playing-stage .status-focus__headline{grid-column:2;grid-row:1;font-size:clamp(13px,3vw,16px)}
- .app.play-session .stage.playing-stage .status-focus__detail{grid-column:2;grid-row:2;font-size:clamp(10px,2.4vw,12px)}
- .app.play-session .stage.playing-stage .status-focus__time{grid-column:2;grid-row:3;font-size:clamp(11px,2.5vw,13px)}
- .app.play-session .stage.playing-stage .status-focus[data-mode="critical"] .status-focus__ring strong{font-size:43px}
- .app.play-session .stage.playing-stage .choices .choice{
-  padding:8px 6px 28px;gap:clamp(3px,.7dvh,7px)
+ .app.play-session .stage.playing-stage .status-focus__ring strong{font-size:31px}
+ .app.play-session .stage.playing-stage .status-focus__headline{grid-column:2;grid-row:1;font-size:12px}
+ .app.play-session .stage.playing-stage .status-focus__detail{grid-column:2;grid-row:2;font-size:10px}
+ .app.play-session .stage.playing-stage .status-focus__time{grid-column:2;grid-row:3;font-size:10px}
+ .app.play-session .stage.playing-stage .choices .choice{padding:4px 5px 19px}
+}
+/* A phone rotated into landscape often has only 260–380 CSS px of visible
+   height after Safari's address bar. Prioritize the full quiz board over
+   decorative timer text or tall player cards; the video remains in memory. */
+@media(orientation:landscape) and (max-height:640px){
+ .app.play-session{
+  --play-gutter:clamp(3px,.65dvh,6px);
  }
-}
-
-/* PARTY BOARD v4: never clip the last answer row or the player HUD.
-   Let short browser viewports scroll the page instead of hiding content. */
-.app.play-session{
- height:auto;min-height:100dvh;overflow:visible
-}
-.app.play-session .stage.playing-stage{
- height:auto;min-height:max(680px,calc(100dvh - 2 * var(--play-gutter)));
- grid-template-rows:minmax(505px,1fr) clamp(112px,17dvh,160px);
-}
-.app.play-session .stage.playing-stage .question-zone{
- height:100%;min-height:505px;
- grid-template-rows:clamp(27px,3.8dvh,34px) minmax(95px,1fr) clamp(340px,49dvh,500px);
-}
-.app.play-session .stage.playing-stage .choices .choice{
- min-height:0;padding:10px 12px 25px;gap:5px
-}
-.app.play-session .stage.playing-stage .choices .choice>span{
- min-height:0;max-height:100%;overflow-y:auto;scrollbar-width:thin
-}
-@media(max-width:780px){
  .app.play-session .stage.playing-stage{
-  min-height:max(790px,calc(100dvh - 2 * var(--play-gutter)));
-  grid-template-rows:minmax(645px,1fr) clamp(110px,17dvh,155px)
+  grid-template-rows:minmax(0,1fr) clamp(44px,15dvh,64px);
+  gap:3px;
  }
  .app.play-session .stage.playing-stage .question-zone{
-  height:100%;min-height:645px;
-  grid-template-rows:28px minmax(120px,1fr) clamp(465px,55dvh,555px)
+  grid-template-rows:clamp(19px,5dvh,23px) minmax(0,36%) minmax(0,1fr);
+  gap:3px;
  }
+ .app.play-session .stage.playing-stage .question-head .chip{
+  padding:2px 7px;font-size:10px;line-height:1.2;
+ }
+ .app.play-session .stage.playing-stage .touch-question{
+  padding:0 4px;gap:2px;scrollbar-width:thin;
+ }
+ .app.play-session .stage.playing-stage .touch-question .question{
+  font-size:clamp(14px,2.15vw,22px);line-height:1.09;
+ }
+ .app.play-session .stage.playing-stage .question-clue{
+  font-size:clamp(10px,1.5vw,13px);line-height:1.12;
+ }
+ .app.play-session .stage.playing-stage .question-media img{
+  max-height:min(18dvh,76px);max-width:min(25vw,175px);
+ }
+ .app.play-session .stage.playing-stage .choices{
+  grid-template-columns:minmax(0,1fr) clamp(66px,10vw,100px) minmax(0,1fr);
+  grid-template-rows:repeat(2,minmax(0,1fr));gap:4px;
+ }
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(1){grid-column:1;grid-row:1}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(2){grid-column:3;grid-row:1}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(3){grid-column:1;grid-row:2}
+ .app.play-session .stage.playing-stage .choices .choice:nth-child(4){grid-column:3;grid-row:2}
  .app.play-session .stage.playing-stage .choices .choice{
-  padding:7px 5px 22px
+  flex-direction:row;padding:3px 5px 12px;gap:5px;
+  border-radius:12px;font-size:clamp(12px,1.7vw,18px);line-height:1.1;
  }
-}
-@media(max-height:700px) and (min-width:781px){
- .app.play-session .stage.playing-stage{
-  min-height:680px;grid-template-rows:minmax(540px,1fr) 130px
+ .app.play-session .stage.playing-stage .choices .choice b{
+  font-size:clamp(15px,2.1vw,23px);
  }
- .app.play-session .stage.playing-stage .question-zone{
-  min-height:540px;grid-template-rows:30px minmax(105px,1fr) 385px
+ .app.play-session .stage.playing-stage .choices .status-focus{
+  grid-column:2;grid-row:1 / span 2;
+  width:100%;max-width:96px;height:auto;max-height:94px;min-height:0;
+  padding:3px;border-radius:16px;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+ }
+ .app.play-session .stage.playing-stage .status-focus__ring{
+  width:clamp(42px,7dvh,66px);
+ }
+ .app.play-session .stage.playing-stage .status-focus__ring strong{
+  font-size:clamp(25px,6dvh,38px);
+ }
+ .app.play-session .stage.playing-stage .status-focus__headline,
+ .app.play-session .stage.playing-stage .status-focus__detail,
+ .app.play-session .stage.playing-stage .status-focus__time{display:none}
+ .app.play-session .stage.playing-stage .bottom-zone{padding:2px 0 0}
+ .app.play-session .stage.playing-stage .scoreboard{gap:clamp(2px,.6vw,5px)}
+ .app.play-session .stage.playing-stage .scoreboard .player{
+  display:grid;grid-template-columns:auto auto minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) 3px;
+  align-items:center;justify-content:space-between;gap:1px 4px;
+  border-width:1px;border-radius:8px;padding:2px 5px;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .player-head{
+  display:flex;flex-direction:column;align-items:flex-start;
+  justify-content:center;flex-wrap:nowrap;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .player-head b{
+  font-size:clamp(9px,1vw,12px);line-height:1.1;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .player-gesture{
+  font-size:clamp(18px,5dvh,27px);line-height:1;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .player em{
+  font-size:9px;line-height:1.1;min-height:0;max-height:2.2em;
+  overflow:hidden;overflow-wrap:anywhere;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .player-progress{
+  grid-column:1 / -1;height:3px;min-height:3px;
+ }
+ .app.play-session .stage.playing-stage .dwell-marker{
+  width:clamp(24px,6dvh,34px);height:clamp(24px,6dvh,34px);
+  border-width:1px;font-size:8px;
  }
 }
 
