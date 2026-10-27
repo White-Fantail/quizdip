@@ -46,11 +46,13 @@ test("fixed four-choice layout, accessible status, and always-on center clock",(
 test("center clock has a dedicated grid location at desktop and phone widths",()=>{
  const css=read("../src/style.css");
  const main=read("../src/main.js");
- const clock=css.slice(css.lastIndexOf("/* PARTY BOARD v4: four"),css.lastIndexOf("/* PARTY BOARD v4: never"));
- assert.match(clock,/grid-template-columns:minmax\(0,1fr\) clamp\(158px,12vw,205px\) minmax\(0,1fr\)/);
+ const clock=css.slice(css.lastIndexOf("/* The game board is measured"),css.lastIndexOf("/* Live recognition lobby:"));
+ assert.match(clock,/grid-template-columns:minmax\(0,1fr\) clamp\(125px,12vw,185px\) minmax\(0,1fr\)/);
  assert.match(clock,/grid-column:2;grid-row:1 \/ span 2/);
- assert.match(clock,/@media\(max-width:780px\)/);
+ assert.match(clock,/@media\(max-width:780px\) and \(orientation:portrait\)/);
  assert.match(clock,/grid-column:1 \/ -1;grid-row:2/);
- assert.doesNotMatch(clock,/position:absolute/);
+ assert.match(clock,/@media\(orientation:landscape\) and \(max-height:640px\)/);
+ assert.match(clock,/grid-template-columns:minmax\(0,1fr\) clamp\(66px,10vw,100px\) minmax\(0,1fr\)/);
+ assert.match(clock,/position:relative;left:auto;top:auto;transform:none/);
  assert.match(main,/answers\.map\(\(answer,i\)=>/);
 });
