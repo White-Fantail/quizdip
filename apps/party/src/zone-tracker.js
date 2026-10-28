@@ -12,11 +12,20 @@ export class ZoneHandTracker {
  constructor(){this.reset();}
  reset(){
   this.tracks=[];this.current=[];this.nextRawId=1;this.zones=[];
-  this.presence=new Map();this.owners=new Map();
+  this.presence=new Map();this.owners=new Map();this.assigned=[];
  }
  get locked(){return this.zones.length>0;}
  get visibleCount(){return this.current.length;}
  getZones(){return this.zones.map(zone=>({...zone}));}
+ // Diagnostics only: return all physical detections but label a hand ONLY
+ // after normal, collision-safe in-lane reacquisition has accepted it.
+ getTrackingSnapshot(){
+  return {zones:this.getZones(),hands:this.current.map(hand=>({
+   x:hand.palm.x,y:hand.palm.y,
+   id:this.assigned.find(a=>Math.abs(a.x-hand.palm.x)<.00001&&
+    Math.abs(a.y-hand.palm.y)<.00001)?.id??null
+  }))};
+ }
  candidates(now,holdMs=ENROLL_HOLD_MS){
   if(this.locked)return [];
   const active=this.current.filter(track=>now-track.lastAt<=TRACK_GAP_MS);
@@ -57,7 +66,7 @@ export class ZoneHandTracker {
   });
   this.tracks=[...current,...recent.filter(t=>!used.has(t.rawId))];
   this.current=current;
-  if(!this.locked)return [];
+  if(!this.locked){this.assigned=[];return [];}
 
   const buckets=new Map(this.zones.map(zone=>[zone.id,[]]));
   for(const hand of current){
@@ -84,6 +93,7 @@ export class ZoneHandTracker {
     gesture:hand.count===0?"fist":"open",
     x:hand.palm.x,y:hand.palm.y,seen:now});
   }
+  this.assigned=assigned;
   return assigned;
  }
 }

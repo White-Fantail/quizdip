@@ -750,3 +750,74 @@
   min-height:66px
  }
 }
+
+/* Compact, on-device hand map: share the EXISTING score row, never cover a
+   question, choice, or central clock. Its live preview opens in-place. */
+.tracking-map{display:none}
+.app.play-session .stage.playing-stage .bottom-zone{
+ display:grid;grid-template-columns:clamp(82px,13vw,150px) minmax(0,1fr);
+ gap:clamp(4px,.8vw,10px);align-items:stretch;
+}
+.app.play-session .stage.playing-stage .camera-box{
+ display:block;position:relative;height:100%;width:100%;max-height:none;
+ min-height:0;min-width:0;aspect-ratio:auto;border:1px solid #566389;
+ border-radius:9px;background:#101729;overflow:hidden;
+}
+.app.play-session .stage.playing-stage .camera-box video{
+ object-fit:contain;opacity:0;transition:opacity .2s ease;
+}
+.app.play-session .stage.playing-stage .camera-box.is-recovering video{opacity:.85}
+.app.play-session .stage.playing-stage .camera-label,
+.app.play-session .stage.playing-stage .camera-guides{display:none}
+.app.play-session .tracking-map{
+ display:block;position:absolute;inset:0;z-index:4;pointer-events:none;
+ font-variant-numeric:tabular-nums;
+}
+.tracking-map__scene{
+ position:absolute;inset:0;border:1px solid #7b85aa44;border-radius:5px;
+ background:#19243f33;
+}
+.tracking-map__lane{
+ position:absolute;top:0;bottom:0;width:1px;
+ background:repeating-linear-gradient(to bottom,#a8b3d866 0 3px,transparent 3px 6px);
+}
+.tracking-map__missing{
+ position:absolute;top:0;bottom:0;background:#f4a1692a;
+ border-inline:1px solid #f4a16988;
+}
+.tracking-map__hand{
+ position:absolute;z-index:2;transform:translate(-50%,-50%);
+ display:flex;align-items:center;justify-content:center;
+ width:clamp(16px,2.1vw,23px);height:clamp(16px,2.1vw,23px);
+ border:1.5px solid var(--accent);border-radius:50%;
+ background:#101629e8;color:var(--accent);font-size:9px;font-weight:900;
+ text-shadow:0 1px 2px #000;white-space:nowrap;
+}
+.tracking-map__hand.is-lost{border-style:dashed;opacity:.72}
+.tracking-map__hand.is-waiting{opacity:.68}
+.tracking-map__hand.is-unknown{
+ border-style:dashed;border-color:#c3c9db;
+ color:#d9e1f3;background:#333b58b3;opacity:.78;
+}
+.tracking-map__caption{
+ position:absolute;z-index:3;bottom:0;left:0;right:0;overflow:hidden;
+ padding:1px 2px;font-size:9px;line-height:1.1;font-weight:750;
+ text-align:center;white-space:nowrap;text-overflow:ellipsis;
+ color:#fff;background:#12182de0;
+}
+@media(orientation:portrait) and (max-width:500px){
+ .app.play-session .stage.playing-stage .bottom-zone{
+  grid-template-columns:clamp(62px,18vw,82px) minmax(0,1fr);gap:3px;
+ }
+ .app.play-session .tracking-map__hand{
+  width:14px;height:14px;font-size:7px;border-width:1px;
+ }
+ .app.play-session .tracking-map__caption{font-size:7px}
+}
+@media(orientation:landscape) and (max-height:640px){
+ .app.play-session .tracking-map__hand{
+  width:clamp(13px,2.6dvh,19px);height:clamp(13px,2.6dvh,19px);
+  font-size:8px;border-width:1px;
+ }
+ .app.play-session .tracking-map__caption{font-size:8px}
+}

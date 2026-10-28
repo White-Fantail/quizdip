@@ -4,6 +4,7 @@ import {updateLobbyHold,LOCK_HOLD_MS,LAUNCH_HOLD_MS} from "./lobby-hands.js";
 import {TOUCH_COUNT,freshGame,setQuestions,register,begin,submit,reveal,advance,ROUND_MS} from "./game.js";
 import {touchRequest,validateTouchSet} from "./source.js";
 import {roundFocusState} from "./round-focus.js";
+import {trackingHudState} from "./tracking-hud.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const mouseTest=new URLSearchParams(location.search).get("test")==="1";
@@ -13,6 +14,7 @@ let revealUntil=0,stageStamp="",cameraReady=false,lastUiRefresh=0,lastGoodFrame=
 let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
 let lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
+let trackingState=null,lastTrackingRefresh=-Infinity;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
  // Safari's visible viewport changes as its bottom toolbar appears/disappears.
@@ -26,7 +28,7 @@ const root=document.getElementById("app");
  addEventListener("resize",syncVisibleViewport);
  addEventListener("orientationchange",syncVisibleViewport);
  window.visualViewport?.addEventListener("resize",syncVisibleViewport);
-root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>PARTY</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
+root.innerHTML='<div class="app"><div class="topline"><div class="logo">QuizDip <span>PARTY</span></div><div class="header-right"><span class="chip" id="status">CAMERA OFF</span><select id="locale" class="locale-select" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></div></div><main class="stage"><section id="top" class="question-zone"></section><section class="bottom-zone"><div class="camera-box"><video id="camera" autoplay muted playsinline aria-label="Local camera preview"></video><span class="camera-label" id="cameraLabel">Camera processed on this device</span><div id="cameraGuides" class="camera-guides"></div><div id="trackingMap" class="tracking-map" role="img" aria-label="Player hand positions"></div></div><div><div id="scores" class="scoreboard"></div><div id="messages" role="status" aria-live="polite"></div></div></section></main><footer class="foot" id="footer"></footer><div id="pointers"></div></div>';
 const el=id=>document.getElementById(id);
 const video=el("camera");
 const t=(ko,en)=>locale==="ko"?ko:en;
@@ -82,7 +84,7 @@ function startRecognizedGame(){
  // Registration happens in the lobby. During rounds, resting with a fist is fine.
  // A fist (0) or open palm (5) is a neutral pose before choosing 1–4.
  if(loading||!gameTicket||!game.players.length||(!mouseTest&&!cameraReady))return;
- if(begin(game,performance.now())){cleanPlayUI();render(true);}
+ if(begin(game,performance.now())){trackingState=null;lastTrackingRefresh=-Infinity;cleanPlayUI();render(true);}
 }
 function cameraGuide(){
  const guide=el("cameraGuides");
@@ -96,6 +98,55 @@ function cameraGuide(){
   guide.innerHTML=tracker.candidates(performance.now(),230).map(h=>
    '<div class="camera-hand" style="left:'+(h.x*100)+'%;top:'+(h.y*100)+'%">✋</div>').join("");
  }
+}
+
+function updateTrackingMap(now){
+ const map=el("trackingMap");
+ const box=video.closest(".camera-box");
+ if(!map||!box)return;
+ if(!selectedLane||(game.phase!=="playing"&&game.phase!=="revealed")){
+  box.classList.remove("is-recovering");
+  map.innerHTML="";
+  trackingState=null;
+  lastTrackingRefresh=-Infinity;
+  return;
+ }
+ if(now-lastTrackingRefresh<120)return;
+ lastTrackingRefresh=now;
+ // These are mirrored CAMERA coordinates, not the widened control cursor.
+ // An unassigned or ambiguous hand must NEVER receive a player badge.
+ const stalled=now-lastGoodFrame>Math.min(1600,Math.max(800,lastInferDuration*2.8+230));
+ const snapshot=tracker.getTrackingSnapshot();
+ trackingState=trackingHudState(trackingState,snapshot.zones,
+  stalled?[]:snapshot.hands,now);
+ const lost=trackingState.players.filter(p=>p.lost);
+ const recovering=lost.length>0&&cameraReady&&!mouseTest;
+ box.classList.toggle("is-recovering",recovering);
+ // The live video uses object-fit:contain. Match its LETTERBOXED rectangle,
+ // otherwise the guide dots would lie about where hands really are.
+ const width=box.clientWidth,height=box.clientHeight;
+ const ratio=video.videoWidth>0&&video.videoHeight>0?video.videoWidth/video.videoHeight:16/9;
+ const sceneWidth=width>0&&height>0?Math.min(width,height*ratio):0;
+ const sceneHeight=sceneWidth>0?sceneWidth/ratio:0;
+ const style=sceneWidth>0?'style="left:'+((width-sceneWidth)/2)+'px;top:'+((height-sceneHeight)/2)+
+  'px;width:'+sceneWidth+'px;height:'+sceneHeight+'px"':"";
+ const missingIds=new Set(lost.map(p=>p.id));
+ const boundaries=snapshot.zones.slice(1).map(z=>
+  '<span class="tracking-map__lane" style="left:'+(z.left*100)+'%"></span>').join("");
+ const zones=snapshot.zones.filter(z=>missingIds.has(z.id)).map(z=>
+  '<span class="tracking-map__missing" style="left:'+(z.left*100)+'%;width:'+((z.right-z.left)*100)+'%"></span>').join("");
+ const dots=trackingState.players.map(p=>
+  '<span class="tracking-map__hand '+(p.online?'is-online':p.lost?'is-lost':'is-waiting')+
+  '" style="--accent:'+color(p.id)+';left:'+(p.x*100)+'%;top:'+(p.y*100)+'%">P'+p.id+'</span>').join("");
+ const anonymous=trackingState.unknown.map(h=>
+  '<span class="tracking-map__hand is-unknown" style="left:'+(h.x*100)+'%;top:'+(h.y*100)+'%">?</span>').join("");
+ const label=!cameraReady?t("카메라 꺼짐","CAM OFF"):lost.length?
+  lost.map(p=>"P"+p.id).join(", ")+t(" 손 위치 확인"," find hand"):
+  t("손 위치","HAND MAP");
+ map.setAttribute("aria-label",trackingState.players.map(p=>"P"+p.id+" "+
+  (p.online?t("인식 중","tracked"):p.lost?t("인식 끊김","not detected"):t("재인식 중","reacquiring"))).join(", "));
+ map.innerHTML='<div class="tracking-map__scene" '+style+'>'+zones+boundaries+dots+anonymous+
+  '</div><span class="tracking-map__caption">'+label+'</span>';
 }
 function updateHeader(){
  el("status").textContent=cameraReady?t("● 카메라 연결됨","● CAMERA READY"):t("카메라 연결 전","CAMERA OFF");
@@ -123,7 +174,7 @@ function showMessage(message,warning=false){
 }
 function updateScores(){
  const board=el("scores");
- if(game.phase==="finished"||!selectedLane){board.innerHTML="";cameraGuide();return;}
+ if(game.phase==="finished"||!selectedLane){board.innerHTML="";cameraGuide();updateTrackingMap(performance.now());return;}
  const scanning=game.phase==="lobby"&&recognitionPhase==="scanning";
  const candidates=scanning?tracker.candidates(performance.now()):[];
  const players=scanning?candidates.map((hand,i)=>({id:i+1,hand})):
@@ -181,7 +232,7 @@ function updateScores(){
       "Locking "+target+" players in "+seconds+"s"):
     t("게임 자동 시작까지 "+seconds+"초","Starting in "+seconds+"s");
  }
- cameraGuide();
+ cameraGuide();updateTrackingMap(performance.now());
 }
 function render(force=false){
  const stamp=String(selectedLane)+":"+recognitionPhase+":"+loading+":"+loadError+":"+game.phase+":"+game.round+":"+locale+":"+game.players.map(p=>p.id).join("-");
