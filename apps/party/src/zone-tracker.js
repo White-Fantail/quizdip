@@ -1,4 +1,4 @@
-import {palmPoint,screenPoint,fingerCount,raisedLongFingers,nearestTrackMatching} from "./gestures.js";
+import {palmPoint,screenPoint,fingerCount,fingerStates,nearestTrackMatching} from "./gestures.js";
 
 // Player identity belongs to a physical camera lane, NEVER to the finger pose.
 export const MAX_ZONE_PLAYERS=5;
@@ -26,6 +26,12 @@ export class ZoneHandTracker {
     Math.abs(a.y-hand.palm.y)<.00001)?.id??null
   }))};
  }
+ // Diagnostic-only tip state: never authorizes a vote or player assignment.
+ getCameraDiagnostics(){
+  const labels=this.getTrackingSnapshot().hands;
+  return this.current.map((h,i)=>({...labels[i],count:h.count,
+   fingers:h.fingers??[],tips:h.tips??[]}));
+ }
  candidates(now,holdMs=ENROLL_HOLD_MS){
   if(this.locked)return [];
   const active=this.current.filter(track=>now-track.lastAt<=TRACK_GAP_MS);
@@ -51,8 +57,13 @@ export class ZoneHandTracker {
   const detections=(landmarks||[]).slice(0,MAX_ZONE_PLAYERS)
    .map(points=>{
     const center=palmPoint(points);
+    const fingers=fingerStates(points);
     const count=fingerCount(points);
-    return center&&count!==null?{palm:screenPoint(center),count,spread:raisedLongFingers(points)===4}:null;
+    const tips=[4,8,12,16,20].map(i=>points[i]&&
+     Number.isFinite(points[i].x)&&Number.isFinite(points[i].y)?
+     screenPoint(points[i]):null);
+    return center&&count!==null&&fingers?{palm:screenPoint(center),count,
+     spread:fingers.slice(1).every(Boolean),fingers,tips}:null;
    }).filter(Boolean);
   const recent=this.tracks.filter(track=>now-track.lastAt<=TRACK_GAP_MS);
   const matched=nearestTrackMatching(recent.map(x=>x.palm),detections.map(x=>x.palm),.18);
@@ -62,7 +73,8 @@ export class ZoneHandTracker {
    const previous=match===undefined?null:recent[match];
    if(previous)used.add(previous.rawId);
    return {rawId:previous?.rawId??this.nextRawId++,
-    since:previous?.since??now,palm:d.palm,count:d.count,spread:d.spread,lastAt:now};
+    since:previous?.since??now,palm:d.palm,count:d.count,spread:d.spread,
+    fingers:d.fingers,tips:d.tips,lastAt:now};
   });
   this.tracks=[...current,...recent.filter(t=>!used.has(t.rawId))];
   this.current=current;

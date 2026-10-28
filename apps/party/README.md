@@ -17,6 +17,8 @@ Develop on **dev**; fast-forward **main** only after the user explicitly request
 
 The server selects only active, published quiz language revisions; Kids content requires Kids eligibility and approval. QuizDip media URLs are signed per round, not bundled as permanent public URLs. Published canonical answers are downloaded with the local play bundle and graded in the browser. These temporary party scores do not write QuizDip play history or leaderboard records.
 
+The lobby camera preview now fits the **actual letterboxed video** and displays a palm-center ring plus five fingertip dots (thumb, index, middle, ring, pinky). Green denotes raised and orange folded; this helps diagnose when the model misreads a finger. Finger counts use the finger's own knuckle axis instead of a strict wrist-distance threshold, improving tolerance for naturally shorter or slightly bent children's fingers. This cannot compensate for fingers hidden from the camera; keep hands apart and move smaller hands nearer the lens. Real-device testing with children's hands remains necessary.
+
 MediaPipe detects hand joints, **not permanent person IDs**. Assigned regions guard against common identity swaps, but two hands deliberately sharing a lane, extended occlusion, or crowded five-player camera views may require rescan. Test different devices and lighting before claiming robust five-player support. Video landmarks stay in the browser and are not uploaded.
 
 ## Vercel build quota protection

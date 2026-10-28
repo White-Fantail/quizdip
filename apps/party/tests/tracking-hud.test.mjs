@@ -45,7 +45,7 @@ test("live minimap sits beside scores in the existing gameplay row without movin
  assert.match(main,/trackingHudState\(trackingState,snapshot\.zones/);
  assert.match(main,/trackingMap/);
  assert.match(main,/box\.classList\.toggle\("is-recovering",recovering\)/);
- assert.match(main,/video\.videoWidth\/video\.videoHeight/);
+ assert.match(main,/containedVideoRect\(box\.clientWidth,box\.clientHeight,video\.videoWidth,video\.videoHeight\)/);
  assert.match(css,/\.app\.play-session \.stage\.playing-stage \.bottom-zone\{[\s\S]*?grid-template-columns:clamp\(82px,13vw,150px\) minmax\(0,1fr\)/);
  assert.match(css,/\.camera-box\.is-recovering video\{opacity:\.85\}/);
  assert.match(css,/\.tracking-map__scene/);

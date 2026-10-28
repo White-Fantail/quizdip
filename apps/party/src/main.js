@@ -5,6 +5,7 @@ import {TOUCH_COUNT,freshGame,setQuestions,register,begin,submit,reveal,advance,
 import {touchRequest,validateTouchSet} from "./source.js";
 import {roundFocusState} from "./round-focus.js";
 import {trackingHudState} from "./tracking-hud.js";
+import {containedVideoRect,videoRectStyle} from "./camera-overlay.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const mouseTest=new URLSearchParams(location.search).get("test")==="1";
@@ -90,14 +91,21 @@ function cameraGuide(){
  const guide=el("cameraGuides");
  if(!guide)return;
  if(game.phase!=="lobby"||!selectedLane){guide.innerHTML="";return;}
- if(recognitionPhase==="locked"){
-  guide.innerHTML=tracker.getZones().map(z=>
-   '<div class="camera-lane" style="left:'+(z.left*100)+'%;width:'+((z.right-z.left)*100)+'%;--accent:'+color(z.id)+'">P'+z.id+'</div>'
-  ).join("");
- }else{
-  guide.innerHTML=tracker.candidates(performance.now(),230).map(h=>
-   '<div class="camera-hand" style="left:'+(h.x*100)+'%;top:'+(h.y*100)+'%">✋</div>').join("");
- }
+ // The video is letterboxed with object-fit:contain, mirrored by CSS.
+ // Place each landmark inside that actual image, not the black margins.
+ const box=video.closest(".camera-box");
+ const rect=containedVideoRect(box.clientWidth,box.clientHeight,video.videoWidth,video.videoHeight);
+ const lanes=recognitionPhase==="locked"?tracker.getZones().map(z=>
+  '<div class="camera-lane" style="left:'+(z.left*100)+'%;width:'+((z.right-z.left)*100)+'%;--accent:'+color(z.id)+'">P'+z.id+'</div>'
+ ).join(""):"";
+ const hands=tracker.getCameraDiagnostics().map(h=>{
+  const fingertips=h.tips.map((tip,i)=>tip?
+   '<span class="camera-finger-tip '+(h.fingers[i]?'is-raised':'is-folded')+
+   '" style="left:'+(tip.x*100)+'%;top:'+(tip.y*100)+'%"></span>':"").join("");
+  return fingertips+'<span class="camera-hand" style="left:'+(h.x*100)+'%;top:'+
+   (h.y*100)+'%" aria-hidden="true">'+(h.id?"P"+h.id:h.count)+'</span>';
+ }).join("");
+ guide.innerHTML='<div class="camera-guide-scene" style="'+videoRectStyle(rect)+'">'+lanes+hands+'</div>';
 }
 
 function updateTrackingMap(now){
@@ -124,12 +132,8 @@ function updateTrackingMap(now){
  box.classList.toggle("is-recovering",recovering);
  // The live video uses object-fit:contain. Match its LETTERBOXED rectangle,
  // otherwise the guide dots would lie about where hands really are.
- const width=box.clientWidth,height=box.clientHeight;
- const ratio=video.videoWidth>0&&video.videoHeight>0?video.videoWidth/video.videoHeight:16/9;
- const sceneWidth=width>0&&height>0?Math.min(width,height*ratio):0;
- const sceneHeight=sceneWidth>0?sceneWidth/ratio:0;
- const style=sceneWidth>0?'style="left:'+((width-sceneWidth)/2)+'px;top:'+((height-sceneHeight)/2)+
-  'px;width:'+sceneWidth+'px;height:'+sceneHeight+'px"':"";
+ const rect=containedVideoRect(box.clientWidth,box.clientHeight,video.videoWidth,video.videoHeight);
+ const style=rect.width>0?'style="'+videoRectStyle(rect)+'"':"";
  const missingIds=new Set(lost.map(p=>p.id));
  const boundaries=snapshot.zones.slice(1).map(z=>
   '<span class="tracking-map__lane" style="left:'+(z.left*100)+'%"></span>').join("");

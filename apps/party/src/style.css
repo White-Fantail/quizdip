@@ -821,3 +821,19 @@
  }
  .app.play-session .tracking-map__caption{font-size:8px}
 }
+
+/* The palm ring and individual finger-tip markers share the video rectangle. */
+.camera-guide-scene{position:absolute;inset:auto;overflow:hidden;pointer-events:none}
+.camera-guide-scene .camera-hand{
+ display:flex;align-items:center;justify-content:center;
+ width:28px;height:28px;border:2px solid #d4fff4;border-radius:50%;
+ background:#16374cd6;color:#fff;font-weight:900;font-size:12px;
+ font-family:inherit;line-height:1;text-shadow:0 1px 3px #000;
+ box-shadow:0 0 0 3px #80f5d155;filter:drop-shadow(0 2px 4px #080d19)
+}
+.camera-finger-tip{
+ position:absolute;z-index:3;transform:translate(-50%,-50%);
+ width:9px;height:9px;border-radius:50%;background:#80f5d1;
+ border:1px solid #fff9;box-shadow:0 0 0 2px #10102499;pointer-events:none
+}
+.camera-finger-tip.is-folded{background:#f5a38b;opacity:.85}

@@ -6,17 +6,28 @@ export function palmPoint(points){
  if(ids.some(i=>!Number.isFinite(points[i]?.x)||!Number.isFinite(points[i]?.y)))return null;
  return {x:ids.reduce((s,i)=>s+points[i].x,0)/5,y:ids.reduce((s,i)=>s+points[i].y,0)/5};
 }
-// Four long fingers determine an open palm independently of the thumb.
-// This also works while the thumb tip is partially occluded by the camera.
-export function raisedLongFingers(points){
+// Project each fingertip on its own knuckle-to-PIP axis. Unlike the old
+// wrist-reach ratio, this tolerates short, slightly bent children's fingers
+// and stays invariant under uniform scale, camera rotation and reflection.
+export function longFingerStates(points){
  if(!palmPoint(points))return null;
- const wrist=points[0];
- let raised=0;
- for(const [tip,pip] of [[8,6],[12,10],[16,14],[20,18]]){
-  if(!points[tip]||!points[pip])return null;
-  if(distance(points[tip],wrist)>distance(points[pip],wrist)*1.16)raised++;
- }
- return raised;
+ return [[5,6,8],[9,10,12],[13,14,16],[17,18,20]].map(([mcp,pip,tip])=>{
+  const a=points[mcp],b=points[pip],c=points[tip];
+  if(![a,b,c].every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)))return false;
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const len2=dx*dx+dy*dy;
+  if(len2<1e-7)return false;
+  const reach=((c.x-a.x)*dx+(c.y-a.y)*dy)/len2;
+  return reach>=1.25; // at least 25% of the proximal bone beyond PIP
+ });
+}
+export function raisedLongFingers(points){
+ const flags=longFingerStates(points);
+ return flags===null?null:flags.filter(Boolean).length;
+}
+export function fingerStates(points){
+ const long=longFingerStates(points);
+ return long===null?null:[isThumbExtended(points),...long];
 }
 // Only index through pinky can select answers 1–4. A thumb that is
 // accidentally classified as extended must NEVER turn a fist into "1" or
@@ -40,9 +51,10 @@ export function isThumbExtended(points){
  return tipOutside>.23 && thumbExtension>.10;
 }
 export function fingerCount(points){
- const raised=raisedLongFingers(points);
- if(raised===null)return null;
- return raised===4&&isThumbExtended(points)?5:raised;
+ const flags=fingerStates(points);
+ if(flags===null)return null;
+ const raised=flags.slice(1).filter(Boolean).length;
+ return raised===4&&flags[0]?5:raised;
 }
 export function handGesture(points){
  const n=fingerCount(points);
@@ -58,10 +70,9 @@ export function screenPoint(palm,mirror=true){
 export function screenControlPoint(points){
  const palm=palmPoint(points);
  if(!palm)return null;
- const wrist=points[0],tips=[];
- for(const [tip,pip] of [[8,6],[12,10],[16,14],[20,18]]){
-  if(distance(points[tip],wrist)>distance(points[pip],wrist)*1.16)tips.push(points[tip]);
- }
+ const tips=[];
+ const extended=longFingerStates(points);
+ for(const [i,tip] of [8,12,16,20].entries())if(extended?.[i])tips.push(points[tip]);
  const source=tips.length?{
   x:tips.reduce((sum,p)=>sum+p.x,0)/tips.length,
   y:tips.reduce((sum,p)=>sum+p.y,0)/tips.length
