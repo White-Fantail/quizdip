@@ -837,3 +837,75 @@
  border:1px solid #fff9;box-shadow:0 0 0 2px #10102499;pointer-events:none
 }
 .camera-finger-tip.is-folded{background:#f5a38b;opacity:.85}
+
+
+/* Fixed player-card semantics throughout playing and revealed phases.
+   Left = tracking; center = live fingers; right = submitted choice.
+   This overrides older landscape grid rules without adding screen height. */
+.app.play-session .stage.playing-stage .scoreboard .player.round-player{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+ grid-template-rows:auto minmax(0,1fr) 4px;
+ align-items:center;justify-content:stretch;
+ gap:clamp(1px,.35dvh,3px) clamp(3px,.65vw,10px);
+ padding:clamp(3px,.65dvh,8px);opacity:1;
+}
+.app.play-session .stage.playing-stage .scoreboard .player.round-player.offline{
+ border-style:dashed;background:#252a40;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-head{
+ grid-column:1 / -1;grid-row:1;
+ display:flex;flex-direction:row;justify-content:space-between;align-items:center;
+ flex-wrap:nowrap;min-width:0;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-gesture{
+ grid-column:2;grid-row:2;align-self:center;justify-self:center;
+ min-width:1ch;font-size:clamp(26px,3.6vw,48px);
+ line-height:1;font-weight:950;font-variant-numeric:tabular-nums;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-tracking,
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-submission{
+ min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+ font-size:clamp(9px,1vw,13px);font-weight:800;line-height:1.2;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-tracking{
+ grid-column:1;grid-row:2;justify-self:start;text-align:left;color:#b5eedb;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-tracking.is-missing{
+ color:#ffcb88;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-submission{
+ grid-column:3;grid-row:2;justify-self:end;text-align:right;color:#c3cce2;
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-submission.is-submitted{
+ color:var(--accent);
+}
+.app.play-session .stage.playing-stage .scoreboard .round-player .player-progress{
+ grid-column:1 / -1;grid-row:3;height:4px;min-height:4px;
+}
+@media(orientation:landscape) and (max-height:640px){
+ .app.play-session .stage.playing-stage .scoreboard .player.round-player{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr) 3px;
+  gap:1px clamp(2px,.35vw,5px);padding:2px 4px;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-gesture{
+  grid-column:2;grid-row:2;font-size:clamp(18px,5dvh,27px);
+ }
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-tracking,
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-submission{
+  font-size:clamp(8px,.8vw,10px);line-height:1.1;
+ }
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-progress{
+  grid-column:1 / -1;grid-row:3;height:3px;min-height:3px;
+ }
+}
+@media(max-width:780px) and (orientation:portrait){
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-gesture{
+  font-size:clamp(22px,5vw,36px);
+ }
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-tracking,
+ .app.play-session .stage.playing-stage .scoreboard .round-player .player-submission{
+  font-size:clamp(8px,1.7vw,11px);
+ }
+}

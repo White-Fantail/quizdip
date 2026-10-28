@@ -6,6 +6,7 @@ import {touchRequest,validateTouchSet} from "./source.js";
 import {roundFocusState} from "./round-focus.js";
 import {trackingHudState} from "./tracking-hud.js";
 import {containedVideoRect,videoRectStyle} from "./camera-overlay.js";
+import {playerPanelState} from "./player-panel.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const mouseTest=new URLSearchParams(location.search).get("test")==="1";
@@ -186,22 +187,29 @@ function updateScores(){
  board.style.setProperty("--player-count",Math.max(1,players.length));
  board.classList.toggle("scanning",scanning);
  board.innerHTML=players.map(({id,hand,player})=>{
-  const detected=!!hand||(mouseTest&&!cameraReady);
   const vote=game.phase==="playing"?intents.get(id):null;
   const answer=game.answers.get(id);
-  const phase=answer?t("확정 ✓","VOTED ✓"):!detected?t("선택할 때 주먹부터 보여주세요","Show a fist when ready to vote"):
-   vote?.phase==="neutral"?t("주먹으로 잠시 대기","Hold a fist briefly"):
-   vote?.phase==="ready"?t("생각하다가 1~4개로 선택","Think, then show 1–4"):
-   vote?.phase==="arming"?t("손가락 확인 중","Reading fingers"):
-   vote?.phase==="countdown"?Math.max(0,vote.remainingMs/1000).toFixed(1)+"s":
-   game.phase==="revealed"?t("정답 확인","Revealed"):
-   game.phase==="lobby"?t("손 인식 완료","Hand confirmed"):t("주먹으로 쉬었다가 선택","Rest with a fist, then vote");
-  const count=answer?String(answer.choice+1):hand?.count>=1&&hand?.count<=4?String(hand.count):
-   hand?.count===5?"5":hand?.count===0?"✊":"—";
-  const progress=answer?100:vote?.phase==="countdown"?Math.round(vote.progress*100):0;
-  return '<div class="player '+(!detected?'offline':'')+'" style="--accent:'+color(id)+'"><div class="player-head"><b>P'+id+'</b><b>'+((player?.score??0))+' pt</b></div>'+
-   '<strong class="player-gesture">'+count+'</strong><em>'+phase+'</em>'+
-   '<div class="player-progress"><span style="width:'+progress+'%"></span></div></div>';
+  if(game.phase==="playing"||game.phase==="revealed"){
+   const state=playerPanelState({hand,answer,vote,phase:game.phase,locale});
+   return '<div class="player round-player '+(!state.detected?'offline':'')+
+    '" style="--accent:'+color(id)+'"><div class="player-head"><b>P'+id+'</b><b>'+
+    (player?.score??0)+' pt</b></div>'+
+    '<span class="player-tracking '+(state.detected?'is-tracked':'is-missing')+
+    '" title="'+escapeHtml(state.tracking)+'">'+escapeHtml(state.tracking)+'</span>'+
+    '<strong class="player-gesture" aria-label="'+t("손가락 ","Fingers ")+state.fingers+'">'+state.fingers+'</strong>'+
+    '<span class="player-submission '+(state.submitted?'is-submitted':'is-pending')+
+    '" title="'+escapeHtml(state.selection)+'">'+escapeHtml(state.selection)+'</span>'+
+    '<div class="player-progress"><span style="width:'+state.progress+'%"></span></div></div>';
+  }
+  // The lobby retains its recognition hints and does not show submitted answers.
+  const detected=!!hand||(mouseTest&&!cameraReady);
+  const phase=!detected?t("손을 카메라에 보여주세요","Show your hand"):
+   t("손 인식 완료","Hand confirmed");
+  const count=Number.isInteger(hand?.count)&&hand.count>=0&&hand.count<=5?
+   String(hand.count):"—";
+  return '<div class="player '+(!detected?'offline':'')+'" style="--accent:'+color(id)+'"><div class="player-head"><b>P'+id+'</b><b>'+
+   (player?.score??0)+' pt</b></div><strong class="player-gesture">'+count+
+   '</strong><em>'+phase+'</em><div class="player-progress"><span style="width:0%"></span></div></div>';
  }).join("")||(scanning?'<p class="waiting-players">'+t("최대 다섯 명까지 손을 보여주세요.","Show up to five hands.")+'</p>':"");
  const count=el("recognizedCount");
  if(count)count.textContent=scanning
