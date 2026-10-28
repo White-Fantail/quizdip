@@ -16,7 +16,12 @@ export function longFingerStates(points){
   if(![a,b,c].every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)))return false;
   const dx=b.x-a.x,dy=b.y-a.y;
   const len2=dx*dx+dy*dy;
-  if(len2<1e-7)return false;
+  // If MediaPipe collapses the proximal joint segment, its axis is not
+  // trustworthy. Keep the older conservative wrist check as a fallback.
+  // Relative scale matters: a genuinely small child's hand is NOT degenerate.
+  const wrist=points[0],palmDepth=distance(wrist,a);
+  if(len2<1e-7||Math.sqrt(len2)<palmDepth*.18)
+   return distance(c,wrist)>distance(b,wrist)*1.16;
   const reach=((c.x-a.x)*dx+(c.y-a.y)*dy)/len2;
   return reach>=1.25; // at least 25% of the proximal bone beyond PIP
  });
