@@ -7,6 +7,7 @@ import {roundFocusState} from "./round-focus.js";
 import {trackingHudState} from "./tracking-hud.js";
 import {containedVideoRect,videoRectStyle} from "./camera-overlay.js";
 import {playerPanelState} from "./player-panel.js";
+import {sameRoundView} from "./round-view.js";
 
 const colors=["#80f5d1","#ffe27b","#f4a9df","#9cc3ff","#fbaa80"];
 const mouseTest=new URLSearchParams(location.search).get("test")==="1";
@@ -17,6 +18,7 @@ let selectedLane=null,gameTicket=null,loadedLocale=null,lobbyHold=null;
 let loading=false,loadError="",loadRevision=0;
 let lastFocusAnnouncement="",lastFocusElement=null,lastFocusRefresh=-Infinity;
 let trackingState=null,lastTrackingRefresh=-Infinity;
+let roundView=null;
 const intents=new Map(),answeredPositions=new Map(),choiceMarkers=new Map();
 const root=document.getElementById("app");
  // Safari's visible viewport changes as its bottom toolbar appears/disappears.
@@ -250,7 +252,20 @@ function render(force=false){
  const stamp=String(selectedLane)+":"+recognitionPhase+":"+loading+":"+loadError+":"+game.phase+":"+game.round+":"+locale+":"+game.players.map(p=>p.id).join("-");
  if(!force&&stamp===stageStamp)return;
  stageStamp=stamp;
- const top=el("top");top.classList.toggle("lobby-view",game.phase==="lobby");
+ const top=el("top");
+ // An answer reveal is NOT a new round. Keep the exact question, choices,
+ // clock and media nodes: rebuilding here resets scroll/media and can cause
+ // visible shifts on small screens. Only update the answer decorations.
+ const activeRound=game.phase==="playing"||game.phase==="revealed";
+ const nextRound=activeRound?{game,round:game.round,question:game.questions[game.round],locale}:null;
+ if(nextRound&&sameRoundView(roundView,nextRound)&&top.querySelector(".choices")){
+  updateVotes();
+  refreshChoiceMarkers();
+  updateHeader();updateScores();updateStatusFocus(performance.now());
+  return;
+ }
+ roundView=null;
+ top.classList.toggle("lobby-view",game.phase==="lobby");
  document.querySelector(".stage").classList.toggle("lobby-stage",game.phase==="lobby"&&!!selectedLane);
  top.classList.toggle("mode-view",!selectedLane);
  top.classList.toggle("finished-view",game.phase==="finished"&&!!selectedLane);
@@ -320,6 +335,7 @@ function render(force=false){
   if(el("retryLoad"))el("retryLoad").onclick=()=>void loadTenQuestions();
  }else if(game.phase==="playing"||game.phase==="revealed"){
   const q=game.questions[game.round],answers=q.options;
+  roundView=nextRound;
   top.innerHTML='<div class="question-head"><span class="chip">'+t("문제","QUESTION")+' '+(game.round+1)+' / '+TOUCH_COUNT+
     '</span><span class="chip" id="answerCount">'+
     game.answers.size+' / '+game.players.length+' '+t("응답","VOTED")+'</span></div>'+
@@ -409,7 +425,9 @@ function updateVotes(){
   if(!label)continue;
   const voted=[...game.answers.entries()].filter(([_,v])=>v.choice===choice);
   label.innerHTML=voted.map(([id])=>'<span class="voter-badge" style="--accent:'+color(id)+'">P'+id+' ✓</span>').join("");
-  if(game.phase==="revealed"&&choice!==game.correctIndex&&voted.length)node.classList.add("wrong");
+  const revealed=game.phase==="revealed";
+  node.classList.toggle("correct",revealed&&choice===game.correctIndex);
+  node.classList.toggle("wrong",revealed&&choice!==game.correctIndex&&voted.length>0);
  }
 }
 function refreshChoiceMarkers(){

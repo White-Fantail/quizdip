@@ -909,3 +909,14 @@
   font-size:clamp(8px,1.7vw,11px);
  }
 }
+
+/* Round reveal is a paint/state update, not a layout transition.
+   Screen-reader announcements must never increase the score-row height. */
+.app.play-session .stage.playing-stage #messages{
+ position:absolute;width:1px;height:1px;overflow:hidden;
+ clip-path:inset(50%);white-space:nowrap;pointer-events:none;
+ margin:0;padding:0;
+}
+.app.play-session .stage.playing-stage .bottom-zone>div:last-child{
+ min-height:0;min-width:0;height:100%;overflow:hidden;
+}
