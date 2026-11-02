@@ -3,6 +3,7 @@ import Link from "next/link";
 import {Fragment,useEffect,useState} from "react";
 import AdSlot from "../../../src/components/ads/AdSlot";
 import KidsPackBadge from "../../../src/components/kids-pack-badge";
+import { splitPackDescription } from "../../../src/modules/quiz/pack-description";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 type Pack={id:string;title:string;description:string;publication:string;
@@ -44,7 +45,7 @@ export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:n
         </div>
         <span className="muted">{pack.quizIds.length} {ko?"문제":"questions"}</span>
       </div>
-      <h3>{pack.title}</h3><p className="discover-card-description">{pack.description}</p>
+      <h3>{pack.title}</h3><p className="discover-card-description">{splitPackDescription(pack.description||"").intro}</p>
       <p className="muted">{pack.orderMode==="RANDOM"?(ko?"랜덤 출제":"Random each play"):(ko?"제작자 순서":"Creator order")}</p>
       {pack.ratings?.positivePercent!==null&&pack.ratings?.positivePercent!==undefined&&
         <p>👍 {pack.ratings.positivePercent}% · {pack.ratings.total}{ko?"명 평가":" ratings"}</p>}

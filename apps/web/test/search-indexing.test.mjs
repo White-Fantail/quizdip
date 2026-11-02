@@ -8,9 +8,9 @@ import {
 test("sitemap always points to the canonical QuizDip domain and bilingual routes", () => {
   assert.equal(INDEX_ORIGIN, "https://quizdip.com");
   const entries = staticSitemapEntries();
-  assert.equal(entries.length, 6);
+  assert.equal(entries.length, 8);
   assert.deepEqual(entries.map(item => new URL(item.url).pathname),
-    ["/en", "/en/discover", "/en/packs", "/ko", "/ko/discover", "/ko/packs"]);
+    ["/en", "/en/discover", "/en/packs", "/en/about", "/ko", "/ko/discover", "/ko/packs", "/ko/about"]);
   for (const entry of entries) {
     assert.equal(new URL(entry.url).host, "quizdip.com");
     assert.equal(entry.alternates.languages.en.startsWith("https://quizdip.com/en"), true);

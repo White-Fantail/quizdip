@@ -29,6 +29,36 @@ export default async function HomePage() {
           <Link href={url("/studio")} className="feature-card"><span className="symbol coral">✎</span><h3>Studio</h3><p>{msg("home.studioText")}</p><span className="card-link">{msg("home.studioAction")}</span></Link>
         </div>
       </section>
+      <section className="section" aria-labelledby="how-it-works">
+        <h2 id="how-it-works">{locale === "ko" ? "퀴즈딥을 즐기는 방법" : "What makes a QuizDip?"}</h2>
+        <p className="muted">{locale === "ko"
+          ? "퀴즈딥은 단서를 하나씩 확인하며 추리하는 퀴즈 놀이터입니다. 답을 외우기보다 발견하는 과정을 즐겨보세요."
+          : "QuizDip is a place to reason through clues, make a guess, and learn something new along the way."}</p>
+        <div className="cards">
+          <article className="feature-card">
+            <h3>{locale === "ko" ? "단서를 따라 추리" : "Reason through clues"}</h3>
+            <p>{locale === "ko"
+              ? "문제에 따라 글이나 이미지 등 다른 형태의 단서가 차례로 열립니다. 어려우면 다음 단서를 요청하세요."
+              : "Depending on the question, text or visual clues appear progressively. Need more evidence? Reveal another clue."}</p>
+          </article>
+          <article className="feature-card">
+            <h3>{locale === "ko" ? "한 주제를 깊게" : "Explore a full topic"}</h3>
+            <p>{locale === "ko"
+              ? "퀴즈팩은 여러 문제를 한 흐름으로 묶습니다. 팩 소개를 읽고 좋아하는 주제를 골라 도전해 보세요."
+              : "Packs bring questions together around a theme. Read the creator's introduction before choosing a challenge."}</p>
+          </article>
+          <article className="feature-card">
+            <h3>{locale === "ko" ? "설명과 피드백" : "Explanations and feedback"}</h3>
+            <p>{locale === "ko"
+              ? "문제에 해설이 제공되면 플레이 후 살펴볼 수 있습니다. 오류나 부적절한 내용은 신고할 수 있어요."
+              : "Where available, explanations add context after a round. Players can report inaccurate or inappropriate content."}</p>
+          </article>
+        </div>
+        <div className="actions">
+          <Link className="btn btn-outline" href={url("/packs")}>{locale === "ko" ? "전체 퀴즈팩 살펴보기" : "Browse the quiz pack library"}</Link>
+          <Link className="btn btn-outline" href={url("/about")}>{locale === "ko" ? "콘텐츠 제작과 운영 원칙" : "How we handle content"}</Link>
+        </div>
+      </section>
       <LeaderboardSpotlight />
       <section className="note-strip"><b>Create it. Play it. Share it.</b><span>{msg("home.tagline")}</span></section>
     </div>

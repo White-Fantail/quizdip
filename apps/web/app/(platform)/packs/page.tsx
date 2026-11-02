@@ -2,6 +2,7 @@ import Link from "next/link";
 import {Fragment} from "react";
 import AdSlot from "../../../src/components/ads/AdSlot";
 import KidsPackBadge from "../../../src/components/kids-pack-badge";
+import { splitPackDescription } from "../../../src/modules/quiz/pack-description";
 import { headers } from "next/headers";
 import { resolveLocale,localizeHref } from "../../../src/i18n/core";
 import { packList } from "../../../src/modules/platform/social";
@@ -24,7 +25,7 @@ export default async function PackCatalog({searchParams}:{searchParams:Promise<{
         <span className="small-tag">{locale==="ko"?"퀴즈팩":"Quiz pack"}</span>
         <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
       </div>
-      <h2>{pack.title}</h2><p>{pack.description}</p>
+      <h2>{pack.title}</h2><p>{splitPackDescription(pack.description||"").intro}</p>
       <p className="muted">{pack.quizIds.length} {locale==="ko"?"문제":"questions"} · {pack.orderMode==="RANDOM"?(locale==="ko"?"랜덤 순서":"Random order"):(locale==="ko"?"등록 순서":"Creator order")}</p>
       <Link className="btn btn-primary" href={localizeHref("/packs/"+pack.id+(page?"?page="+page:""),locale)}>{locale==="ko"?"팩 보기 →":"View pack →"}</Link>
     </article></Fragment>)}</div>

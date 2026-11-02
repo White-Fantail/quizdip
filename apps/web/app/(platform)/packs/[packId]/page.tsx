@@ -58,6 +58,20 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
     <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
+  <section className="feature-card" aria-labelledby="pack-guide-heading">
+    <h2 id="pack-guide-heading">{locale==="ko"?"이 퀴즈팩을 즐기는 방법":"What to expect from this pack"}</h2>
+    <p>{locale==="ko"
+      ? `이 팩에는 현재 플레이할 수 있는 ${pack.questionCount}개 문제가 있으며, ${pack.orderMode==="RANDOM"?"시작할 때 순서가 섞입니다.":"제작자가 정한 순서로 진행됩니다."}`
+      : `This pack currently has ${pack.questionCount} playable questions, ${pack.orderMode==="RANDOM"?"shuffled at the start.":"played in the creator's chosen order."}`}</p>
+    <p>{locale==="ko"
+      ?"각 문제에서 단서를 하나씩 살펴보고 답을 추리하세요. 해설이 있는 문제는 정답을 확인한 후 더 자세한 맥락을 알아볼 수 있습니다. 질문과 해설은 제작자가 수정할 수 있으며, 공개된 결과에는 버전이 표시됩니다."
+      :"Work through clues and make your guess. Questions with explanations give more context after the answer is revealed. Creators can revise questions, and shared results identify the pack version."}</p>
+    <p className="muted">{locale==="ko"
+      ?"문제 내용이 잘못되었거나 부적절하다면 아래 신고 기능을 사용해 주세요."
+      :"If you find an inaccurate or inappropriate question, use the report option below."}
+      {" "}<Link href={localizeHref("/about",locale)}>{locale==="ko"?"콘텐츠 제작 및 검토 원칙":"Content and review standards"}</Link>
+    </p>
+  </section>
   <PackPublicReviews packId={pack.id}/>
   <AdSlot placement="PACK_DETAIL" kids={pack.kidsEligible}/>
   <PackReport packId={pack.id}/>

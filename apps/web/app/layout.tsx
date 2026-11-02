@@ -57,7 +57,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
           </header>
           <main>{children}</main>
-          <footer className="site-footer"><div className="container">© QuizDip · Create it. Play it. Share it.</div></footer>
+          <footer className="site-footer"><div className="container">
+            <span>© QuizDip · Create it. Play it. Share it.</span>
+            {" · "}
+            <Link href={localizeHref("/about", locale)}>{locale === "ko" ? "서비스 소개 및 콘텐츠 원칙" : "About & content standards"}</Link>
+            {" · "}
+            <Link href={localizeHref("/packs", locale)}>{locale === "ko" ? "공개 퀴즈팩" : "Quiz pack library"}</Link>
+          </div></footer>
           </>}
           </AdProvider>
         </LocaleProvider>
