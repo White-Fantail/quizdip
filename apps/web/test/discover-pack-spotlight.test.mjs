@@ -55,6 +55,6 @@ test("Discover card descriptions do not overlap creator and metadata", () => {
   assert.doesNotMatch(css, /\.discover-card p\s*\{[^}]*flex\s*:\s*1\b/);
   assert.match(css, /\.discover-card-description\s*\{[^}]*-webkit-line-clamp:4;[^}]*overflow:hidden;/);
   assert.match(ranked, /className="discover-card-description"[^>]*>\{item.subtitle\}/);
-  assert.match(catalog, /className="discover-card-description"[^>]*>\{pack.description\}/);
+  assert.match(catalog, /className="discover-card-description"[^>]*>\{splitPackDescription\(pack\.description\|\|""\)\.intro\}/);
   assert.match(questions, /className="discover-card-description"[^>]*>\{quiz.prompt\}/);
 });
