@@ -14,6 +14,7 @@ import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { answerShortcutIndex } from "../../../../src/modules/platform/keyboard-choice";
+import {trackGrowth} from "../../../../src/lib/growth-tracking";
 
 type Clue = { type: "text" | "image" | "image-reveal" | "audio" | "video" | "map"; text?: string;
   mediaId?: string; reveal?: RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
@@ -74,6 +75,7 @@ export default function SingleQuizPage() {
       .then((next:Session&{question:LocalQuestion}) => {
       if (!active) return;
       setSession(next);
+      trackGrowth("single_start",locale);
       localQuestion.current=next.question;
       localProgress.current=initialLocalProgress(next.question.clues.length);
       setClues(next.question.clues.slice(0,localProgress.current.clueIndex) as Clue[]);
@@ -114,13 +116,14 @@ export default function SingleQuizPage() {
       const attempt=guessLocalAnswer(localQuestion.current,localProgress.current,selectedAnswer.trim());
       if(!attempt)return;
       localProgress.current=attempt.progress;
+      trackGrowth("first_answer",locale);
       const result=attempt.result;
       if(result.status!=="ACTIVE")void request("/local-play/single/sync",{
         sessionId:session.sessionId,sessionToken:session.sessionToken,
         cluesUsed:attempt.progress.clueIndex,status:attempt.progress.status,
         score:attempt.progress.score,
         ...(attempt.progress.firstChoice ? {firstChoice:attempt.progress.firstChoice} : {})
-      }).catch(()=>{});
+      }).then(()=>trackGrowth("finish",locale)).catch(()=>{});
       if (result.status === "ACTIVE") {
         setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));
         setMustReveal(true);
@@ -322,7 +325,7 @@ export default function SingleQuizPage() {
       </div>}
       {status !== "ACTIVE" && <div className="actions">
         <Link className="btn btn-primary" href={localizeHref("/discover",locale)}>{msg("Discover more quizzes →","다른 퀴즈 발견하기 →")}</Link>
-        <Link className="btn btn-outline" href={localizeHref("/play",locale)}>{msg("Play five random quizzes","랜덤 5문제 도전하기")}</Link>
+        <Link className="btn btn-outline" href={localizeHref("/play?quick=1&src=discover",locale)}>{msg("Play five random quizzes","랜덤 5문제 도전하기")}</Link>
       </div>}
     </section>}
     {error && <p className="feedback" role="alert">{error}</p>}

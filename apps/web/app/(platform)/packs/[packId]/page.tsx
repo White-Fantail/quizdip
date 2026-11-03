@@ -53,7 +53,7 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}
      {pack.sections.length>0&&<> · <strong>{pack.sections.length}</strong> {locale==="ko"?"개 파트":pack.sections.length===1?"chapter":"chapters"}</>}</p>
    <div className="actions">
-    <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
+    <Link href={localizeHref("/packs/"+pack.id+"/play?src=discover",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
     <Link href={backHref} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
     <PackShare path={"/packs/"+pack.id}/>
    </div>

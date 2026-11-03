@@ -14,6 +14,8 @@ import PackFeedback from "../../../src/components/pack-feedback";
 import PackResultShare from "../../../src/components/pack-result-share";
 import RelatedPacks from "../../../src/components/related-packs";
 import AdSlot from "../../../src/components/ads/AdSlot";
+import QuickResultShare from "../../../src/components/quick-result-share";
+import {trackGrowth} from "../../../src/lib/growth-tracking";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { answerShortcutIndex } from "../../../src/modules/platform/keyboard-choice";
@@ -99,6 +101,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
   const submittingRef=useRef(false);
   const [busy,setBusy]=useState(false);
   const packStartKeyRef=useRef<string|null>(null);
+  const quickAutoStart=useRef(false);
   const [packStartStatus,setPackStartStatus]=useState<"loading"|"ready"|"error">(packId?"loading":"ready");
   const [error,setError]=useState("");
   const [feedback,setFeedback]=useState("");
@@ -204,8 +207,10 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       const local=localSummary(Object.values(localProgressRef.current));
       if(saved&&saved.completed>=local.completed){
         setSyncState("saved");
-        if(saved.status==="FINISHED"&&local.completed===bundle.questions.length)
+        if(saved.status==="FINISHED"&&local.completed===bundle.questions.length){
           setConfirmedRunId(runId);
+          trackGrowth("finish",locale);
+        }
       }else if(local.completed>0){
         setSyncState("error");
         setSyncError(msg("Server hasn't confirmed all your results. Please retry.",
@@ -394,6 +399,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
             {mode:"PACK",lane:"GENERAL",packId,locale,guestStartKey,
               ...(restart?{restart:true}:resumeRunId?{resumeRunId}:{})},locale);
           if(packStartKeyRef.current!==key)return;
+          trackGrowth("pack_start",locale);
           // Save the returned capability *before* downloading the whole bundle.
           // If the download fails, the next attempt resumes rather than duplicates.
           try{localStorage.setItem(storageKey,JSON.stringify(started));}catch{}
@@ -431,10 +437,19 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
       const value=await request("/runs","POST",{mode:nextMode,lane:packId?"GENERAL":lane,
         ...(nextMode==="PACK"?{packId,restart}:{avoidQuizIds:rememberedQuizzes()}),locale});
       setMode(nextMode);setRun(value);
+      if(nextMode==="RANDOM_FIVE")trackGrowth("quick_start",locale);
       await showRound(value);
     }catch(e){setError(e instanceof Error?e.message:msg("Could not start the challenge.","시작할 수 없어요."));}
     finally{setBusy(false);}
   }
+
+  useEffect(()=>{
+    if(packId||quickAutoStart.current)return;
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("quick")!=="1"||params.get("lane")==="KIDS")return;
+    quickAutoStart.current=true;
+    void start("RANDOM_FIVE");
+  },[packId,locale]);
 
   async function reveal() {
     if(!round)return;
@@ -469,9 +484,13 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
         if(!attempt)return;
         localProgressRef.current[q.position]=attempt.progress;saveLocal();refreshCombo();
         result=attempt.result;
+        trackGrowth("first_answer",locale);
         if(result.status!=="ACTIVE")void syncLocal().catch(()=>{});
-      }else result=await request("/play/"+round.sessionId+"/guess","POST",
-        {sessionToken:round.sessionToken,guess:selectedAnswer.trim()});
+      }else {
+        result=await request("/play/"+round.sessionId+"/guess","POST",
+          {sessionToken:round.sessionToken,guess:selectedAnswer.trim()});
+        trackGrowth("first_answer",locale);
+      }
       if(result.status==="ACTIVE"){
         setFeedback(msg("Not quite. Reveal the next clue and try again.","아쉬워요. 다음 단서를 열어서 다시 맞혀 보세요."));
         setMustReveal(true);
@@ -555,6 +574,7 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
     try{
       const result=await request("/runs/"+run.runId+"/finish","POST",{runToken:run.runToken,confirm:true});
       setRun({...run,...result});setRound(null);
+      trackGrowth("finish",locale);
     }catch(e){setError(e instanceof Error?e.message:msg("Could not finish your game.","종료할 수 없어요."));}
     finally{setBusy(false);}
   }
@@ -858,6 +878,8 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
               onClick={()=>void syncLocal().catch(()=>{})}>
               {msg("Retry saving results","결과 저장 다시 시도")}</button>}
           </div>}
+          {run.mode==="RANDOM_FIVE"&&run.status==="FINISHED"&&confirmedRunId===run.runId&&
+            <QuickResultShare locale={locale} solved={run.solved||0} completed={run.completed}/>}
           {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&confirmedRunId===run.runId&&<PackResultShare
             packId={packId} title={pack?.title||msg("Quiz pack","퀴즈팩")} packVersion={run.packVersion}
             score={run.score} completed={run.completed} solved={run.solved||0}

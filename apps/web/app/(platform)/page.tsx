@@ -3,19 +3,28 @@ import { headers } from "next/headers";
 import { localizeHref, resolveLocale } from "../../src/i18n/core";
 import { t } from "../../src/i18n/messages";
 import LeaderboardSpotlight from "../../src/components/leaderboard-spotlight";
+import HomeFeaturedQuiz from "../../src/components/home-featured-quiz";
+import {quizList} from "../../src/modules/platform/quiz";
 
 export default async function HomePage() {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
   const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   const url = (path: string) => localizeHref(path, locale);
+  // Show a real, currently published General question. Failure must not block the homepage.
+  const sample=await quizList({limit:80,offset:0,locale,mine:false,kids:false},null)
+    .then(data=>data.items.filter(q=>typeof q.prompt==="string"&&q.prompt.length>=20&&q.prompt.length<=170))
+    .catch(()=>[]);
+  const selected=sample.length?sample[Math.floor(Date.now()/86400000)%Math.min(sample.length,36)]:null;
+  const teaser=selected?{id:selected.id,title:selected.title,prompt:selected.prompt}:null;
   return (
     <div className="container">
       <section className="hero">
         <div className="eyebrow">A LITTLE QUIZ. A LOT OF FUN.</div>
         <h1>{msg("home.title1")}<br /><span className="purple">{msg("home.title2")}</span></h1>
-        <p className="lead">{msg("home.lead1")}<br />{msg("home.lead2")}</p>
+        <p className="lead">{locale==="ko"?"설명은 잠깐 미뤄두고, 첫 문제부터 맞혀볼까요?":"Skip the tour. Take your first guess."}</p>
+        <HomeFeaturedQuiz locale={locale} quiz={teaser}/>
         <div className="actions">
-          <Link className="btn btn-primary" href={url("/play")}>{msg("home.start")}</Link>
+          <Link className="btn btn-outline" href={url("/packs")}>{locale==="ko"?"좋아하는 주제 찾기":"Explore a favorite topic"}</Link>
           <Link className="btn btn-outline" href={url("/studio")}>{msg("home.create")}</Link>
         </div>
         <div className="hero-stickers" aria-hidden="true"><span>?</span><span>✦</span><span>!</span></div>

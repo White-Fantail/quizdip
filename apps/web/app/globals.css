@@ -1202,3 +1202,21 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
  .discover-surprise-section{padding:14px;}
  .discover-remix-button{width:100%;justify-content:center;}
 }
+
+/* First-play funnel: prioritize the actual question on small screens. */
+.hero:has(.home-first-quiz){padding:clamp(26px,5vw,56px) 0 36px;}
+.hero:has(.home-first-quiz) h1{font-size:clamp(2.1rem,5vw,3.5rem);margin:9px 0 10px;}
+.home-first-quiz{position:relative;z-index:1;max-width:780px;background:#fff;border:2px solid #dcd7fa;
+  border-radius:24px;padding:clamp(18px,3vw,28px);margin:20px 0 8px;
+  box-shadow:0 16px 42px #25264212;}
+.home-first-quiz h2{font-size:clamp(1.3rem,3vw,1.85rem);margin:12px 0;line-height:1.4;}
+.home-first-quiz p{color:var(--muted);margin:0;font-size:.95rem;}
+.home-first-quiz .actions{margin-top:18px;}
+.hero:has(.home-first-quiz)>.hero-stickers{opacity:.2;}
+.home-quick-share{border:1px solid var(--border);background:#f8f7ff;border-radius:18px;padding:20px;margin:16px 0;}
+@media(max-width:640px){
+ .hero:has(.home-first-quiz)>.lead{line-height:1.45;}
+ .home-first-quiz .actions>.btn{width:100%;}
+ .hero:has(.home-first-quiz) .hero-stickers{display:none;}
+ .home-quick-share .btn{width:100%;}
+}

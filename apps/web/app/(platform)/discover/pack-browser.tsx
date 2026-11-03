@@ -49,9 +49,14 @@ export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:n
       <p className="muted">{pack.orderMode==="RANDOM"?(ko?"랜덤 출제":"Random each play"):(ko?"제작자 순서":"Creator order")}</p>
       {pack.ratings?.positivePercent!==null&&pack.ratings?.positivePercent!==undefined&&
         <p>👍 {pack.ratings.positivePercent}% · {pack.ratings.total}{ko?"명 평가":" ratings"}</p>}
-      <Link href={localizeHref("/packs/"+pack.id,locale)} className="btn btn-primary">
-        {ko?"퀴즈팩 보기 →":"Explore pack →"}
-      </Link>
+      <div className="actions">
+        <Link href={localizeHref("/packs/"+pack.id+"/play?src=discover",locale)} className="btn btn-primary">
+          {ko?"바로 시작 →":"Play now →"}
+        </Link>
+        <Link href={localizeHref("/packs/"+pack.id,locale)} className="btn btn-outline">
+          {ko?"팩 소개":"Details"}
+        </Link>
+      </div>
     </article></Fragment>)}</div>
     <nav className="discover-pagination" aria-label={ko?"퀴즈팩 페이지":"Quiz pack pages"}>
       <button className="btn btn-outline" type="button" disabled={page===0||loading} onClick={()=>onPageChange(Math.max(0,page-1))}>
