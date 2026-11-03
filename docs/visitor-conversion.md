@@ -19,3 +19,6 @@ Branch: dev. Priority: solve a visitor's first problem before asking them to exp
 - Zero completed games cannot distinguish weak content from blocked login, load errors or confusing UI until first-hand device testing is done.
 - Browser opt-out and session storage restrictions may undercount; automated/bot events may overcount. Never use these client counters as ranking or abuse decisions.
 - Production launch, deployment and main merge require explicit authorization.
+
+## Discovery availability fix (same release)
+The organic discovery selector had a blanket `!rev.clues.length` filter. That incorrectly excluded valid published multiple-choice questions with zero clues, hiding most questions from recent packs and showing a misleading pack length (e.g. a 20-question pack as one). It now includes zero-clue multiple-choice revisions **only** when they have at least two options, and preserves independent moderation, localized-publication and approved-media checks. The corrected count is based on eligible revisions. This is particularly important for recent auto-authored packs.

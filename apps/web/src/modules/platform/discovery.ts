@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { mixDiscoveryCards, rotatedCatalogOffset } from "./discovery-mix";
+import {hasPlayableDiscoveryClues} from "./discovery-eligibility";
 import { playableQuizWhere } from "./content-locale";
 import { ratingsForQuizzes } from "./ratings";
 import { packRatingsFor } from "./pack-social";
@@ -107,7 +108,7 @@ export async function discoverSections(p:Record<string,any>) {
   });
   const revisions=localizations.length?await db().quizRevision.findMany({
     where:{OR:localizations.map(l=>({localizationId:l.id,version:l.publishedVersion!}))},
-    select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}
+    select:{id:true,quizId:true,title:true,clues:true,answer:true,promptMediaIds:true}
   }):[];
   const mediaIds=new Set<string>();
   for(const rev of revisions){
@@ -122,7 +123,9 @@ export async function discoverSections(p:Record<string,any>) {
   const allowedMedia=new Set(approvedMedia.map(m=>m.id));
   const safeRevisions=new Map<string,{title:string;clueCount:number}>();
   for(const rev of revisions){
-    if(!Array.isArray(rev.clues)||!rev.clues.length)continue;
+    // Published zero-clue multiple-choice questions are legitimate plays.
+    // Previous blanket exclusion hid entire new packs and misreported 20 as 1.
+    if(!hasPlayableDiscoveryClues(rev.clues,rev.answer))continue;
     const used=[
       ...(Array.isArray(rev.promptMediaIds)?rev.promptMediaIds:[]),
       ...rev.clues.map(clue=>clue&&typeof clue==="object"&&"mediaId" in clue?clue.mediaId:null)
