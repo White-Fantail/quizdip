@@ -11,6 +11,8 @@ type Match = { op: Operation; args: Record<string, unknown> };
 
 function route(method: string, segments: string[]): Match | null {
   const [a, b, c, d, e, f] = segments;
+  if(a==="growth"&&b==="events"&&!c&&method==="POST") return {op:"growth_event",args:{}};
+  if(a==="admin"&&b==="growth"&&c==="report"&&!d&&method==="GET") return {op:"admin_growth_report",args:{}};
   if (a === "catalog" && method === "GET" && !b) return { op: "catalog", args: {} };
   if (a === "topics" && !b && method === "GET") return { op: "topic_list", args: {} };
   if (a === "quizzes") {
@@ -156,7 +158,7 @@ function route(method: string, segments: string[]): Match | null {
 export function parseQuery(query: URLSearchParams): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const [key, value] of query) {
-    if (["limit", "offset", "version", "rotation"].includes(key)) values[key] = Number(value);
+    if (["limit", "offset", "version", "rotation", "days"].includes(key)) values[key] = Number(value);
     else if (["mine", "kids", "includeContent", "confirm"].includes(key)) values[key] = value === "true";
     else values[key] = value;
   }

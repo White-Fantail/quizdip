@@ -97,6 +97,13 @@ const optionalLocale = localeCode.default("en");
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
+  growth_event: { public:true, description:"Anonymous first-party UX event; no personally identifying fields",schema:z.object({
+    event:z.enum(["landing","teaser_click","quick_start","single_start","pack_start","first_answer","finish","share"]),
+    locale:z.enum(["en","ko"]),channel:z.enum(["home","discover","social","direct"])
+  }) },
+  admin_growth_report: { public:false, description:"ADMIN ONLY: view anonymous aggregate first-visit conversion signals",schema:z.object({
+    days:z.number().int().min(1).max(90).default(7)
+  }) },
   catalog: { public: true, description: "Supported game modes, authoring and a shared non-blocking five-criterion fun rubric (100 editorial points). Read funQuality before creating quizzes or packs.", schema: z.object({}) },
   topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), locale: optionalLocale, kids: z.boolean().default(false) }) },
   quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), locale: optionalLocale, mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },

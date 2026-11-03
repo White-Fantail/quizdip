@@ -7,6 +7,17 @@ datasource db {
   provider = "postgresql"
 }
 
+/** No personal or child identifiers: aggregated client-side conversion hints only. */
+model GrowthFunnelDaily {
+  day DateTime @db.Date
+  event String
+  locale String
+  channel String
+  count Int @default(0)
+  @@id([day,event,locale,channel])
+  @@index([day,event])
+}
+
 model User {
   id                    String        @id
   issuer                String

@@ -271,3 +271,10 @@ to qualified adult activity within a bounded sample. The client eliminates
 repeated cards across visible lanes without modifying the API's underlying
 ranked lists. This is an additive, backwards-compatible operation; there is
 no new MCP tool or independent REST endpoint.
+
+
+## Anonymous website conversion monitoring (2026-11-03)
+- `quizdip_growth_event` ⇄ POST `/api/v1/growth/events`. Anonymous browser diagnostics with fixed `event` (landing, teaser_click, quick_start, single_start, pack_start, first_answer, finish, share), `locale` (en/ko), and `channel` (home/discover/social/direct). Client deduplicates per-tab session, respects privacy opt-outs, and excludes Kids; server stores **only daily integer totals**. Data is not used for rankings, scoring or rewards; bots and client reports are not verified.
+- `quizdip_admin_growth_report` ⇄ GET `/api/v1/admin/growth/report?days=7`: ADMIN-only 1–90-day aggregate. Both use shared service, typed contracts and REST/MCP parity.
+- `/admin/growth` shows counts by step, day and coarse source. Do not interpret these as unique visitors or verified completion rates; compare with authoritative `/admin/analytics` and Vercel Analytics.
+- Deploy migration `20261103080000_growth_funnel_daily` to each target database before using this dashboard. No IP, account, session, child, free-text, raw URL, or user identifier is persisted.

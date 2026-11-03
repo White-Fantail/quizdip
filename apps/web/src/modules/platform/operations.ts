@@ -16,6 +16,7 @@ import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
 import { packRecommendationsGet,packRecommendationsSet,packRecommendationTrack } from "./pack-recommendations";
 import { discoverSections } from "./discovery";
+import {recordGrowthEvent,adminGrowthReport} from "./growth-funnel";
 import { editorialFeaturesList,adminFeatureList,adminFeatureCandidates,adminFeatureCreate,
   adminFeatureUpdate,adminFeatureRemove,adminPackSafetyList,adminPackSafetyReview,adminPackReportsList } from "./editorial";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
@@ -27,6 +28,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
   const p = parseOperation(name, raw);
   if (!operations[name].public) requireActor(actor);
   switch (name) {
+    case "growth_event": return recordGrowthEvent(p);
+    case "admin_growth_report": return adminGrowthReport(p,actor);
     case "catalog": return platformCatalog;
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
