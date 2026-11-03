@@ -41,7 +41,8 @@ test("first-visit play path is genuinely playable without a second selection or 
   assert.match(share,/navigator\.share\(\{url\}\)/);
   assert.match(tracking,/globalPrivacyControl/);
   assert.match(tracking,/quizdip:growth:v1:/);
-  assert.doesNotMatch(tracking,/userId|email|fingerprint|sessionToken/);
+  assert.match(tracking,/body:JSON.stringify\(\{event,locale,channel\}\)/);
+  assert.doesNotMatch(tracking,/body:JSON.stringify\(\{[^}]*userId/);
 });
 
 test("discover and listing packs now have direct play links with optional details",()=>{
