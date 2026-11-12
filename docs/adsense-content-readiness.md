@@ -13,7 +13,8 @@ unit tests or re-review cannot guarantee Google approval.
   author, count, version, ratings, play action and a no-spoiler play guide.
   Chapter introductions and unrevealed clues stay inside the actual game.
 - `/{locale}/discover` retains interactive discovery, and also server-renders up
-  to six verified, published and playable quiz prompts with links. Answers and
+  to six verified, published and playable quiz prompts sampled across the recent
+  catalog with links. Repeated identical titles/prompts are displayed once. Answers and
   unrevealed clues are never sent to the public preview. A link to the
   server-rendered full pack catalog remains.
 - `/{locale}/about` explains creation, AI assistance, source limitations,

@@ -76,8 +76,10 @@ test("Discover response includes server-rendered published question previews wit
   assert.match(layout,/previews\.map\(quiz=>/);
   assert.match(layout,/quiz\.prompt/);
   assert.match(layout,/localizeHref\("\/play\/"\+quiz\.id,locale\)/);
-  assert.match(service,/quizList\(\{locale,mine:false,kids:false,offset:0,limit:18\},null\)/);
+  assert.match(service,/quizList\(\{locale,mine:false,kids:false,offset:0,limit:60\},null\)/);
   assert.match(service,/safeQuiz\(quiz\.id,locale,"GENERAL"\)/);
+  assert.match(service,/index%10===0/);
+  assert.match(layout,/quiz\.title\.trim\(\)!==quiz\.prompt\.trim\(\)/);
   assert.doesNotMatch(service,/return \{[^}]*answer:/);
   assert.doesNotMatch(service,/return \{[^}]*clues:/);
 });

@@ -31,7 +31,8 @@ export default async function DiscoverLayout({children}:{children:React.ReactNod
       <div className="discover-grid">
         {previews.map(quiz=><article className="feature-card discover-card" key={quiz.id}>
           <h3>{quiz.title}</h3>
-          <p className="discover-card-description" style={{whiteSpace:"pre-wrap"}}>{quiz.prompt}</p>
+          {quiz.title.trim()!==quiz.prompt.trim()&&
+            <p className="discover-card-description" style={{whiteSpace:"pre-wrap"}}>{quiz.prompt}</p>}
           <Link href={localizeHref("/play/"+quiz.id,locale)} className="btn btn-outline discover-play-link">
             {locale==="ko"?"문제 풀기":"Play this question"}
           </Link>
