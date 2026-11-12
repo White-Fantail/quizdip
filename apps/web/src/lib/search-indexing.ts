@@ -3,7 +3,7 @@ import type { Locale } from "../i18n/core";
 /** Stable production canonical origin; never use preview or OAuth host as an indexed URL. */
 export const INDEX_ORIGIN = "https://quizdip.com";
 export const INDEX_LOCALES = ["en", "ko"] as const;
-const STATIC_PATHS = ["", "/discover", "/packs", "/about"] as const;
+const STATIC_PATHS = ["", "/discover", "/packs", "/about", "/privacy", "/contact", "/terms"] as const;
 
 export function canonicalUrl(path: string): string {
   if (!path.startsWith("/") || path.startsWith("//")) throw new Error("Expected an absolute site path");

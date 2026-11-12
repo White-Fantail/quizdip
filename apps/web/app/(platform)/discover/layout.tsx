@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { resolveLocale, localizeHref } from "../../../src/i18n/core";
 import { INDEX_ORIGIN, canonicalUrl } from "../../../src/lib/search-indexing";
 import type { Metadata } from "next";
+import { publicDiscoverPreview } from "../../../src/modules/platform/public-discover-preview";
 
 export async function generateMetadata():Promise<Metadata>{
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -19,8 +20,24 @@ export async function generateMetadata():Promise<Metadata>{
 
 export default async function DiscoverLayout({children}:{children:React.ReactNode}) {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const previews=await publicDiscoverPreview(locale).catch(()=>[]);
   return <>
     {children}
+    {previews.length>0&&<section className="container section" aria-labelledby="public-quiz-preview">
+      <h2 id="public-quiz-preview">{locale==="ko"?"실제 공개 문제 미리보기":"Preview published questions"}</h2>
+      <p className="muted">{locale==="ko"
+        ?"지금 플레이할 수 있는 문제의 제목과 질문입니다. 정답과 단서는 플레이 중 확인하세요."
+        :"Browse real playable prompts. Answers and hidden clues stay inside each game."}</p>
+      <div className="discover-grid">
+        {previews.map(quiz=><article className="feature-card discover-card" key={quiz.id}>
+          <h3>{quiz.title}</h3>
+          <p className="discover-card-description" style={{whiteSpace:"pre-wrap"}}>{quiz.prompt}</p>
+          <Link href={localizeHref("/play/"+quiz.id,locale)} className="btn btn-outline discover-play-link">
+            {locale==="ko"?"문제 풀기":"Play this question"}
+          </Link>
+        </article>)}
+      </div>
+    </section>}
     <section className="container section" aria-labelledby="browse-full-library">
       <h2 id="browse-full-library">{locale==="ko"?"퀴즈팩 내용을 먼저 살펴보고 싶다면":"Want to read about a pack before playing?"}</h2>
       <p className="muted">{locale==="ko"

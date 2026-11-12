@@ -63,6 +63,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <Link href={localizeHref("/about", locale)}>{locale === "ko" ? "서비스 소개 및 콘텐츠 원칙" : "About & content standards"}</Link>
             {" · "}
             <Link href={localizeHref("/packs", locale)}>{locale === "ko" ? "공개 퀴즈팩" : "Quiz pack library"}</Link>
+            {" · "}
+            <Link href={localizeHref("/privacy", locale)}>{locale === "ko" ? "개인정보처리방침" : "Privacy"}</Link>
+            {" · "}
+            <Link href={localizeHref("/terms", locale)}>{locale === "ko" ? "이용 안내" : "Terms"}</Link>
+            {" · "}
+            <Link href={localizeHref("/contact", locale)}>{locale === "ko" ? "문의" : "Contact"}</Link>
           </div></footer>
           </>}
           </AdProvider>

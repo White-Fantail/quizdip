@@ -4,7 +4,8 @@ QuizDip's production search origin is **https://quizdip.com**, regardless of
 the Vercel preview host or OAuth configuration.
 
 - `/sitemap.xml` is a server-rendered Next.js metadata route. It lists
-  `/en`, `/ko`, their public Discover and packs indexes, and **currently playable**
+  `/en`, `/ko`, their public Discover, packs, about, privacy, contact and terms
+  indexes, and **currently playable**
   localized pack landing pages. It does not list drafts, restricted packs,
   unavailable translations, packs with no playable questions, or private routes.
   Public eligibility is rechecked using the same `safePack` used by Discover.

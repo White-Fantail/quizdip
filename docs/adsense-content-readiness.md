@@ -12,14 +12,19 @@ unit tests or re-review cannot guarantee Google approval.
 - `/{locale}/packs/{id}` is server-rendered with original pack introduction,
   author, count, version, ratings, play action and a no-spoiler play guide.
   Chapter introductions and unrevealed clues stay inside the actual game.
-- `/{locale}/discover` uses client-side personalized browsing, but includes a
-  server-rendered path to the full published pack catalog.
+- `/{locale}/discover` retains interactive discovery, and also server-renders up
+  to six verified, published and playable quiz prompts with links. Answers and
+  unrevealed clues are never sent to the public preview. A link to the
+  server-rendered full pack catalog remains.
 - `/{locale}/about` explains creation, AI assistance, source limitations,
   content corrections, reports, versioning and Kids moderation in both
   supported languages.
 - Interactive `/play` and pack `/play` routes are noindex; the public
   catalog/detail pages remain indexable. No game answers are added to metadata.
-- The sitemap includes localized /about in addition to existing public routes.
+- The sitemap includes localized /about, /privacy, /contact and /terms routes.
+- A verified private support mailbox can be configured with `QUIZDIP_SUPPORT_EMAIL`.
+  Without it, public GitHub issues accept only non-sensitive general feedback.
+  Never invite privacy requests or personal details into public issues.
 
 ## Verification and review checklist
 1. Run `npm run test`, `npm run typecheck`, `npm run build`.

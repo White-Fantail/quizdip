@@ -67,3 +67,30 @@ test("public homepage links to real published packs; list and discovery have loc
     assert.match(content,/canonicalUrl\("\/ko\//);
   }
 });
+
+test("Discover response includes server-rendered published question previews without revealing clues",()=>{
+  const layout=read("app/(platform)/discover/layout.tsx");
+  const service=read("src/modules/platform/public-discover-preview.ts");
+  assert.doesNotMatch(layout,/"use client"/);
+  assert.match(layout,/await publicDiscoverPreview\(locale\)/);
+  assert.match(layout,/previews\.map\(quiz=>/);
+  assert.match(layout,/quiz\.prompt/);
+  assert.match(layout,/localizeHref\("\/play\/"\+quiz\.id,locale\)/);
+  assert.match(service,/quizList\(\{locale,mine:false,kids:false,offset:0,limit:18\},null\)/);
+  assert.match(service,/safeQuiz\(quiz\.id,locale,"GENERAL"\)/);
+  assert.doesNotMatch(service,/return \{[^}]*answer:/);
+  assert.doesNotMatch(service,/return \{[^}]*clues:/);
+});
+test("contact, terms and privacy routes are bilingual, indexed and in footer",()=>{
+  const footer=read("app/layout.tsx"), indexing=read("src/lib/search-indexing.ts");
+  for(const slug of ["privacy","contact","terms"]){
+    const page=read("app/(platform)/"+slug+"/page.tsx");
+    assert.match(page,/export async function generateMetadata/);
+    assert.match(page,/alternates:\{canonical:url,languages:/);
+    assert.ok(page.includes('canonicalUrl("/en/'+slug+'")'));
+    assert.ok(page.includes('canonicalUrl("/ko/'+slug+'")'));
+    assert.ok(footer.includes('localizeHref("/'+slug+'", locale)'));
+    assert.ok(indexing.includes('"/'+slug+'"'));
+  }
+  assert.match(read("app/(platform)/contact/page.tsx"),/QUIZDIP_SUPPORT_EMAIL/);
+});
