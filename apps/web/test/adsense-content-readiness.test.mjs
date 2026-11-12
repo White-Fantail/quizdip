@@ -37,3 +37,33 @@ test("sitemap and footer link to transparent content standards", () => {
   assert.match(read("src/lib/search-indexing.ts"), /"\/about"/);
   assert.match(read("app/layout.tsx"), /localizeHref\("\/about", locale\)/);
 });
+
+test("real pack previews are server-rendered from policy-cleared published revision prompts only", () => {
+  const service=read("src/modules/platform/social.ts");
+  const start=service.indexOf("const previewItems=safe.items.slice(0,8)");
+  const end=service.indexOf("const ending=pack.sourceLocale===locale",start);
+  assert.ok(start>0 && end>start);
+  const preview=service.slice(start,end);
+  assert.match(preview,/previewItems\.map\(item=>item\.revisionId\)/);
+  assert.match(preview,/select:\{id:true,prompt:true\}/);
+  assert.doesNotMatch(preview,/select:\{[^}]*\b(?:answer|clues|explanation)\b/);
+  assert.match(service,/scoreReviews:reviews,questionPreviews/);
+  const page=read("app/(platform)/packs/[packId]/page.tsx");
+  assert.match(page,/pack\.questionPreviews\.map/);
+  assert.match(page,/\{preview\.prompt\}/);
+  assert.doesNotMatch(page,/\{preview\.answer\}/);
+});
+
+test("public homepage links to real published packs; list and discovery have locale-specific canonical metadata",()=>{
+  const home=read("app/(platform)/page.tsx");
+  assert.match(home,/await Promise\.all/);
+  assert.match(home,/packList\(\{limit:6,offset:0,locale,mine:false\},null\)/);
+  assert.match(home,/href=\{url\("\/packs\/"\+pack\.id\)\}/);
+  for(const path of ["app/(platform)/packs/page.tsx","app/(platform)/discover/layout.tsx"]){
+    const content=read(path);
+    assert.match(content,/export async function generateMetadata/);
+    assert.match(content,/alternates:\{canonical:url/);
+    assert.match(content,/canonicalUrl\("\/en\//);
+    assert.match(content,/canonicalUrl\("\/ko\//);
+  }
+});

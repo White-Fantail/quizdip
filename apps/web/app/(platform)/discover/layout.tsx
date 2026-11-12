@@ -1,6 +1,21 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { resolveLocale, localizeHref } from "../../../src/i18n/core";
+import { INDEX_ORIGIN, canonicalUrl } from "../../../src/lib/search-indexing";
+import type { Metadata } from "next";
+
+export async function generateMetadata():Promise<Metadata>{
+  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+  const title=locale==="ko"?"퀴즈 발견하기 · QuizDip":"Discover questions · QuizDip";
+  const description=locale==="ko"
+    ?"새로운 퀴즈를 찾아 단서를 확인하고 답을 추리해 보세요. 다양한 주제의 공개 퀴즈팩도 만나보세요."
+    :"Discover questions and published quiz packs, reason through progressive clues and try a new challenge.";
+  const url=canonicalUrl(localizeHref("/discover",locale));
+  return {title,description,metadataBase:new URL(INDEX_ORIGIN),
+    alternates:{canonical:url,languages:{
+      en:canonicalUrl("/en/discover"),ko:canonicalUrl("/ko/discover")
+    }},openGraph:{title,description,url,siteName:"QuizDip",type:"website"}};
+}
 
 export default async function DiscoverLayout({children}:{children:React.ReactNode}) {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));

@@ -5,15 +5,31 @@ import { t } from "../../src/i18n/messages";
 import LeaderboardSpotlight from "../../src/components/leaderboard-spotlight";
 import HomeFeaturedQuiz from "../../src/components/home-featured-quiz";
 import {quizList} from "../../src/modules/platform/quiz";
+import {packList} from "../../src/modules/platform/social";
+import {splitPackDescription} from "../../src/modules/quiz/pack-description";
+import {canonicalUrl} from "../../src/lib/search-indexing";
+import type {Metadata} from "next";
+
+export async function generateMetadata():Promise<Metadata>{
+  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+  return {alternates:{
+    canonical:canonicalUrl(localizeHref("/",locale)),
+    languages:{en:canonicalUrl("/en"),ko:canonicalUrl("/ko")}
+  }};
+}
 
 export default async function HomePage() {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
   const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   const url = (path: string) => localizeHref(path, locale);
   // Show a real, currently published General question. Failure must not block the homepage.
-  const sample=await quizList({limit:80,offset:0,locale,mine:false,kids:false},null)
-    .then(data=>data.items.filter(q=>typeof q.prompt==="string"&&q.prompt.length>=20&&q.prompt.length<=170))
-    .catch(()=>[]);
+  const [sample,featuredPacks]=await Promise.all([
+    quizList({limit:80,offset:0,locale,mine:false,kids:false},null)
+      .then(data=>data.items.filter(q=>typeof q.prompt==="string"&&q.prompt.length>=20&&q.prompt.length<=170))
+      .catch(()=>[]),
+    packList({limit:6,offset:0,locale,mine:false},null)
+      .then(data=>data.items).catch(()=>[])
+  ]);
   const selected=sample.length?sample[Math.floor(Date.now()/86400000)%Math.min(sample.length,36)]:null;
   const teaser=selected?{id:selected.id,title:selected.title,prompt:selected.prompt}:null;
   return (
@@ -68,6 +84,22 @@ export default async function HomePage() {
           <Link className="btn btn-outline" href={url("/about")}>{locale === "ko" ? "콘텐츠 제작과 운영 원칙" : "How we handle content"}</Link>
         </div>
       </section>
+      {featuredPacks.length>0&&<section className="section" aria-labelledby="published-packs-heading">
+        <h2 id="published-packs-heading">{locale==="ko"?"최근 공개된 퀴즈팩":"Recently published quiz packs"}</h2>
+        <p className="muted">{locale==="ko"
+          ?"실제 공개된 문제들로 구성된 퀴즈팩입니다. 주제 소개와 문제 미리보기를 읽고 시작해 보세요."
+          :"Explore real, playable collections. Read each creator's introduction and a few real prompts before starting."}</p>
+        <div className="cards">
+          {featuredPacks.map(pack=><article key={pack.id} className="feature-card">
+            <h3><Link href={url("/packs/"+pack.id)}>{pack.title}</Link></h3>
+            <p>{splitPackDescription(pack.description||"").intro}</p>
+            <p className="muted">{pack.quizIds.length} {locale==="ko"?"문제":"questions"}</p>
+            <Link href={url("/packs/"+pack.id)} className="btn btn-outline">
+              {locale==="ko"?"내용과 실제 문제 보기":"Read & preview"}
+            </Link>
+          </article>)}
+        </div>
+      </section>}
       <LeaderboardSpotlight />
       <section className="note-strip"><b>Create it. Play it. Share it.</b><span>{msg("home.tagline")}</span></section>
     </div>

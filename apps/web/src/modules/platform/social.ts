@@ -657,6 +657,19 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
   const reviews=pack.sourceLocale===locale?sourceReviews:
     translatedReviews(localized.scoreReviews).filter((band,index)=>
       sourceReviews[index]?.minimumScore===band.minimumScore);
+  // Show real published question prompts in public, but never reveal an answer,
+  // clue, explanation, or a newer unpublished draft. safePack has already
+  // checked publication, localization, revisions, moderation and media.
+  const previewItems=safe.items.slice(0,8);
+  const previewRevisions=await db().quizRevision.findMany({
+    where:{id:{in:previewItems.map(item=>item.revisionId)}},
+    select:{id:true,prompt:true}
+  });
+  const promptByRevision=new Map(previewRevisions.map(row=>[row.id,row.prompt.trim()]));
+  const questionPreviews=previewItems.flatMap(item=>{
+    const prompt=promptByRevision.get(item.revisionId);
+    return prompt&&prompt.length>=12?[{prompt}]:[];
+  }).slice(0,4);
   const ending=pack.sourceLocale===locale?pack.closingMessage:localized.closingMessage;
   const coverMediaUrl=await publicPackCover(pack.coverMediaId);
   const localizedSections=await Promise.all(sections.map(async section=>({
@@ -666,7 +679,7 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
     coverMediaUrl,sections:localizedSections,closingMessage:ending,
-    scoreReviews:reviews,
+    scoreReviews:reviews,questionPreviews,
     questionCount:safe.questionCount,originalQuestionCount:safe.originalQuestionCount,
     excludedCount:safe.excludedCount,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),
     locale,publication:pack.publication,currentVersion:pack.currentVersion,

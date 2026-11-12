@@ -12,7 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
     : "How QuizDip's clue-based quizzes, creator packs, feedback, revisions and Kids review work.";
   const url = canonicalUrl(localizeHref("/about", locale));
   return {title, description, metadataBase:new URL(INDEX_ORIGIN),
-    alternates:{canonical:url}, openGraph:{title,description,url,siteName:"QuizDip",type:"website"}};
+    alternates:{canonical:url,languages:{
+      en:canonicalUrl("/en/about"),ko:canonicalUrl("/ko/about")
+    }}, openGraph:{title,description,url,siteName:"QuizDip",type:"website"}};
 }
 
 export default async function AboutPage() {

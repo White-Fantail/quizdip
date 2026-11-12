@@ -6,6 +6,23 @@ import { splitPackDescription } from "../../../src/modules/quiz/pack-description
 import { headers } from "next/headers";
 import { resolveLocale,localizeHref } from "../../../src/i18n/core";
 import { packList } from "../../../src/modules/platform/social";
+import { INDEX_ORIGIN, canonicalUrl } from "../../../src/lib/search-indexing";
+import type { Metadata } from "next";
+
+export async function generateMetadata({searchParams}:{searchParams:Promise<{page?:string}>}):Promise<Metadata>{
+  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+  const page=Math.min(100,Math.max(0,Number.parseInt((await searchParams).page||"0",10)||0));
+  const title=locale==="ko"?"퀴즈팩 탐색 · QuizDip":"Browse quiz packs · QuizDip";
+  const description=locale==="ko"
+    ?"제작자의 소개와 공개된 퀴즈팩을 둘러보고, 실제 문제를 미리 살펴본 뒤 도전해 보세요."
+    :"Browse published quiz collections, creator descriptions and previews of real questions before you play.";
+  const url=canonicalUrl(localizeHref("/packs",locale)+(page?"?page="+page:""));
+  return {title,description,metadataBase:new URL(INDEX_ORIGIN),
+    alternates:{canonical:url,...(page===0?{languages:{
+      en:canonicalUrl("/en/packs"),ko:canonicalUrl("/ko/packs")
+    }}:{})},
+    openGraph:{title,description,url,siteName:"QuizDip",type:"website"}};
+}
 export const dynamic="force-dynamic";
 export default async function PackCatalog({searchParams}:{searchParams:Promise<{page?:string}>}){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));

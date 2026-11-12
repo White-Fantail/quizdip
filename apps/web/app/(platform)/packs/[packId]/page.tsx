@@ -58,6 +58,18 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
     <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
+  {pack.questionPreviews.length>0&&<section className="feature-card" aria-labelledby="pack-preview-heading">
+    <h2 id="pack-preview-heading">{locale==="ko"?"실제 문제 미리보기":"A preview of real questions"}</h2>
+    <p className="muted">{locale==="ko"
+      ?"이 퀴즈팩에 공개된 문제의 질문 일부입니다. 정답, 선택지, 단서와 해설은 게임에서 직접 확인하세요."
+      :"These are question prompts from the published pack. Discover the choices, clues, answers and explanations during play."}</p>
+    <ol style={{paddingLeft:"1.4rem"}}>
+      {pack.questionPreviews.map((preview,index)=><li key={index} style={{marginBottom:"0.85rem",whiteSpace:"pre-wrap"}}>{preview.prompt}</li>)}
+    </ol>
+    <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-outline">
+      {locale==="ko"?"문제 풀어보기 →":"Try the full quiz →"}
+    </Link>
+  </section>}
   <section className="feature-card" aria-labelledby="pack-guide-heading">
     <h2 id="pack-guide-heading">{locale==="ko"?"이 퀴즈팩을 즐기는 방법":"What to expect from this pack"}</h2>
     <p>{locale==="ko"
