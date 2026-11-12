@@ -85,7 +85,7 @@ export default async function HomePage() {
         </div>
       </section>
       {featuredPacks.length>0&&<section className="section" aria-labelledby="published-packs-heading">
-        <h2 id="published-packs-heading">{locale==="ko"?"최근 공개된 퀴즈팩":"Recently published quiz packs"}</h2>
+        <h2 id="published-packs-heading">{locale==="ko"?"공개 퀴즈팩 살펴보기":"Explore published quiz packs"}</h2>
         <p className="muted">{locale==="ko"
           ?"실제 공개된 문제들로 구성된 퀴즈팩입니다. 주제 소개와 문제 미리보기를 읽고 시작해 보세요."
           :"Explore real, playable collections. Read each creator's introduction and a few real prompts before starting."}</p>
